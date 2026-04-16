@@ -10,16 +10,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Common headers (Cloudflare fix)
-const AXIOS_CONFIG = {
-  headers: {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-  },
-  timeout: 10000,
-};
-
 // Root route
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
@@ -37,7 +27,6 @@ app.get("/search", async (req, res) => {
     const response = await axios.get(
       "http://localhost:9117/api/v2.0/indexers/all/results",
       {
-        ...AXIOS_CONFIG,
         params: {
           apikey: process.env.JACKETT_API_KEY,
           Query: query,
@@ -75,7 +64,6 @@ app.post("/download", async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${API_KEY}`,
-          ...AXIOS_CONFIG.headers,
         },
       }
     );
@@ -88,7 +76,6 @@ app.post("/download", async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${API_KEY}`,
-          ...AXIOS_CONFIG.headers,
         },
       }
     );
@@ -99,10 +86,8 @@ app.post("/download", async (req, res) => {
       const infoRes = await axios.get(
         `https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`,
         {
-          ...AXIOS_CONFIG,
           headers: {
             Authorization: `Bearer ${API_KEY}`,
-            ...AXIOS_CONFIG.headers,
           },
         }
       );
@@ -118,7 +103,6 @@ app.post("/download", async (req, res) => {
           {
             headers: {
               Authorization: `Bearer ${API_KEY}`,
-              ...AXIOS_CONFIG.headers,
             },
           }
         );
@@ -141,52 +125,6 @@ app.post("/download", async (req, res) => {
   }
 });
 
-// 🚀 TORRENTIO SEARCH
-app.get("/torrentio-search", async (req, res) => {
-  const imdbId = req.query.imdb;
-  const type = req.query.type;
-  const season = req.query.season;
-  const episode = req.query.episode;
-
-  try {
-    if (!imdbId || !imdbId.startsWith("tt")) {
-      return res.status(400).json({ error: "Invalid IMDb ID" });
-    }
-
-    let url;
-
-    if (type === "series" && season && episode) {
-      url = `https://torrentio.strem.fun/stream/series/${imdbId}:${season}:${episode}.json`;
-    } else {
-      url = `https://torrentio.strem.fun/stream/movie/${imdbId}.json`;
-    }
-
-    // ✅ Small delay (anti-bot)
-    await new Promise((r) => setTimeout(r, 300));
-
-    const response = await axios.get(url, AXIOS_CONFIG);
-
-    const streams = response.data.streams;
-
-    if (!streams || streams.length === 0) {
-      return res.json([]);
-    }
-
-    const results = streams.map((item) => ({
-      title: item.title,
-      size: 0,
-      seeders: 0,
-      magnet: `magnet:?xt=urn:btih:${item.infoHash}`,
-      provider: "Torrentio",
-    }));
-
-    res.json(results);
-  } catch (error) {
-    console.error("TORRENTIO ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "Torrentio failed" });
-  }
-});
-
 // 🔍 Cinemeta Search
 app.get("/search-content", async (req, res) => {
   const query = req.query.q;
@@ -200,8 +138,8 @@ app.get("/search-content", async (req, res) => {
     const seriesURL = `https://v3-cinemeta.strem.io/catalog/series/top/search=${query}.json`;
 
     const [movieRes, seriesRes] = await Promise.all([
-      axios.get(movieURL, AXIOS_CONFIG),
-      axios.get(seriesURL, AXIOS_CONFIG),
+      axios.get(movieURL),
+      axios.get(seriesURL),
     ]);
 
     const combined = [
@@ -226,8 +164,7 @@ app.get("/series-meta", async (req, res) => {
 
   try {
     const response = await axios.get(
-      `https://v3-cinemeta.strem.io/meta/series/${id}.json`,
-      AXIOS_CONFIG
+      `https://v3-cinemeta.strem.io/meta/series/${id}.json`
     );
 
     const videos = response.data.meta?.videos || [];
