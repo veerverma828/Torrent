@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 
 function App() {
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [autoSearch, setAutoSearch] = useState(false);
@@ -12,20 +14,18 @@ function App() {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔥 NEW STATES
   const [imdbMode, setImdbMode] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // 🔍 CINEMETA SEARCH
   const searchContent = async () => {
     if (!query.trim()) return;
 
-    setLoading(true);   // 🔥 ADD
+    setLoading(true);
 
     try {
       const res = await fetch(
-        `http://localhost:5000/search-content?q=${query}`
+        `${API}/search-content?q=${query}`
       );
       const data = await res.json();
 
@@ -36,10 +36,9 @@ function App() {
       console.error(err);
     }
 
-    setLoading(false);  // 🔥 ADD
+    setLoading(false);
   };
 
-  // 🔎 TORRENT SEARCH (UNCHANGED)
   const searchTorrents = async () => {
     if (!query.trim()) return;
 
@@ -53,12 +52,12 @@ function App() {
 
     try {
       if (useJackett) {
-        const res = await fetch(`http://localhost:5000/search?q=${query}`);
+        const res = await fetch(`${API}/search?q=${query}`);
         const data = await res.json();
         setResults(data);
       } else {
         const res = await fetch(
-          `http://localhost:5000/torrentio-search?imdb=${query}`
+          `${API}/torrentio-search?imdb=${query}`
         );
         const data = await res.json();
         setResults(data);
@@ -80,7 +79,7 @@ function App() {
   };
 
   const handleDownload = async (magnet) => {
-    const res = await fetch("http://localhost:5000/download", {
+    const res = await fetch(`${API}/download`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -117,7 +116,6 @@ function App() {
     <div style={{ padding: "20px" }}>
       <h1 style={{ textAlign: "center" }}>Debrid Download ⚡</h1>
 
-      {/* TOGGLES */}
       <div
         style={{
           display: "flex",
@@ -144,7 +142,6 @@ function App() {
           {" "}Jackett
         </label>
 
-        {/* 🔥 NEW TOGGLE */}
         <label>
           <input
             type="checkbox"
@@ -155,7 +152,6 @@ function App() {
         </label>
       </div>
 
-      {/* INPUT */}
       <div
         style={{
           display: "flex",
@@ -215,7 +211,6 @@ function App() {
         </p>
       )}
 
-      {/* 🔥 POSTER GRID */}
       {!imdbMode && !selectedItem && searchResults.length > 0 && (
         <div
           style={{
@@ -239,7 +234,7 @@ function App() {
                   setLoading(true);
 
                   const res = await fetch(
-                    `http://localhost:5000/torrentio-search?imdb=${item.id}`
+                    `${API}/torrentio-search?imdb=${item.id}`
                   );
                   const data = await res.json();
                   setResults(data);
@@ -249,7 +244,7 @@ function App() {
                   setLoading(true);
 
                   const res = await fetch(
-                    `http://localhost:5000/series-meta?id=${item.id}`
+                    `${API}/series-meta?id=${item.id}`
                   );
 
                   const data = await res.json();
@@ -273,10 +268,8 @@ function App() {
         </div>
       )}
 
-      {/* Season UI */}
       {!imdbMode && selectedItem && seasons.length > 0 && !selectedSeason && (
         <>
-          {/* 🔙 BACK BUTTON */}
           <div style={{ textAlign: "center", marginTop: "20px" }}>
             <button
               onClick={() => {
@@ -289,7 +282,6 @@ function App() {
             </button>
           </div>
 
-          {/* 📺 SEASON UI */}
           <div style={{ textAlign: "center", marginTop: "20px" }}>
             <h2>{selectedItem.name}</h2>
             <h3>Select Season</h3>
@@ -306,7 +298,6 @@ function App() {
           </div>
         </>
       )}
-      {/* Episode UI */}
 
       {selectedSeason && (
         <>
@@ -317,13 +308,11 @@ function App() {
           </div>
 
           <div style={{ marginTop: "20px" }}>
-
             <h2 style={{ textAlign: "center" }}>
               Season {selectedSeason}
             </h2>
 
             {episodes
-              // .filter((ep) => ep.season === selectedSeason)
               .filter((ep) => Number(ep.season) === Number(selectedSeason))
               .map((ep, i) => (
                 <div
@@ -339,7 +328,7 @@ function App() {
                     setLoading(true);
 
                     const res = await fetch(
-                      `http://localhost:5000/torrentio-search?imdb=${selectedItem.id}&type=series&season=${ep.season}&episode=${ep.episode}`
+                      `${API}/torrentio-search?imdb=${selectedItem.id}&type=series&season=${ep.season}&episode=${ep.episode}`
                     );
 
                     const data = await res.json();
@@ -364,7 +353,6 @@ function App() {
         </div>
       )}
 
-      {/* 🔴 STREAM RESULTS */}
       {(imdbMode || results.length > 0) && (
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           {results.map((item, index) => (
