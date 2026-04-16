@@ -24,9 +24,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `${API}/search-content?q=${query}`
-      );
+      const res = await fetch(`${API}/search-content?q=${query}`);
       const data = await res.json();
 
       setSearchResults(data);
@@ -56,11 +54,23 @@ function App() {
         const data = await res.json();
         setResults(data);
       } else {
-        const res = await fetch(
-          `${API}/torrentio-search?imdb=${query}`
-        );
+        // ✅ DIRECT TORRENTIO CALL
+        const url = `https://torrentio.strem.fun/stream/movie/${query}.json`;
+
+        const res = await fetch(url);
         const data = await res.json();
-        setResults(data);
+
+        const streams = data.streams || [];
+
+        const formatted = streams.map((item) => ({
+          title: item.title,
+          size: 0,
+          seeders: 0,
+          magnet: `magnet:?xt=urn:btih:${item.infoHash}`,
+          provider: "Torrentio",
+        }));
+
+        setResults(formatted);
       }
 
       if (imdbMode) {
@@ -70,6 +80,7 @@ function App() {
       console.error("Error:", err);
       alert("Something went wrong");
     }
+
     setLoading(false);
   };
 
@@ -107,7 +118,7 @@ function App() {
           searchContent();
         }
       }
-    }, 300);
+    }, 800);
 
     return () => clearTimeout(delay);
   }, [query, autoSearch, useJackett, imdbMode]);
@@ -233,11 +244,21 @@ function App() {
                 if (item.type === "movie") {
                   setLoading(true);
 
-                  const res = await fetch(
-                    `${API}/torrentio-search?imdb=${item.id}`
-                  );
+                  const url = `https://torrentio.strem.fun/stream/movie/${item.id}.json`;
+                  const res = await fetch(url);
                   const data = await res.json();
-                  setResults(data);
+
+                  const streams = data.streams || [];
+
+                  const formatted = streams.map((item) => ({
+                    title: item.title,
+                    size: 0,
+                    seeders: 0,
+                    magnet: `magnet:?xt=urn:btih:${item.infoHash}`,
+                    provider: "Torrentio",
+                  }));
+
+                  setResults(formatted);
                   setLoading(false);
                 }
                 else {
@@ -327,12 +348,22 @@ function App() {
                   onClick={async () => {
                     setLoading(true);
 
-                    const res = await fetch(
-                      `${API}/torrentio-search?imdb=${selectedItem.id}&type=series&season=${ep.season}&episode=${ep.episode}`
-                    );
+                    const url = `https://torrentio.strem.fun/stream/series/${selectedItem.id}:${ep.season}:${ep.episode}.json`;
 
+                    const res = await fetch(url);
                     const data = await res.json();
-                    setResults(data);
+
+                    const streams = data.streams || [];
+
+                    const formatted = streams.map((item) => ({
+                      title: item.title,
+                      size: 0,
+                      seeders: 0,
+                      magnet: `magnet:?xt=urn:btih:${item.infoHash}`,
+                      provider: "Torrentio",
+                    }));
+
+                    setResults(formatted);
                     setLoading(false);
                   }}
                 >
