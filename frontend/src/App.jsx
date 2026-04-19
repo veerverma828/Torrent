@@ -18,7 +18,10 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // ✅ NEW HELPER FUNCTION (only addition)
+  // ✅ NEW: Debrid service selector
+  const [debridService, setDebridService] = useState("real-debrid"); // "real-debrid" or "torbox"
+
+  // ✅ Helper function to format Torrentio results
   const formatTorrentio = (data) => {
     const streams = data.streams || [];
 
@@ -72,7 +75,7 @@ function App() {
         const res = await fetch(url);
         const data = await res.json();
 
-        setResults(formatTorrentio(data)); // ✅ replaced
+        setResults(formatTorrentio(data));
       }
 
       if (imdbMode) {
@@ -91,8 +94,11 @@ function App() {
     alert("Magnet link copied ✅");
   };
 
+  // ✅ UPDATED: Download handler with service selector
   const handleDownload = async (magnet) => {
-    const res = await fetch(`${API}/download`, {
+    const endpoint = debridService === "torbox" ? "/download-torbox" : "/download";
+
+    const res = await fetch(`${API}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -129,7 +135,33 @@ function App() {
     <div style={{ padding: "20px" }}>
       <h1 style={{ textAlign: "center" }}>Debrid Download ⚡</h1>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "10px" }}>
+      {/* ✅ NEW: Debrid Service Selector */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", padding: "10px", backgroundColor: "#f0f0f0", borderRadius: "6px" }}>
+          <label style={{ marginBottom: "0" }}>
+            <input 
+              type="radio" 
+              name="debrid" 
+              value="real-debrid" 
+              checked={debridService === "real-debrid"}
+              onChange={() => setDebridService("real-debrid")}
+            />
+            {" "}Real-Debrid
+          </label>
+          <label style={{ marginBottom: "0" }}>
+            <input 
+              type="radio" 
+              name="debrid" 
+              value="torbox" 
+              checked={debridService === "torbox"}
+              onChange={() => setDebridService("torbox")}
+            />
+            {" "}Torbox
+          </label>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "10px", flexWrap: "wrap" }}>
         <label>
           <input type="checkbox" checked={autoSearch} onChange={() => setAutoSearch(!autoSearch)} />
           {" "}Auto Search
@@ -192,7 +224,7 @@ function App() {
                 const res = await fetch(url);
                 const data = await res.json();
 
-                setResults(formatTorrentio(data)); // ✅ replaced
+                setResults(formatTorrentio(data));
                 setLoading(false);
               }
               else {
@@ -260,7 +292,7 @@ function App() {
                     const res = await fetch(url);
                     const data = await res.json();
 
-                    setResults(formatTorrentio(data)); // ✅ replaced
+                    setResults(formatTorrentio(data));
                     setLoading(false);
                   }}>
                   <p>Episode {ep.episode}: {ep.title}</p>
@@ -294,7 +326,9 @@ function App() {
                 {item.magnet ? (
                   <>
                     <button onClick={() => copyMagnet(item.magnet)}>Copy Magnet</button>
-                    <button onClick={() => handleDownload(item.magnet)}>Download (RD)</button>
+                    <button onClick={() => handleDownload(item.magnet)}>
+                      Download ({debridService === "torbox" ? "Torbox" : "RD"})
+                    </button>
                   </>
                 ) : (
                   <button disabled style={{ backgroundColor: "gray" }}>
