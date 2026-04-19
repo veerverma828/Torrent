@@ -58,6 +58,8 @@ app.post("/download", async (req, res) => {
   try {
     const API_KEY = process.env.REAL_DEBRID_API_KEY;
 
+    console.log("🔗 Adding magnet to Real-Debrid:", magnet);
+
     const addRes = await axios.post(
       "https://api.real-debrid.com/rest/1.0/torrents/addMagnet",
       new URLSearchParams({ magnet }),
@@ -69,6 +71,7 @@ app.post("/download", async (req, res) => {
     );
 
     const torrentId = addRes.data.id;
+    console.log("✅ Torrent added with ID:", torrentId);
 
     await axios.post(
       `https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`,
@@ -94,6 +97,8 @@ app.post("/download", async (req, res) => {
 
       const torrent = infoRes.data;
 
+      console.log(`⏳ Status check ${i + 1}/10: ${torrent.status}`);
+
       if (torrent.status === "downloaded") {
         const link = torrent.links[0];
 
@@ -108,6 +113,7 @@ app.post("/download", async (req, res) => {
         );
 
         downloadUrl = unrestrict.data.download;
+        console.log("✅ Download URL obtained");
         break;
       }
 
@@ -132,18 +138,31 @@ app.post("/download-torbox", async (req, res) => {
   try {
     const API_KEY = process.env.TORBOX_API_KEY;
 
+    if (!API_KEY) {
+      return res.status(400).json({ message: "❌ Torbox API key not configured" });
+    }
+
+    console.log("🔗 Adding magnet to Torbox:", magnet);
+
     // Add magnet to Torbox
     const addRes = await axios.post(
       "https://api.torbox.app/v1/api/torrents/createMagnet",
       { magnet_link: magnet },
       {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          "Authorization": `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
         },
       }
     );
 
+    if (!addRes.data.success || !addRes.data.data) {
+      console.error("Torbox response:", addRes.data);
+      return res.status(500).json({ message: "❌ Failed to add magnet to Torbox" });
+    }
+
     const torrentId = addRes.data.data.id;
+    console.log("✅ Torrent added to Torbox with ID:", torrentId);
 
     let downloadUrl = null;
 
@@ -153,29 +172,38 @@ app.post("/download-torbox", async (req, res) => {
         `https://api.torbox.app/v1/api/torrents/status?id=${torrentId}`,
         {
           headers: {
-            Authorization: `Bearer ${API_KEY}`,
+            "Authorization": `Bearer ${API_KEY}`,
           },
         }
       );
 
+      if (!infoRes.data.success || !infoRes.data.data) {
+        console.error("Torbox status error:", infoRes.data);
+        await new Promise((r) => setTimeout(r, 5000));
+        continue;
+      }
+
       const torrent = infoRes.data.data;
 
+      console.log(`⏳ Torbox status check ${i + 1}/10: ${torrent.status}`);
+
       // Check if download is ready
-      if (torrent.status === "downloaded" || torrent.status === "finished") {
+      if (torrent.status === "downloaded" || torrent.status === "finished" || torrent.status === "ready") {
         // Get the files list
         const filesRes = await axios.get(
           `https://api.torbox.app/v1/api/torrents/files?id=${torrentId}`,
           {
             headers: {
-              Authorization: `Bearer ${API_KEY}`,
+              "Authorization": `Bearer ${API_KEY}`,
             },
           }
         );
 
         // Get the first available file
-        if (filesRes.data.data && filesRes.data.data.length > 0) {
+        if (filesRes.data.success && filesRes.data.data && filesRes.data.data.length > 0) {
           const fileId = filesRes.data.data[0].id;
           downloadUrl = `https://api.torbox.app/v1/api/torrents/download?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`;
+          console.log("✅ Download URL obtained from Torbox");
           break;
         }
       }
@@ -203,6 +231,8 @@ app.get("/search-content", async (req, res) => {
   }
 
   try {
+    console.log("🔍 Searching Cinemeta for:", query);
+
     const movieURL = `https://v3-cinemeta.strem.io/catalog/movie/top/search=${query}.json`;
     const seriesURL = `https://v3-cinemeta.strem.io/catalog/series/top/search=${query}.json`;
 
@@ -215,6 +245,8 @@ app.get("/search-content", async (req, res) => {
       ...(movieRes.data.metas || []),
       ...(seriesRes.data.metas || []),
     ];
+
+    console.log(`✅ Found ${combined.length} results`);
 
     res.json(combined);
   } catch (error) {
@@ -232,12 +264,16 @@ app.get("/series-meta", async (req, res) => {
   }
 
   try {
+    console.log("🎬 Fetching series metadata for:", id);
+
     const response = await axios.get(
       `https://v3-cinemeta.strem.io/meta/series/${id}.json`
     );
 
     const videos = response.data.meta?.videos || [];
     const seasons = [...new Set(videos.map((v) => v.season))];
+
+    console.log(`✅ Found ${seasons.length} seasons`);
 
     res.json({
       seasons,
@@ -249,7 +285,7 @@ app.get("/series-meta", async (req, res) => {
   }
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
