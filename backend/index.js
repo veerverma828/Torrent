@@ -125,6 +125,75 @@ app.post("/download", async (req, res) => {
   }
 });
 
+// 🎁 TORBOX DOWNLOAD
+app.post("/download-torbox", async (req, res) => {
+  const { magnet } = req.body;
+
+  try {
+    const API_KEY = process.env.TORBOX_API_KEY;
+
+    // Add magnet to Torbox
+    const addRes = await axios.post(
+      "https://api.torbox.app/v1/api/torrents/createMagnet",
+      { magnet_link: magnet },
+      {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      }
+    );
+
+    const torrentId = addRes.data.data.id;
+
+    let downloadUrl = null;
+
+    // Poll for download status (up to 10 attempts with 5 second intervals)
+    for (let i = 0; i < 10; i++) {
+      const infoRes = await axios.get(
+        `https://api.torbox.app/v1/api/torrents/status?id=${torrentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+          },
+        }
+      );
+
+      const torrent = infoRes.data.data;
+
+      // Check if download is ready
+      if (torrent.status === "downloaded" || torrent.status === "finished") {
+        // Get the files list
+        const filesRes = await axios.get(
+          `https://api.torbox.app/v1/api/torrents/files?id=${torrentId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${API_KEY}`,
+            },
+          }
+        );
+
+        // Get the first available file
+        if (filesRes.data.data && filesRes.data.data.length > 0) {
+          const fileId = filesRes.data.data[0].id;
+          downloadUrl = `https://api.torbox.app/v1/api/torrents/download?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`;
+          break;
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+
+    if (downloadUrl) {
+      res.json({ downloadUrl });
+    } else {
+      res.json({ message: "❌ Cannot be cached (timeout)" });
+    }
+  } catch (error) {
+    console.error("TORBOX ERROR:", error.response?.data || error.message);
+    res.status(500).json({ message: "Error processing torrent with Torbox" });
+  }
+});
+
 // 🔍 Cinemeta Search
 app.get("/search-content", async (req, res) => {
   const query = req.query.q;
