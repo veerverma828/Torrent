@@ -7,10 +7,11 @@ dotenv.config();
 
 const app = express();
 
-//app.use(cors());
-app.use(cors({
-  origin: "https://torrent-gamma.vercel.app"
-}));
+// app.use(cors({
+//   origin: "https://torrent-gamma.vercel.app"
+// }));
+
+app.use(cors());
 
 app.use(express.json());
 
