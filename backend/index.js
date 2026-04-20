@@ -174,7 +174,7 @@ app.post("/download-torbox", async (req, res) => {
     let downloadUrl = null;
 
     // ✅ STEP 2: WAIT LOOP (like Real-Debrid)
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       console.log(`⏳ Torbox attempt ${i + 1}/10`);
 
       try {
