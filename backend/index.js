@@ -275,6 +275,17 @@ app.get("/series-meta", async (req, res) => {
   }
 });
 
+// 🔐 VERIFY REAL-DEBRID ACCESS
+app.post("/verify-rd", (req, res) => {
+  const { code } = req.body;
+
+  if (code === process.env.RD_ADMIN_CODE) {
+    return res.json({ success: true });
+  }
+
+  res.status(403).json({ success: false, message: "❌ Only admin can access Real-Debrid" });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
