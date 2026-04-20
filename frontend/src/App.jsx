@@ -414,7 +414,7 @@ function App() {
         </>
       )}
 
-      {{results.length > 0 && !imdbMode && selectedSeason === null && (
+      {results.length > 0 && !imdbMode && selectedSeason === null && (
         <div style={{ textAlign: "center", marginTop: "20px" }}>
           <button onClick={() => {
             setResults([]);
