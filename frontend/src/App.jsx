@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+// import "./App.css";
 
 function App() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -16,6 +17,8 @@ function App() {
 
   const [imdbMode, setImdbMode] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [movies, setMovies] = useState([]);
+  const [series, setSeries] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // ✅ NEW: Debrid service selector
@@ -46,6 +49,14 @@ function App() {
       const data = await res.json();
 
       setSearchResults(data);
+
+      // ✅ NEW: separate movies & series
+      const movieList = data.filter((item) => item.type === "movie");
+      const seriesList = data.filter((item) => item.type === "series");
+
+      setMovies(movieList);
+      setSeries(seriesList);
+
       setSelectedItem(null);
       setResults([]);
     } catch (err) {
@@ -253,40 +264,98 @@ function App() {
       {loading && <p style={{ textAlign: "center", marginTop: "20px" }}>⏳ Loading...</p>}
 
       {!imdbMode && !selectedItem && searchResults.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 150px)", gap: "15px", marginTop: "20px", justifyContent: "center" }}>
-          {searchResults.map((item, i) => (
-            <div key={i} style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
-              setSelectedItem(item);
-              setResults([]);
-              setSelectedSeason(null);
+        <div style={{ marginTop: "20px" }}>
 
-              if (item.type === "movie") {
-                setLoading(true);
+          {/* 🎬 MOVIES */}
+          {movies.length > 0 && (
+            <>
+              {/* <h2 style={{ textAlign: "center" }}>Movies</h2> */}
+              <h2 style={{
+                fontSize: "22px",
+                fontWeight: "600",
+                margin: "20px 0 10px 20px",
+                color: "#fff",
+                letterSpacing: "0.5px"
+              }}>
+                🎬 Movies
+              </h2>
 
-                const url = `https://torrentio.strem.fun/stream/movie/${item.id}.json`;
-                const res = await fetch(url);
-                const data = await res.json();
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, 150px)",
+                gap: "15px",
+                justifyContent: "center"
+              }}>
+                {movies.map((item, i) => (
+                  <div key={i} style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                    setSelectedItem(item);
+                    setResults([]);
+                    setSelectedSeason(null);
 
-                setResults(formatTorrentio(data));
-                setLoading(false);
-              }
-              else {
-                setLoading(true);
+                    if (item.type === "movie") {
+                      setLoading(true);
 
-                const res = await fetch(`${API}/series-meta?id=${item.id}`);
-                const data = await res.json();
+                      const url = `https://torrentio.strem.fun/stream/movie/${item.id}.json`;
+                      const res = await fetch(url);
+                      const data = await res.json();
 
-                setSeasons(data.seasons);
-                setEpisodes(data.episodes);
+                      setResults(formatTorrentio(data));
+                      setLoading(false);
+                    }
+                  }}>
+                    <img src={item.poster} alt={item.name} style={{ width: "150px", borderRadius: "10px" }} />
+                    <p>{item.name}</p>
+                    <small>{item.type}</small>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
-                setLoading(false);
-              }
-            }}>
-              <img src={item.poster} alt={item.name} style={{ width: "150px", borderRadius: "10px" }} />
-              <p>{item.name}</p>
-              <small>{item.type}</small>
-            </div>
-          ))}
+          {/* 📺 SERIES */}
+          {series.length > 0 && (
+            <>
+              <h2 style={{
+                fontSize: "22px",
+                fontWeight: "600",
+                margin: "30px 0 10px 20px",
+                color: "#fff",
+                letterSpacing: "0.5px"
+              }}>
+                📺 Series
+              </h2>
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, 150px)",
+                gap: "15px",
+                justifyContent: "center"
+              }}>
+                {series.map((item, i) => (
+                  <div key={i} style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                    setSelectedItem(item);
+                    setResults([]);
+                    setSelectedSeason(null);
+
+                    setLoading(true);
+
+                    const res = await fetch(`${API}/series-meta?id=${item.id}`);
+                    const data = await res.json();
+
+                    setSeasons(data.seasons);
+                    setEpisodes(data.episodes);
+
+                    setLoading(false);
+                  }}>
+                    <img src={item.poster} alt={item.name} style={{ width: "150px", borderRadius: "10px" }} />
+                    <p>{item.name}</p>
+                    <small>{item.type}</small>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
         </div>
       )}
 
@@ -298,7 +367,7 @@ function App() {
               setSeasons([]);
               setEpisodes([]);
             }}>
-              ⬅ Back to Search
+              ⬅ Back
             </button>
           </div>
 
@@ -347,7 +416,17 @@ function App() {
 
       {results.length > 0 && !imdbMode && (
         <div style={{ textAlign: "center", marginTop: "20px" }}>
-          <button onClick={() => setResults([])}>⬅ Back to Episodes</button>
+          <button onClick={() => {
+            setResults([]);
+
+            if (selectedSeason) {
+              setSelectedSeason(null);
+            } else if (selectedItem) {
+              setSelectedItem(null);
+            }
+          }}>
+            ⬅ Back
+          </button>
         </div>
       )}
 
