@@ -21,6 +21,8 @@ function App() {
   // ✅ NEW: Debrid service selector
   const [debridService, setDebridService] = useState("torbox"); // "real-debrid" or "torbox"
 
+  const [rdUnlocked, setRdUnlocked] = useState(false);
+
   // ✅ Helper function to format Torrentio results
   const formatTorrentio = (data) => {
     const streams = data.streams || [];
@@ -137,31 +139,63 @@ function App() {
 
       {/* ✅ NEW: Debrid Service Selector */}
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
-        <div style={{ 
-  display: "flex", 
-  gap: "8px", 
-  alignItems: "center", 
-  padding: "5px 8px", 
-  backgroundColor: "#1e1e1e",
-  borderRadius: "6px",
-  fontSize: "13px",
-  border: "1px solid #333"
-}}>
+        <div style={{
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          padding: "5px 8px",
+          backgroundColor: "#1e1e1e",
+          borderRadius: "6px",
+          fontSize: "13px",
+          border: "1px solid #333"
+        }}>
           <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
-            <input 
-              type="radio" 
-              name="debrid" 
-              value="real-debrid" 
+            <input
+              type="radio"
+              name="debrid"
+              value="real-debrid"
               checked={debridService === "real-debrid"}
-              onChange={() => setDebridService("real-debrid")}
+              onChange={async () => {
+                if (rdUnlocked) {
+                  setDebridService("real-debrid");
+                } else {
+                  const code = prompt("Enter access code for Real-Debrid:");
+
+                  if (!code) return;
+
+                  try {
+                    const res = await fetch(`${API}/verify-rd`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json"
+                      },
+                      body: JSON.stringify({ code })
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                      setRdUnlocked(true);
+                      setDebridService("real-debrid");
+                    } else {
+                      alert("❌ Only admin can access Real-Debrid");
+                      setDebridService("torbox");
+                    }
+
+                  } catch (err) {
+                    console.error(err);
+                    alert("Error verifying access");
+                  }
+                }
+              }}
             />
             {" "}Real-Debrid
           </label>
           <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
-            <input 
-              type="radio" 
-              name="debrid" 
-              value="torbox" 
+            <input
+              type="radio"
+              name="debrid"
+              value="torbox"
               checked={debridService === "torbox"}
               onChange={() => setDebridService("torbox")}
             />
