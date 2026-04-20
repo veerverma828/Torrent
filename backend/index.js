@@ -7,7 +7,11 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+//app.use(cors());
+app.use(cors({
+  origin: "https://torrent-gamma.vercel.app"
+}));
+
 app.use(express.json());
 
 // Root route
@@ -132,6 +136,7 @@ app.post("/download", async (req, res) => {
 });
 
 // 🎁 TORBOX DOWNLOAD
+// 🎁 TORBOX DOWNLOAD (WITH WAIT LOGIC)
 app.post("/download-torbox", async (req, res) => {
   const { magnet } = req.body;
 
@@ -144,78 +149,62 @@ app.post("/download-torbox", async (req, res) => {
 
     console.log("🔗 Adding magnet to Torbox:", magnet);
 
-    // Add magnet to Torbox
+    // ✅ STEP 1: Create torrent
+    const formData = new URLSearchParams();
+    formData.append("magnet", magnet);
+
     const addRes = await axios.post(
-      "https://api.torbox.app/v1/api/torrents/createMagnet",
-      { magnet_link: magnet },
+      "https://api.torbox.app/v1/api/torrents/createtorrent",
+      formData,
       {
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
         },
       }
     );
 
     if (!addRes.data.success || !addRes.data.data) {
-      console.error("Torbox response:", addRes.data);
       return res.status(500).json({ message: "❌ Failed to add magnet to Torbox" });
     }
 
-    const torrentId = addRes.data.data.id;
-    console.log("✅ Torrent added to Torbox with ID:", torrentId);
+    const torrentId = addRes.data.data.torrent_id;
+    console.log("✅ Torrent ID:", torrentId);
 
     let downloadUrl = null;
 
-    // Poll for download status (up to 10 attempts with 5 second intervals)
-    for (let i = 0; i < 10; i++) {
-      const infoRes = await axios.get(
-        `https://api.torbox.app/v1/api/torrents/status?id=${torrentId}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${API_KEY}`,
-          },
-        }
-      );
+    // ✅ STEP 2: WAIT LOOP (like Real-Debrid)
+    for (let i = 0; i < 2; i++) {
+      console.log(`⏳ Torbox attempt ${i + 1}/10`);
 
-      if (!infoRes.data.success || !infoRes.data.data) {
-        console.error("Torbox status error:", infoRes.data);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
-      }
-
-      const torrent = infoRes.data.data;
-
-      console.log(`⏳ Torbox status check ${i + 1}/10: ${torrent.status}`);
-
-      // Check if download is ready
-      if (torrent.status === "downloaded" || torrent.status === "finished" || torrent.status === "ready") {
-        // Get the files list
-        const filesRes = await axios.get(
-          `https://api.torbox.app/v1/api/torrents/files?id=${torrentId}`,
-          {
-            headers: {
-              "Authorization": `Bearer ${API_KEY}`,
-            },
-          }
+      try {
+        const dlRes = await axios.get(
+          `https://api.torbox.app/v1/api/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}`
         );
 
-        // Get the first available file
-        if (filesRes.data.success && filesRes.data.data && filesRes.data.data.length > 0) {
-          const fileId = filesRes.data.data[0].id;
-          downloadUrl = `https://api.torbox.app/v1/api/torrents/download?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`;
-          console.log("✅ Download URL obtained from Torbox");
+        if (dlRes.data.success && dlRes.data.data) {
+          downloadUrl = dlRes.data.data;
+          console.log("✅ Download URL obtained");
           break;
         }
+
+      } catch (err) {
+        // Not ready yet
+        console.log("⏳ Not ready yet...");
       }
 
+      // wait 5 sec
       await new Promise((r) => setTimeout(r, 5000));
     }
 
+    // ✅ FINAL RESPONSE
     if (downloadUrl) {
       res.json({ downloadUrl });
     } else {
-      res.json({ message: "❌ Cannot be cached (timeout)" });
+      res.json({
+        message: "⏳ Torrent not cached yet. It will be available soon. Try again later.",
+      });
     }
+
   } catch (error) {
     console.error("TORBOX ERROR:", error.response?.data || error.message);
     res.status(500).json({ message: "Error processing torrent with Torbox" });
