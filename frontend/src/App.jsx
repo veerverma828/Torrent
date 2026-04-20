@@ -19,7 +19,7 @@ function App() {
   const [selectedItem, setSelectedItem] = useState(null);
 
   // ✅ NEW: Debrid service selector
-  const [debridService, setDebridService] = useState("real-debrid"); // "real-debrid" or "torbox"
+  const [debridService, setDebridService] = useState("torbox"); // "real-debrid" or "torbox"
 
   // ✅ Helper function to format Torrentio results
   const formatTorrentio = (data) => {
@@ -137,8 +137,17 @@ function App() {
 
       {/* ✅ NEW: Debrid Service Selector */}
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", padding: "10px", backgroundColor: "#f0f0f0", borderRadius: "6px" }}>
-          <label style={{ marginBottom: "0" }}>
+        <div style={{ 
+  display: "flex", 
+  gap: "8px", 
+  alignItems: "center", 
+  padding: "5px 8px", 
+  backgroundColor: "#1e1e1e",
+  borderRadius: "6px",
+  fontSize: "13px",
+  border: "1px solid #333"
+}}>
+          <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
             <input 
               type="radio" 
               name="debrid" 
@@ -148,7 +157,7 @@ function App() {
             />
             {" "}Real-Debrid
           </label>
-          <label style={{ marginBottom: "0" }}>
+          <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
             <input 
               type="radio" 
               name="debrid" 
