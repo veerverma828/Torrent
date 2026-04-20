@@ -5,7 +5,7 @@ function App() {
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [autoSearch, setAutoSearch] = useState(false);
+  const [autoSearch, setAutoSearch] = useState(true);
   const [useJackett, setUseJackett] = useState(false);
 
   const [seasons, setSeasons] = useState([]);
