@@ -145,8 +145,31 @@ function App() {
   }, [query, autoSearch, useJackett, imdbMode]);
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1 style={{ textAlign: "center" }}>Debrid Download ⚡</h1>
+    <div style={{
+padding: "20px",
+backgroundColor: "#141414",
+color: "#fff",
+minHeight: "100vh",
+fontFamily: "Arial, sans-serif",
+width: "100vw",
+maxWidth: "100vw",
+margin: "0",
+boxSizing: "border-box",
+position: "relative",
+left: "50%",
+transform: "translateX(-50%)"
+}}>
+      <h1 style={{ textAlign: "center" }} onClick={() => {
+        setSelectedItem(null);
+        setResults([]);
+        setSeasons([]);
+        setEpisodes([]);
+        setSelectedSeason(null);
+        setSearchResults([]);
+        setMovies([]);
+        setSeries([]);
+        setQuery("");
+      }}>Debrid Download ⚡</h1>
 
       {/* ✅ NEW: Debrid Service Selector */}
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
@@ -249,11 +272,36 @@ function App() {
               useJackett || imdbMode ? searchTorrents() : searchContent();
             }
           }}
-          style={{ width: "100%", maxWidth: "500px", height: "40px", fontSize: "16px", padding: "8px", borderRadius: "6px", border: "1px solid #ccc" }}
+          style={{
+            width: "100%",
+            maxWidth: "500px",
+            height: "46px",
+            fontSize: "16px",
+            padding: "8px 22px",
+            borderRadius: "23px",
+            border: "1px solid #444",
+            backgroundColor: "#2a2a2a",
+            color: "#fff",
+            outline: "none",
+            transition: "border-color 0.3s ease"
+          }}
         />
 
         <button
-          style={{ width: "100%", maxWidth: "120px", height: "42px", borderRadius: "6px", cursor: query.trim() ? "pointer" : "not-allowed", opacity: query.trim() ? 1 : 0.5 }}
+          style={{
+            width: "100%",
+            maxWidth: "120px",
+            height: "46px",
+            borderRadius: "23px",
+            border: "none",
+            backgroundColor: query.trim() ? "#007BFF" : "#444",
+            color: "#fff",
+            fontWeight: "bold",
+            fontSize: "16px",
+            cursor: query.trim() ? "pointer" : "not-allowed",
+            boxShadow: query.trim() ? "0 4px 15px rgba(0, 123, 255, 0.4)" : "none",
+            transition: "all 0.3s ease"
+          }}
           onClick={useJackett || imdbMode ? searchTorrents : searchContent}
           disabled={query.trim() === ""}
         >
@@ -433,8 +481,8 @@ function App() {
       {(imdbMode || results.length > 0) && (
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           {results.map((item, index) => (
-            <div key={index} style={{ marginTop: "10px", border: "1px solid gray", padding: "10px", borderRadius: "8px" }}>
-              <h3>{item.title}</h3>
+            <div key={index} style={{ marginTop: "10px", border: "1px solid gray", padding: "10px", borderRadius: "8px", overflow: "hidden" }}>
+              <h3 style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{item.title}</h3>
               <p>Source: {item.provider}</p>
 
               {useJackett && (
@@ -444,25 +492,33 @@ function App() {
                 </>
               )}
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                {item.magnet ? (
-                  <>
-                    <button onClick={() => copyMagnet(item.magnet)}>Copy Magnet</button>
-                    <button onClick={() => handleDownload(item.magnet)}>
-                      Download ({debridService === "torbox" ? "Torbox" : "RD"})
-                    </button>
-                  </>
-                ) : (
-                  <button disabled style={{ backgroundColor: "gray" }}>
-                    Magnet Unavailable
-                  </button>
-                )}
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => handleDownload(item.magnet)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#007BFF",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: "500"
+                  }}
+                >
+                  Download ({debridService === "torbox" ? "Torbox" : "RD"}) </button>
+
+                <button onClick={() => copyMagnet(item.magnet)}>
+                  Copy Magnet
+                </button>
               </div>
+
             </div>
+
           ))}
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }
 
