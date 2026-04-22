@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import appLogo from "../Images/TITLE.png";
 // import "./App.css";
 
 function App() {
@@ -207,6 +208,138 @@ function App() {
     return () => clearTimeout(delay);
   }, [query, autoSearch, useJackett, imdbMode]);
 
+  // ✅ NEW: Global arrow-key keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) {
+        const activeEl = document.activeElement;
+
+        // ✨ Smart Input Navigation
+        if (activeEl && activeEl.tagName === "INPUT") {
+          if (activeEl.type === "text") {
+            // Allow native left/right text navigation inside the search bar
+            if (e.key === "ArrowLeft" && activeEl.selectionStart > 0) return;
+            if (e.key === "ArrowRight" && activeEl.selectionStart < activeEl.value.length) return;
+          } else {
+            return; // Radios and Checkboxes keep their default native arrow behavior
+          }
+        }
+
+        e.preventDefault(); // Prevent page scrolling with arrows
+        
+        // Find all visible, focusable elements on the screen
+        const focusable = Array.from(
+          document.querySelectorAll('button, input, [tabindex="0"]')
+        ).filter(el => !el.disabled && (el.offsetWidth > 0 || el.offsetHeight > 0));
+        
+        const currentIndex = focusable.indexOf(activeEl);
+        
+        if (currentIndex === -1) {
+          // ✨ Smart Fallback: if focus is lost, jump to the most relevant content!
+          const defaultTarget = document.querySelector('.result-btn') || 
+                                document.querySelector('.episode-card') || 
+                                document.querySelector('.season-btn') || 
+                                document.querySelector('.poster-card') || 
+                                focusable[0];
+          if (defaultTarget) {
+            defaultTarget.focus({ preventScroll: true });
+            defaultTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
+        }
+
+        let targetElement = null;
+
+        if (e.key === "ArrowRight") {
+          targetElement = focusable[(currentIndex + 1) % focusable.length];
+        } else if (e.key === "ArrowLeft") {
+          targetElement = focusable[(currentIndex - 1 + focusable.length) % focusable.length];
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          // ✨ Visual/Geometric navigation for Up/Down
+          const currentRect = activeEl.getBoundingClientRect();
+          const currentCenterX = currentRect.left + currentRect.width / 2;
+          
+          let bestMatch = null;
+          let minDistance = Infinity;
+
+          focusable.forEach(el => {
+            if (el === activeEl) return;
+            const rect = el.getBoundingClientRect();
+            let isValidCandidate = false;
+            let dy = 0;
+            
+            // Check if the element is physically below/above (with 10px margin of error)
+            if (e.key === "ArrowDown" && rect.top >= currentRect.bottom - 10) {
+              isValidCandidate = true;
+              dy = rect.top - currentRect.bottom;
+            } else if (e.key === "ArrowUp" && rect.bottom <= currentRect.top + 10) {
+              isValidCandidate = true;
+              dy = currentRect.top - rect.bottom;
+            }
+            
+            if (isValidCandidate) {
+              const targetCenterX = rect.left + rect.width / 2;
+              const dx = Math.abs(currentCenterX - targetCenterX);
+              
+              // Multiply vertical distance by 10 to heavily prioritize the immediate next row
+              const distance = (dy * 10) + dx;
+              
+              if (distance < minDistance) {
+                minDistance = distance;
+                bestMatch = el;
+              }
+            }
+          });
+          
+          targetElement = bestMatch;
+        }
+
+        // ✨ TV-Style Smooth Centered Scrolling!
+        if (targetElement) {
+          targetElement.focus({ preventScroll: true }); // Prevent browser's instant jagged scroll
+          targetElement.scrollIntoView({ behavior: "smooth", block: "center" }); // Smoothly center it
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // ✅ NEW: Auto-focus newly loaded content for seamless keyboard navigation
+  useEffect(() => {
+    let attempts = 0;
+    let timeoutId;
+
+    const tryFocus = () => {
+      // Prevent stealing focus if the user is actively typing in the search bar
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.tagName === "INPUT" && activeEl.type === "text") {
+        return;
+      }
+
+      let target = null;
+      if (results.length > 0) {
+        target = document.querySelector('.result-btn'); // Targets the Stream button
+      } else if (selectedSeason && episodes.length > 0) {
+        target = document.querySelector('.episode-card');
+      } else if (seasons.length > 0 && !selectedSeason) {
+        target = document.querySelector('.season-btn');
+      }
+
+      if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: "smooth", block: "center" }); // Premium smooth scroll!
+      } else if (attempts < 5) {
+        attempts++;
+        timeoutId = setTimeout(tryFocus, 100);
+      }
+    };
+
+    timeoutId = setTimeout(tryFocus, 50);
+    return () => clearTimeout(timeoutId);
+  }, [results, seasons, episodes, selectedSeason]);
+
   return (
     <div style={{
 padding: "20px",
@@ -224,6 +357,11 @@ transform: "translateX(-50%)"
 }}>
       {/* Global & Responsive CSS */}
       <style>{`
+        /* Hide the horizontal scrollbar caused by 100vw pushing past the vertical scrollbar */
+        body {
+          overflow-x: hidden;
+        }
+
         @media (max-width: 768px) {
           .button-container {
             flex-direction: column;
@@ -260,19 +398,46 @@ transform: "translateX(-50%)"
             color: #007BFF;
           }
         }
+
+        /* ✅ NEW: Premium Focus Styles for Keyboard Nav */
+        .poster-card:focus, .episode-card:focus {
+          outline: 3px solid #007BFF !important;
+          outline-offset: 4px;
+          border-radius: 10px;
+        }
+        .poster-card:focus {
+          transform: scale(1.08);
+        }
+        .poster-card:focus img {
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+        }
+        .poster-card:focus p {
+          color: #007BFF;
+        }
+        button:focus, input:focus {
+          outline: 3px solid #007BFF !important;
+          outline-offset: 2px;
+        }
       `}</style>
 
-      <h1 style={{ textAlign: "center" }} onClick={() => {
-        setSelectedItem(null);
-        setResults([]);
-        setSeasons([]);
-        setEpisodes([]);
-        setSelectedSeason(null);
-        setSearchResults([]);
-        setMovies([]);
-        setSeries([]);
-        setQuery("");
-      }}>Debrid Download ⚡</h1>
+      <div style={{ textAlign: "center", margin: "10px 0" }}>
+        <img
+          src={appLogo}
+          alt="App Logo"
+          style={{ width: "100%", maxWidth: "300px", height: "auto", objectFit: "contain", cursor: "pointer", outline: "none" }}
+          onClick={() => {
+            setSelectedItem(null);
+            setResults([]);
+            setSeasons([]);
+            setEpisodes([]);
+            setSelectedSeason(null);
+            setSearchResults([]);
+            setMovies([]);
+            setSeries([]);
+            setQuery("");
+          }}
+        />
+      </div>
 
       {/* ✅ NEW: Debrid Service Selector */}
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
@@ -439,7 +604,9 @@ transform: "translateX(-50%)"
                 justifyContent: "center"
               }}>
                 {movies.map((item, i) => (
-                <div key={i} className="poster-card" style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                  <div key={i} className="poster-card" tabIndex="0" style={{ cursor: "pointer", textAlign: "center", outline: "none" }} 
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
+                    onClick={async () => {
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
@@ -484,7 +651,9 @@ transform: "translateX(-50%)"
                 justifyContent: "center"
               }}>
                 {series.map((item, i) => (
-                <div key={i} className="poster-card" style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                  <div key={i} className="poster-card" tabIndex="0" style={{ cursor: "pointer", textAlign: "center", outline: "none" }} 
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
+                    onClick={async () => {
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
@@ -528,7 +697,7 @@ transform: "translateX(-50%)"
             <h3>Select Season</h3>
 
             {seasons.map((s) => (
-              <button key={s} onClick={() => setSelectedSeason(s)} style={{ margin: "5px" }}>
+              <button key={s} className="season-btn" onClick={() => setSelectedSeason(s)} style={{ margin: "5px" }}>
                 Season {s}
               </button>
             ))}
@@ -548,7 +717,8 @@ transform: "translateX(-50%)"
             {episodes
               .filter((ep) => Number(ep.season) === Number(selectedSeason))
               .map((ep, i) => (
-                <div key={i} style={{ border: "1px solid gray", margin: "10px", padding: "10px", cursor: "pointer", borderRadius: "8px" }}
+                <div key={i} className="episode-card" tabIndex="0" style={{ border: "1px solid gray", margin: "10px", padding: "10px", cursor: "pointer", borderRadius: "8px", outline: "none" }}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                   onClick={async () => {
                     setLoading(true);
 
@@ -611,7 +781,8 @@ transform: "translateX(-50%)"
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? "⏳ Processing..." : `Download (${debridService === "torbox" ? "Torbox" : "RD"})`} </button>
+                  {processingMagnet === item.magnet ? `⏳ Processing (${debridService === "torbox" ? "Torbox" : "RD"})...` : `Download (${debridService === "torbox" ? "Torbox" : "RD"})`}
+                </button>
 
                 <button
                   onClick={() => copyMagnet(item.magnet)}
@@ -619,7 +790,7 @@ transform: "translateX(-50%)"
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "none",
-                    background: "#6c757d",
+                background: "#6c757d",
                     color: "#fff",
                     cursor: "pointer",
                     fontWeight: "500",
@@ -631,6 +802,7 @@ transform: "translateX(-50%)"
 
                 {/* ✅ NEW: Stream Button */}
                 <button
+                  className="result-btn"
                   onClick={() => handleStream(item.magnet)}
                   disabled={processingMagnet === item.magnet}
                   style={{
@@ -645,7 +817,7 @@ transform: "translateX(-50%)"
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? "⏳ Loading..." : "▶ Stream"}
+                  {processingMagnet === item.magnet ? `⏳ Loading (${debridService === "torbox" ? "Torbox" : "RD"})...` : "▶ Stream"}
                 </button>
 
                 {/* ✅ NEW: External Stream Button */}
@@ -656,14 +828,14 @@ transform: "translateX(-50%)"
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "none",
-                    background: processingMagnet === item.magnet ? "#6c757d" : "#ffc107",
-                    color: processingMagnet === item.magnet ? "#fff" : "#000",
+                    background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
+                    color: "#fff",
                     cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
                     fontWeight: "500",
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? "⏳ Loading..." : "▶ External"}
+                  {processingMagnet === item.magnet ? `⏳ Loading (${debridService === "torbox" ? "Torbox" : "RD"})...` : "▶ External"}
                 </button>
               </div>
 
