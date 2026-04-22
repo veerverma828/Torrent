@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import axios from "axios";
+import fs from "fs";
 
 dotenv.config();
 
@@ -15,9 +16,29 @@ app.use(cors());
 
 app.use(express.json());
 
+// 📝 Helper function to log to a text file
+const logToFile = (message) => {
+  const timestamp = new Date().toISOString();
+  fs.appendFile("downloads.log", `[${timestamp}] ${message}\n`, (err) => {
+    if (err) console.error("Error writing to log file:", err);
+  });
+};
+
 // Root route
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
+});
+
+// 🔴 STREAM ERROR LOGGING (From Frontend)
+app.post("/log-stream-error", (req, res) => {
+  const { url, rawMessage, code, networkState, readyState } = req.body;
+  console.error("\n❌ [RAW STREAM ERROR] ----------------------------");
+  console.error("🔗 URL:", url);
+  console.error("🛠 MediaError Code:", code);
+  console.error("📝 Exact Message:", rawMessage === "" ? '"" (Browser provided no message)' : rawMessage);
+  console.error("📡 Network State:", networkState);
+  console.error("⏳ Ready State:", readyState, "\n--------------------------------------------------");
+  res.json({ success: true });
 });
 
 // 🔍 SEARCH API (Jackett)
@@ -59,6 +80,14 @@ app.get("/search", async (req, res) => {
 // 🚀 REAL-DEBRID DOWNLOAD
 app.post("/download", async (req, res) => {
   const { magnet } = req.body;
+  const adminCode = req.headers["x-admin-code"];
+
+  if (adminCode !== process.env.RD_ADMIN_CODE) {
+    logToFile(`🚨 BLOCK: Unauthorized Real-Debrid attempt (Missing/Invalid Code) for magnet: ${magnet.substring(0, 40)}...`);
+    return res.status(403).json({ message: "❌ Unauthorized: Admin code required for Real-Debrid" });
+  }
+
+  logToFile(`✅ ALLOW: Authorized Real-Debrid request for magnet: ${magnet.substring(0, 40)}...`);
 
   try {
     const API_KEY = process.env.REAL_DEBRID_API_KEY;
