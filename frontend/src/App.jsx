@@ -227,11 +227,12 @@ transform: "translateX(-50%)"
         @media (max-width: 768px) {
           .button-container {
             flex-direction: column;
-            align-items: stretch;
+            align-items: center;
           }
           .button-container button {
             margin-left: 0 !important;
-            min-width: 100%;
+            width: 100%;
+            max-width: 280px;
           }
         }
 
@@ -612,7 +613,19 @@ transform: "translateX(-50%)"
                 >
                   {processingMagnet === item.magnet ? "⏳ Processing..." : `Download (${debridService === "torbox" ? "Torbox" : "RD"})`} </button>
 
-                <button onClick={() => copyMagnet(item.magnet)}>
+                <button
+                  onClick={() => copyMagnet(item.magnet)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#6c757d",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: "500",
+                    minWidth: "165px"
+                  }}
+                >
                   Copy Magnet
                 </button>
 
