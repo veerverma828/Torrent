@@ -25,6 +25,9 @@ function App() {
   const [debridService, setDebridService] = useState("torbox"); // "real-debrid" or "torbox"
 
   const [rdUnlocked, setRdUnlocked] = useState(false);
+  const [rdAdminCode, setRdAdminCode] = useState("");
+  const [streamUrl, setStreamUrl] = useState(null);
+  const [processingMagnet, setProcessingMagnet] = useState(null);
 
   // ✅ Helper function to format Torrentio results
   const formatTorrentio = (data) => {
@@ -107,22 +110,82 @@ function App() {
     alert("Magnet link copied ✅");
   };
 
-  // ✅ UPDATED: Download handler with service selector
-  const handleDownload = async (magnet) => {
+  // ✅ NEW: Helper to fetch the Debrid URL
+  const fetchDebridUrl = async (magnet) => {
     const endpoint = debridService === "torbox" ? "/download-torbox" : "/download";
+
+    const headers = {
+      "Content-Type": "application/json",
+    };
+
+    if (debridService === "real-debrid" && rdAdminCode) {
+      headers["x-admin-code"] = rdAdminCode;
+    }
 
     const res = await fetch(`${API}${endpoint}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ magnet }),
     });
 
-    const data = await res.json();
+    return await res.json();
+  };
+
+  // ✅ UPDATED: Download handler
+  const handleDownload = async (magnet) => {
+    setProcessingMagnet(magnet);
+    const data = await fetchDebridUrl(magnet);
+    setProcessingMagnet(null);
 
     if (data.downloadUrl) {
       window.open(data.downloadUrl);
+    } else {
+      alert(data.message);
+    }
+  };
+
+  // ✅ NEW: Stream handler
+  const handleStream = async (magnet) => {
+    setProcessingMagnet(magnet);
+    const data = await fetchDebridUrl(magnet);
+    setProcessingMagnet(null);
+    if (data.downloadUrl) {
+      setStreamUrl(data.downloadUrl);
+    } else {
+      alert(data.message);
+    }
+  };
+
+  // ✅ NEW: External Stream handler (Android Chooser / iOS VLC / PC Playlist)
+  const handleExternalStream = async (magnet) => {
+    setProcessingMagnet(magnet);
+    const data = await fetchDebridUrl(magnet);
+    setProcessingMagnet(null);
+    if (data.downloadUrl) {
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isAndroid) {
+        // Triggers Android's "Open With" app chooser for video players
+        const urlObj = new URL(data.downloadUrl);
+        window.location.href = `intent://${urlObj.host}${urlObj.pathname}${urlObj.search}#Intent;scheme=${urlObj.protocol.replace(":", "")};type=video/*;action=android.intent.action.VIEW;end`;
+      } else if (isIOS) {
+        // Fallback to VLC for iOS
+        window.location.href = `vlc://${data.downloadUrl}`;
+      } else {
+        // Desktop (Windows/Mac/Linux): Generate a .m3u playlist file.
+        // When you open this file, your OS will launch your default video player (VLC, PotPlayer, etc.)
+        const m3uContent = `#EXTM3U\n#EXTINF:-1, Stream\n${data.downloadUrl}`;
+        const blob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Play_Stream.m3u";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } else {
       alert(data.message);
     }
@@ -147,7 +210,7 @@ function App() {
   return (
     <div style={{
 padding: "20px",
-backgroundColor: "#141414",
+      backgroundColor: "#141414",
 color: "#fff",
 minHeight: "100vh",
 fontFamily: "Arial, sans-serif",
@@ -159,6 +222,45 @@ position: "relative",
 left: "50%",
 transform: "translateX(-50%)"
 }}>
+      {/* Global & Responsive CSS */}
+      <style>{`
+        @media (max-width: 768px) {
+          .button-container {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .button-container button {
+            margin-left: 0 !important;
+            min-width: 100%;
+          }
+        }
+
+        /* Premium Hover Effect for Posters */
+        .poster-card {
+          transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .poster-card img {
+          transition: box-shadow 0.3s ease-in-out;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .poster-card p {
+          transition: color 0.3s ease;
+        }
+        
+        /* Only apply hover effects on devices with a mouse cursor */
+        @media (hover: hover) and (pointer: fine) {
+          .poster-card:hover {
+            transform: scale(1.08);
+          }
+          .poster-card:hover img {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+          }
+          .poster-card:hover p {
+            color: #007BFF;
+          }
+        }
+      `}</style>
+
       <h1 style={{ textAlign: "center" }} onClick={() => {
         setSelectedItem(null);
         setResults([]);
@@ -210,6 +312,7 @@ transform: "translateX(-50%)"
 
                     if (data.success) {
                       setRdUnlocked(true);
+                      setRdAdminCode(code);
                       setDebridService("real-debrid");
                     } else {
                       alert("❌ Only admin can access Real-Debrid");
@@ -335,7 +438,7 @@ transform: "translateX(-50%)"
                 justifyContent: "center"
               }}>
                 {movies.map((item, i) => (
-                  <div key={i} style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                <div key={i} className="poster-card" style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
@@ -380,7 +483,7 @@ transform: "translateX(-50%)"
                 justifyContent: "center"
               }}>
                 {series.map((item, i) => (
-                  <div key={i} style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
+                <div key={i} className="poster-card" style={{ cursor: "pointer", textAlign: "center" }} onClick={async () => {
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
@@ -492,23 +595,62 @@ transform: "translateX(-50%)"
                 </>
               )}
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <div className="button-container" style={{ display: "flex", gap: "10px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={() => handleDownload(item.magnet)}
+                  disabled={processingMagnet === item.magnet}
                   style={{
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "none",
-                    background: "#007BFF",
+                    background: processingMagnet === item.magnet ? "#6c757d" : "#007BFF",
                     color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: "500"
+                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    fontWeight: "500",
+                    minWidth: "165px"
                   }}
                 >
-                  Download ({debridService === "torbox" ? "Torbox" : "RD"}) </button>
+                  {processingMagnet === item.magnet ? "⏳ Processing..." : `Download (${debridService === "torbox" ? "Torbox" : "RD"})`} </button>
 
                 <button onClick={() => copyMagnet(item.magnet)}>
                   Copy Magnet
+                </button>
+
+                {/* ✅ NEW: Stream Button */}
+                <button
+                  onClick={() => handleStream(item.magnet)}
+                  disabled={processingMagnet === item.magnet}
+                  style={{
+                    marginLeft: "auto",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                    color: "#fff",
+                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    fontWeight: "500",
+                    minWidth: "165px"
+                  }}
+                >
+                  {processingMagnet === item.magnet ? "⏳ Loading..." : "▶ Stream"}
+                </button>
+
+                {/* ✅ NEW: External Stream Button */}
+                <button
+                  onClick={() => handleExternalStream(item.magnet)}
+                  disabled={processingMagnet === item.magnet}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: processingMagnet === item.magnet ? "#6c757d" : "#ffc107",
+                    color: processingMagnet === item.magnet ? "#fff" : "#000",
+                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    fontWeight: "500",
+                    minWidth: "165px"
+                  }}
+                >
+                  {processingMagnet === item.magnet ? "⏳ Loading..." : "▶ External"}
                 </button>
               </div>
 
@@ -516,8 +658,57 @@ transform: "translateX(-50%)"
 
           ))}
         </div>
-      )
-      }
+      )}
+
+      {/* ✅ NEW: Video Player Modal */}
+      {streamUrl && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.95)", display: "flex", justifyContent: "center",
+          alignItems: "center", zIndex: 9999, flexDirection: "column"
+        }}>
+          <button
+            onClick={() => setStreamUrl(null)}
+            style={{
+              position: "absolute", top: "20px", right: "30px", padding: "10px 20px",
+              background: "transparent", color: "#fff", border: "2px solid #fff",
+              cursor: "pointer", borderRadius: "5px", fontSize: "16px", fontWeight: "bold"
+            }}
+          >
+            ✖ Close
+          </button>
+          
+          <video
+            className="video-js vjs-default-skin vjs-big-play-centered"
+            controls
+            autoPlay
+            style={{ width: "90%", maxWidth: "1200px", maxHeight: "80vh", borderRadius: "8px", outline: "none", backgroundColor: "#000" }}
+            src={streamUrl}
+            onError={(e) => {
+              const videoEl = e.target;
+              const error = videoEl.error;
+              
+              const errorMsg = error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
+              
+              alert(`❌ Error playing video: ${errorMsg}\n\nTry downloading it instead.`);
+
+              // Send error to the backend terminal
+              fetch(`${API}/log-stream-error`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  url: streamUrl, 
+                  rawMessage: error?.message || "", 
+                  code: error?.code || "Unknown",
+                  networkState: videoEl.networkState,
+                  readyState: videoEl.readyState
+                })
+              }).catch(err => console.log("Failed to send log to backend"));
+            }}
+          />
+        </div>
+      )}
+
     </div >
   );
 }
