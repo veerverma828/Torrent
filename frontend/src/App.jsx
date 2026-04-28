@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import appLogo from "../Images/TITLE.png";
+import VideoPlayer from "./VideoPlayer";
 // import "./App.css";
 
 function App() {
@@ -13,7 +14,6 @@ function App() {
   const [seasons, setSeasons] = useState([]);
   const [episodes, setEpisodes] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(null);
-
   const [loading, setLoading] = useState(false);
 
   const [imdbMode, setImdbMode] = useState(false);
@@ -863,30 +863,29 @@ transform: "translateX(-50%)"
             ✖ Close
           </button>
           
-          <video
-            className="video-js vjs-default-skin vjs-big-play-centered"
-            controls
-            autoPlay
-            style={{ width: "90%", maxWidth: "1200px", maxHeight: "80vh", borderRadius: "8px", outline: "none", backgroundColor: "#000" }}
-            src={streamUrl}
-            onError={(e) => {
-              const videoEl = e.target;
-              const error = videoEl.error;
-              
+          <VideoPlayer
+            options={{
+              controls: true,
+              autoplay: true,
+              responsive: true,
+              fluid: true,
+              sources: [{
+                src: streamUrl,
+                type: "video/mp4"
+              }]
+            }}
+            onError={(error) => {
               const errorMsg = error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
               
               alert(`❌ Error playing video: ${errorMsg}\n\nTry downloading it instead.`);
 
-              // Send error to the backend terminal
               fetch(`${API}/log-stream-error`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                   url: streamUrl, 
                   rawMessage: error?.message || "", 
-                  code: error?.code || "Unknown",
-                  networkState: videoEl.networkState,
-                  readyState: videoEl.readyState
+                  code: error?.code || "Unknown"
                 })
               }).catch(err => console.log("Failed to send log to backend"));
             }}
