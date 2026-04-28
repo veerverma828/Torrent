@@ -32,6 +32,10 @@ function App() {
   const [streamUrl, setStreamUrl] = useState(null);
   const [processingMagnet, setProcessingMagnet] = useState(null);
 
+  // ✅ NEW: File Selection Modal state
+  const [fileModalData, setFileModalData] = useState(null);
+  const [processingFile, setProcessingFile] = useState(null);
+
   // ✅ Helper function to format Torrentio results
   const formatTorrentio = (data) => {
     const streams = data.streams || [];
@@ -111,85 +115,103 @@ function App() {
     alert("Magnet link copied ✅");
   };
 
-  // ✅ NEW: Helper to fetch the Debrid URL
-  const fetchDebridUrl = async (magnet) => {
-    const endpoint = debridService === "torbox" ? "/download-torbox" : "/download";
-
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    if (debridService === "real-debrid" && rdAdminCode) {
-      headers["x-admin-code"] = rdAdminCode;
-    }
-
-    const res = await fetch(`${API}${endpoint}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ magnet }),
-    });
-
-    return await res.json();
+  // ✅ NEW: Format bytes to MB/GB
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0 MB";
+    const mb = bytes / (1024 * 1024);
+    if (mb > 1024) return (mb / 1024).toFixed(2) + " GB";
+    return mb.toFixed(2) + " MB";
   };
 
-  // ✅ UPDATED: Download handler
-  const handleDownload = async (magnet) => {
+  // ✅ NEW: Step 1 - Fetch files inside the torrent
+  const initAction = async (magnet, actionType) => {
     setProcessingMagnet(magnet);
-    const data = await fetchDebridUrl(magnet);
-    setProcessingMagnet(null);
-
-    if (data.downloadUrl) {
-      window.open(data.downloadUrl);
-    } else {
-      alert(data.message);
-    }
-  };
-
-  // ✅ NEW: Stream handler
-  const handleStream = async (magnet) => {
-    setProcessingMagnet(magnet);
-    const data = await fetchDebridUrl(magnet);
-    setProcessingMagnet(null);
-    if (data.downloadUrl) {
-      setStreamUrl(data.downloadUrl);
-    } else {
-      alert(data.message);
-    }
-  };
-
-  // ✅ NEW: External Stream handler (Android Chooser / iOS VLC / PC Playlist)
-  const handleExternalStream = async (magnet) => {
-    setProcessingMagnet(magnet);
-    const data = await fetchDebridUrl(magnet);
-    setProcessingMagnet(null);
-    if (data.downloadUrl) {
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      if (isAndroid) {
-        // Triggers Android's "Open With" app chooser for video players
-        const urlObj = new URL(data.downloadUrl);
-        window.location.href = `intent://${urlObj.host}${urlObj.pathname}${urlObj.search}#Intent;scheme=${urlObj.protocol.replace(":", "")};type=video/*;action=android.intent.action.VIEW;end`;
-      } else if (isIOS) {
-        // Fallback to VLC for iOS
-        window.location.href = `vlc://${data.downloadUrl}`;
-      } else {
-        // Desktop (Windows/Mac/Linux): Generate a .m3u playlist file.
-        // When you open this file, your OS will launch your default video player (VLC, PotPlayer, etc.)
-        const m3uContent = `#EXTM3U\n#EXTINF:-1, Stream\n${data.downloadUrl}`;
-        const blob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "Play_Stream.m3u";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (debridService === "real-debrid" && rdAdminCode) {
+        headers["x-admin-code"] = rdAdminCode;
       }
-    } else {
-      alert(data.message);
+
+      const res = await fetch(`${API}/get-files`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ magnet, service: debridService }),
+      });
+      const data = await res.json();
+
+      if (data.files && data.files.length > 0) {
+        // Auto-sort so largest files (video files) are at the top
+        data.files.sort((a, b) => b.size - a.size);
+        setFileModalData({ magnet, torrentId: data.torrentId, files: data.files, actionType });
+      } else {
+        alert(data.message || "❌ No files found or timeout.");
+      }
+    } catch (err) {
+      alert("Error fetching files. Check console.");
+      console.error(err);
     }
+    setProcessingMagnet(null);
+  };
+
+  // ✅ NEW: Step 2 - Execute the specific file link
+  const selectFileAndExecute = async (fileId) => {
+    setProcessingFile(fileId);
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (debridService === "real-debrid" && rdAdminCode) {
+        headers["x-admin-code"] = rdAdminCode;
+      }
+
+      const res = await fetch(`${API}/generate-link`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          torrentId: fileModalData.torrentId,
+          fileId,
+          service: debridService
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.downloadUrl) {
+        const action = fileModalData.actionType;
+        setFileModalData(null); // Close the modal immediately
+
+        if (action === "download") {
+          window.open(data.downloadUrl);
+        } else if (action === "stream") {
+          setStreamUrl(data.downloadUrl);
+        } else if (action === "external") {
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+          if (isAndroid) {
+            const urlObj = new URL(data.downloadUrl);
+            window.location.href = `intent://${urlObj.host}${urlObj.pathname}${urlObj.search}#Intent;scheme=${urlObj.protocol.replace(":", "")};type=video/*;action=android.intent.action.VIEW;end`;
+          } else if (isIOS) {
+            window.location.href = `vlc://${data.downloadUrl}`;
+          } else {
+            const m3uContent = `#EXTM3U\n#EXTINF:-1, Stream\n${data.downloadUrl}`;
+            const blob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Play_Stream.m3u";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        }
+      } else {
+        alert(data.message || "❌ Failed to generate link. Torrent may not be fully cached yet.");
+      }
+    } catch (err) {
+      alert("Error generating link.");
+      console.error(err);
+    }
+    setProcessingFile(null);
   };
 
   // ✅ NEW: Fetch default catalog on mount
@@ -349,7 +371,9 @@ function App() {
       }
 
       let target = null;
-      if (results.length > 0) {
+      if (fileModalData) {
+        target = document.querySelector('.file-item'); // Targets the first file in popup
+      } else if (results.length > 0) {
         target = document.querySelector('.result-btn'); // Targets the Stream button
       } else if (selectedSeason && episodes.length > 0) {
         target = document.querySelector('.episode-card');
@@ -368,7 +392,7 @@ function App() {
 
     timeoutId = setTimeout(tryFocus, 50);
     return () => clearTimeout(timeoutId);
-  }, [results, seasons, episodes, selectedSeason]);
+  }, [results, seasons, episodes, selectedSeason, fileModalData]);
 
   return (
     <div className="app-container">
@@ -677,7 +701,7 @@ function App() {
               <div className="button-container">
                 <button
                   className="action-button"
-                  onClick={() => handleDownload(item.magnet)}
+                  onClick={() => initAction(item.magnet, 'download')}
                   disabled={processingMagnet === item.magnet}
                   style={{
                     background: processingMagnet === item.magnet ? "#6c757d" : "#007BFF",
@@ -705,7 +729,7 @@ function App() {
                 {/* ✅ NEW: Stream Button */}
                 <button
                   className="result-btn action-button"
-                  onClick={() => handleStream(item.magnet)}
+                  onClick={() => initAction(item.magnet, 'stream')}
                   disabled={processingMagnet === item.magnet}
                   style={{
                     marginLeft: "auto",
@@ -723,7 +747,7 @@ function App() {
                 {/* ✅ NEW: External Stream Button */}
                 <button
                   className="action-button"
-                  onClick={() => handleExternalStream(item.magnet)}
+                  onClick={() => initAction(item.magnet, 'external')}
                   disabled={processingMagnet === item.magnet}
                   style={{
                     background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
@@ -779,6 +803,50 @@ function App() {
               }).catch(err => console.log("Failed to send log to backend"));
             }}
           />
+        </div>
+      )}
+
+      {/* ✅ NEW: File Selection Modal */}
+      {fileModalData && (
+        <div className="video-modal">
+          <div className="file-modal-container">
+            <button
+              onClick={() => setFileModalData(null)}
+              className="video-close-btn"
+              style={{ top: "10px", right: "10px", position: "absolute", zIndex: 10 }}
+            >
+              ✖ Close
+            </button>
+            
+            <h2 style={{ marginTop: 0, marginBottom: "5px", paddingRight: "80px" }}>
+              Select a File to {fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}
+            </h2>
+            <p style={{ color: "#aaa", fontSize: "14px", margin: 0 }}>
+              Choose the exact file you want to extract from this torrent.
+            </p>
+
+            <div className="file-list">
+              {fileModalData.files.map((f) => (
+                <div
+                  key={f.id}
+                  className="file-item"
+                  tabIndex="0"
+                  onKeyDown={(e) => { if (e.key === "Enter") selectFileAndExecute(f.id); }}
+                  onClick={() => selectFileAndExecute(f.id)}
+                  style={{
+                    opacity: processingFile && processingFile !== f.id ? 0.5 : 1,
+                    pointerEvents: processingFile ? "none" : "auto"
+                  }}
+                >
+                  <div className="file-name">
+                    {processingFile === f.id && <span className="loader-small"></span>}
+                    {f.name.replace(/^\//, "") /* Cleans up any weird leading slashes */}
+                  </div>
+                  <div className="file-size">{formatBytes(f.size)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

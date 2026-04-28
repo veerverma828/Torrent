@@ -77,167 +77,116 @@ app.get("/search", async (req, res) => {
   }
 });
 
-// 🚀 REAL-DEBRID DOWNLOAD
-app.post("/download", async (req, res) => {
-  const { magnet } = req.body;
+// 🗂 GET FILES (STEP 1)
+app.post("/get-files", async (req, res) => {
+  const { magnet, service } = req.body;
   const adminCode = req.headers["x-admin-code"];
 
-  if (adminCode !== process.env.RD_ADMIN_CODE) {
-    logToFile(`🚨 BLOCK: Unauthorized Real-Debrid attempt (Missing/Invalid Code) for magnet: ${magnet.substring(0, 40)}...`);
-    return res.status(403).json({ message: "❌ Unauthorized: Admin code required for Real-Debrid" });
+  logToFile(`📂 Fetching files via ${service} for magnet: ${magnet.substring(0, 40)}...`);
+
+  if (service === "real-debrid") {
+    if (adminCode !== process.env.RD_ADMIN_CODE) {
+      return res.status(403).json({ message: "❌ Unauthorized" });
+    }
+    try {
+      const API_KEY = process.env.REAL_DEBRID_API_KEY;
+      const addRes = await axios.post("https://api.real-debrid.com/rest/1.0/torrents/addMagnet", new URLSearchParams({ magnet }), { headers: { Authorization: `Bearer ${API_KEY}` } });
+      const torrentId = addRes.data.id;
+
+      // Wait for files metadata
+      for (let i = 0; i < 15; i++) {
+        const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
+        if (info.data.status === "waiting_files_selection" || (info.data.files && info.data.files.length > 0)) {
+          return res.json({
+            torrentId,
+            files: info.data.files.map(f => ({ id: f.id, name: f.path, size: f.bytes }))
+          });
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      return res.status(408).json({ message: "⏳ Timeout waiting for torrent metadata." });
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      return res.status(500).json({ message: "Error fetching files from Real-Debrid" });
+    }
   }
 
-  logToFile(`✅ ALLOW: Authorized Real-Debrid request for magnet: ${magnet.substring(0, 40)}...`);
+  if (service === "torbox") {
+    try {
+      const API_KEY = process.env.TORBOX_API_KEY;
+      const addRes = await axios.post("https://api.torbox.app/v1/api/torrents/createtorrent", new URLSearchParams({ magnet }), { headers: { Authorization: `Bearer ${API_KEY}` } });
+      if (!addRes.data.success) return res.status(500).json({ message: "❌ Failed to add magnet to Torbox" });
+      const torrentId = addRes.data.data.torrent_id;
 
-  try {
-    const API_KEY = process.env.REAL_DEBRID_API_KEY;
-
-    console.log("🔗 Adding magnet to Real-Debrid:", magnet);
-
-    const addRes = await axios.post(
-      "https://api.real-debrid.com/rest/1.0/torrents/addMagnet",
-      new URLSearchParams({ magnet }),
-      {
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-        },
-      }
-    );
-
-    const torrentId = addRes.data.id;
-    console.log("✅ Torrent added with ID:", torrentId);
-
-    await axios.post(
-      `https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`,
-      new URLSearchParams({ files: "all" }),
-      {
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-        },
-      }
-    );
-
-    let downloadUrl = null;
-
-    for (let i = 0; i < 10; i++) {
-      const infoRes = await axios.get(
-        `https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${API_KEY}`,
-          },
+      // Wait for files in mylist
+      for (let i = 0; i < 15; i++) {
+        const listRes = await axios.get("https://api.torbox.app/v1/api/torrents/mylist", { headers: { Authorization: `Bearer ${API_KEY}` } });
+        const torrent = listRes.data.data?.find(t => t.id === torrentId);
+        if (torrent && torrent.files && torrent.files.length > 0) {
+          return res.json({
+            torrentId,
+            files: torrent.files.map(f => ({ id: f.id, name: f.name, size: f.size }))
+          });
         }
-      );
-
-      const torrent = infoRes.data;
-
-      console.log(`⏳ Status check ${i + 1}/10: ${torrent.status}`);
-
-      if (torrent.status === "downloaded") {
-        const link = torrent.links[0];
-
-        const unrestrict = await axios.post(
-          "https://api.real-debrid.com/rest/1.0/unrestrict/link",
-          new URLSearchParams({ link }),
-          {
-            headers: {
-              Authorization: `Bearer ${API_KEY}`,
-            },
-          }
-        );
-
-        downloadUrl = unrestrict.data.download;
-        console.log("✅ Download URL obtained");
-        break;
+        await new Promise(r => setTimeout(r, 2000));
       }
-
-      await new Promise((r) => setTimeout(r, 5000));
+      return res.status(408).json({ message: "⏳ Timeout waiting for torrent metadata." });
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      return res.status(500).json({ message: "Error fetching files from Torbox" });
     }
-
-    if (downloadUrl) {
-      res.json({ downloadUrl });
-    } else {
-      res.json({ message: "❌ Cannot be cached (timeout)" });
-    }
-  } catch (error) {
-    console.error("RD ERROR:", error.response?.data || error.message);
-    res.status(500).json({ message: "Error processing torrent" });
   }
 });
 
-// 🎁 TORBOX DOWNLOAD
-// 🎁 TORBOX DOWNLOAD (WITH WAIT LOGIC)
-app.post("/download-torbox", async (req, res) => {
-  const { magnet } = req.body;
+// 🔗 GENERATE LINK (STEP 2)
+app.post("/generate-link", async (req, res) => {
+  const { torrentId, fileId, service } = req.body;
+  const adminCode = req.headers["x-admin-code"];
 
-  try {
-    const API_KEY = process.env.TORBOX_API_KEY;
+  logToFile(`🔗 Generating link via ${service} for torrentId: ${torrentId}, fileId: ${fileId}`);
 
-    if (!API_KEY) {
-      return res.status(400).json({ message: "❌ Torbox API key not configured" });
-    }
+  if (service === "real-debrid") {
+    if (adminCode !== process.env.RD_ADMIN_CODE) return res.status(403).json({ message: "❌ Unauthorized" });
+    try {
+      const API_KEY = process.env.REAL_DEBRID_API_KEY;
+      // Select the specific file requested by the user
+      await axios.post(`https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`, new URLSearchParams({ files: fileId }), { headers: { Authorization: `Bearer ${API_KEY}` } });
 
-    console.log("🔗 Adding magnet to Torbox:", magnet);
-
-    // ✅ STEP 1: Create torrent
-    const formData = new URLSearchParams();
-    formData.append("magnet", magnet);
-
-    const addRes = await axios.post(
-      "https://api.torbox.app/v1/api/torrents/createtorrent",
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-        },
-      }
-    );
-
-    if (!addRes.data.success || !addRes.data.data) {
-      return res.status(500).json({ message: "❌ Failed to add magnet to Torbox" });
-    }
-
-    const torrentId = addRes.data.data.torrent_id;
-    console.log("✅ Torrent ID:", torrentId);
-
-    let downloadUrl = null;
-
-    // ✅ STEP 2: WAIT LOOP (like Real-Debrid)
-    for (let i = 0; i < 10; i++) {
-      console.log(`⏳ Torbox attempt ${i + 1}/10`);
-
-      try {
-        const dlRes = await axios.get(
-          `https://api.torbox.app/v1/api/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}`
-        );
-
-        if (dlRes.data.success && dlRes.data.data) {
-          downloadUrl = dlRes.data.data;
-          console.log("✅ Download URL obtained");
-          break;
+      for (let i = 0; i < 15; i++) {
+        const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
+        if (info.data.status === "downloaded" && info.data.links && info.data.links.length > 0) {
+          const unrestrict = await axios.post("https://api.real-debrid.com/rest/1.0/unrestrict/link", new URLSearchParams({ link: info.data.links[0] }), { headers: { Authorization: `Bearer ${API_KEY}` } });
+          return res.json({ downloadUrl: unrestrict.data.download });
         }
-
-      } catch (err) {
-        // Not ready yet
-        console.log("⏳ Not ready yet...");
+        await new Promise(r => setTimeout(r, 2000));
       }
-
-      // wait 5 sec
-      await new Promise((r) => setTimeout(r, 5000));
+      return res.status(408).json({ message: "⏳ Torrent is taking too long to cache/download." });
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      return res.status(500).json({ message: "Error generating link from Real-Debrid" });
     }
+  }
 
-    // ✅ FINAL RESPONSE
-    if (downloadUrl) {
-      res.json({ downloadUrl });
-    } else {
-      res.json({
-        message: "⏳ Torrent not cached yet. It will be available soon. Try again later.",
-      });
+  if (service === "torbox") {
+    try {
+      const API_KEY = process.env.TORBOX_API_KEY;
+      for (let i = 0; i < 15; i++) {
+        try {
+          // Request the precise file ID
+          const dlRes = await axios.get(`https://api.torbox.app/v1/api/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`);
+          if (dlRes.data.success && dlRes.data.data) {
+            return res.json({ downloadUrl: dlRes.data.data });
+          }
+        } catch (e) {
+          // Torbox throws a 400/500 if the torrent is still downloading internally
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      return res.status(408).json({ message: "⏳ Torrent is taking too long to cache/download." });
+    } catch (error) {
+      console.error(error.response?.data || error.message);
+      return res.status(500).json({ message: "Error generating link from Torbox" });
     }
-
-  } catch (error) {
-    console.error("TORBOX ERROR:", error.response?.data || error.message);
-    res.status(500).json({ message: "Error processing torrent with Torbox" });
   }
 });
 
