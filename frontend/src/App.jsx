@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import appLogo from "../Images/TITLE.png";
-import VideoPlayer from "./VideoPlayer";
 // import "./App.css";
 
 function App() {
@@ -863,18 +862,20 @@ transform: "translateX(-50%)"
             ✖ Close
           </button>
           
-          <VideoPlayer
-            options={{
-              controls: true,
-              autoplay: true,
-              responsive: true,
-              fluid: true,
-              sources: [{
-                src: streamUrl,
-                type: "video/mp4"
-              }]
+          <video
+            src={streamUrl}
+            controls
+            autoPlay
+            playsInline
+            style={{
+              width: "90%",
+              maxWidth: "1200px",
+              maxHeight: "80vh",
+              borderRadius: "8px",
+              backgroundColor: "#000"
             }}
-            onError={(error) => {
+            onError={(e) => {
+              const error = e.target.error;
               const errorMsg = error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
               
               alert(`❌ Error playing video: ${errorMsg}\n\nTry downloading it instead.`);
@@ -885,7 +886,9 @@ transform: "translateX(-50%)"
                 body: JSON.stringify({ 
                   url: streamUrl, 
                   rawMessage: error?.message || "", 
-                  code: error?.code || "Unknown"
+                  code: error?.code || "Unknown",
+                  networkState: e.target.networkState,
+                  readyState: e.target.readyState
                 })
               }).catch(err => console.log("Failed to send log to backend"));
             }}
