@@ -241,6 +241,25 @@ app.post("/download-torbox", async (req, res) => {
   }
 });
 
+// 🎬 DEFAULT CATALOG
+app.get("/catalog", async (req, res) => {
+  try {
+    console.log("🎬 Fetching default catalog...");
+    const [movieRes, seriesRes] = await Promise.all([
+      axios.get("https://v3-cinemeta.strem.io/catalog/movie/top.json"),
+      axios.get("https://v3-cinemeta.strem.io/catalog/series/top.json"),
+    ]);
+
+    res.json({
+      movies: movieRes.data?.metas || [],
+      series: seriesRes.data?.metas || [],
+    });
+  } catch (error) {
+    console.error("CATALOG ERROR:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to fetch catalog" });
+  }
+});
+
 // 🔍 Cinemeta Search
 app.get("/search-content", async (req, res) => {
   const query = req.query.q;
