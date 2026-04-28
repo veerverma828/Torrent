@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import appLogo from "../Images/TITLE.png";
-// import "./App.css";
+import "./App.css";
 
 function App() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -371,118 +371,13 @@ function App() {
   }, [results, seasons, episodes, selectedSeason]);
 
   return (
-    <div style={{
-padding: "20px",
-      backgroundColor: "#141414",
-color: "#fff",
-minHeight: "100vh",
-fontFamily: "Arial, sans-serif",
-width: "100vw",
-maxWidth: "100vw",
-margin: "0",
-boxSizing: "border-box",
-position: "relative",
-left: "50%",
-transform: "translateX(-50%)"
-}}>
-      {/* Global & Responsive CSS */}
-      <style>{`
-        /* Hide the horizontal scrollbar caused by 100vw pushing past the vertical scrollbar */
-        body {
-          overflow-x: hidden;
-        }
+    <div className="app-container">
 
-        @media (max-width: 768px) {
-          .button-container {
-            flex-direction: column;
-            align-items: center;
-          }
-          .button-container button {
-            margin-left: 0 !important;
-            width: 100%;
-            max-width: 280px;
-          }
-        }
-
-        /* Premium Hover Effect for Posters */
-        .poster-card {
-          transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .poster-card img {
-          transition: box-shadow 0.3s ease-in-out;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-        .poster-card p {
-          transition: color 0.3s ease;
-        }
-        
-        /* Only apply hover effects on devices with a mouse cursor */
-        @media (hover: hover) and (pointer: fine) {
-          .poster-card:hover {
-            transform: scale(1.08);
-          }
-          .poster-card:hover img {
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
-          }
-          .poster-card:hover p {
-            color: #007BFF;
-          }
-        }
-
-        /* ✅ NEW: Premium Focus Styles for Keyboard Nav */
-        .poster-card:focus, .episode-card:focus {
-          outline: 3px solid #007BFF !important;
-          outline-offset: 4px;
-          border-radius: 10px;
-        }
-        .poster-card:focus {
-          transform: scale(1.08);
-        }
-        .poster-card:focus img {
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
-        }
-        .poster-card:focus p {
-          color: #007BFF;
-        }
-        button:focus, input:focus {
-          outline: 3px solid #007BFF !important;
-          outline-offset: 2px;
-        }
-
-        /* ✅ NEW: CSS Spinners */
-        @keyframes rotation {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .loader {
-          width: 36px;
-          height: 36px;
-          border: 4px solid #FFF;
-          border-bottom-color: transparent;
-          border-radius: 50%;
-          display: inline-block;
-          box-sizing: border-box;
-          animation: rotation 1s linear infinite;
-        }
-        .loader-small {
-          width: 14px;
-          height: 14px;
-          border: 2px solid #FFF;
-          border-bottom-color: transparent;
-          border-radius: 50%;
-          display: inline-block;
-          box-sizing: border-box;
-          animation: rotation 1s linear infinite;
-          vertical-align: middle;
-          margin-right: 8px;
-        }
-      `}</style>
-
-      <div style={{ textAlign: "center", margin: "10px 0" }}>
+      <div className="logo-container">
         <img
           src={appLogo}
           alt="App Logo"
-          style={{ width: "100%", maxWidth: "300px", height: "auto", objectFit: "contain", cursor: "pointer", outline: "none" }}
+          className="app-logo"
           onClick={() => {
             setSelectedItem(null);
             setResults([]);
@@ -497,18 +392,9 @@ transform: "translateX(-50%)"
       </div>
 
       {/* ✅ NEW: Debrid Service Selector */}
-      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
-        <div style={{
-          display: "flex",
-          gap: "8px",
-          alignItems: "center",
-          padding: "5px 8px",
-          backgroundColor: "#1e1e1e",
-          borderRadius: "6px",
-          fontSize: "13px",
-          border: "1px solid #333"
-        }}>
-          <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
+      <div className="options-container">
+        <div className="debrid-selector">
+          <label className="radio-label">
             <input
               type="radio"
               name="debrid"
@@ -551,7 +437,7 @@ transform: "translateX(-50%)"
             />
             {" "}Real-Debrid
           </label>
-          <label style={{ marginBottom: "0", fontSize: "13px", color: "#ccc" }}>
+          <label className="radio-label">
             <input
               type="radio"
               name="debrid"
@@ -564,7 +450,7 @@ transform: "translateX(-50%)"
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "10px", flexWrap: "wrap" }}>
+      <div className="options-container" style={{ marginBottom: "10px" }}>
         <label>
           <input type="checkbox" checked={autoSearch} onChange={() => setAutoSearch(!autoSearch)} />
           {" "}Auto Search
@@ -581,7 +467,7 @@ transform: "translateX(-50%)"
         </label>
       </div>
 
-      <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center", marginTop: "20px", flexWrap: "wrap" }}>
+      <div className="search-container">
         <input
           type="text"
           placeholder={
@@ -598,35 +484,15 @@ transform: "translateX(-50%)"
               useJackett || imdbMode ? searchTorrents() : searchContent();
             }
           }}
-          style={{
-            width: "100%",
-            maxWidth: "500px",
-            height: "46px",
-            fontSize: "16px",
-            padding: "8px 22px",
-            borderRadius: "23px",
-            border: "1px solid #444",
-            backgroundColor: "#2a2a2a",
-            color: "#fff",
-            outline: "none",
-            transition: "border-color 0.3s ease"
-          }}
+          className="search-input"
         />
 
         <button
+          className="search-button"
           style={{
-            width: "100%",
-            maxWidth: "120px",
-            height: "46px",
-            borderRadius: "23px",
-            border: "none",
             backgroundColor: query.trim() ? "#007BFF" : "#444",
-            color: "#fff",
-            fontWeight: "bold",
-            fontSize: "16px",
             cursor: query.trim() ? "pointer" : "not-allowed",
             boxShadow: query.trim() ? "0 4px 15px rgba(0, 123, 255, 0.4)" : "none",
-            transition: "all 0.3s ease"
           }}
           onClick={useJackett || imdbMode ? searchTorrents : searchContent}
           disabled={query.trim() === ""}
@@ -636,36 +502,24 @@ transform: "translateX(-50%)"
       </div>
 
       {loading && (
-        <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <div className="center-margin-top">
           <span className="loader" title="Loading..."></span>
         </div>
       )}
 
       {!imdbMode && !selectedItem && results.length === 0 && (movies.length > 0 || series.length > 0) && (
-        <div style={{ marginTop: "20px" }}>
+        <div className="content-section">
 
           {/* 🎬 MOVIES */}
           {movies.length > 0 && (
             <>
-              {/* <h2 style={{ textAlign: "center" }}>Movies</h2> */}
-              <h2 style={{
-                fontSize: "22px",
-                fontWeight: "600",
-                margin: "20px 0 10px 20px",
-                color: "#fff",
-                letterSpacing: "0.5px"
-              }}>
+              <h2 className="section-title">
                 🎬 {query.trim() ? "Movies" : "Top Movies"}
               </h2>
 
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, 150px)",
-                gap: "15px",
-                justifyContent: "center"
-              }}>
+              <div className="poster-grid">
                 {movies.map((item, i) => (
-                  <div key={i} className="poster-card" tabIndex="0" style={{ cursor: "pointer", textAlign: "center", outline: "none" }} 
+                  <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
                     setSelectedItem(item);
@@ -685,7 +539,7 @@ transform: "translateX(-50%)"
                       setLoading(false);
                     }
                   }}>
-                    <img src={item.poster} alt={item.name} style={{ width: "150px", borderRadius: "10px" }} />
+                    <img src={item.poster} alt={item.name} />
                     <p>{item.name}</p>
                     <small>{item.type}</small>
                   </div>
@@ -697,24 +551,13 @@ transform: "translateX(-50%)"
           {/* 📺 SERIES */}
           {series.length > 0 && (
             <>
-              <h2 style={{
-                fontSize: "22px",
-                fontWeight: "600",
-                margin: "30px 0 10px 20px",
-                color: "#fff",
-                letterSpacing: "0.5px"
-              }}>
+              <h2 className="section-title" style={{ marginTop: "30px" }}>
                 📺 {query.trim() ? "Series" : "Top Series"}
               </h2>
 
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, 150px)",
-                gap: "15px",
-                justifyContent: "center"
-              }}>
+              <div className="poster-grid">
                 {series.map((item, i) => (
-                  <div key={i} className="poster-card" tabIndex="0" style={{ cursor: "pointer", textAlign: "center", outline: "none" }} 
+                  <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
                     setSelectedItem(item);
@@ -733,7 +576,7 @@ transform: "translateX(-50%)"
 
                     setLoading(false);
                   }}>
-                    <img src={item.poster} alt={item.name} style={{ width: "150px", borderRadius: "10px" }} />
+                    <img src={item.poster} alt={item.name} />
                     <p>{item.name}</p>
                     <small>{item.type}</small>
                   </div>
@@ -747,7 +590,7 @@ transform: "translateX(-50%)"
 
       {!imdbMode && selectedItem && seasons.length > 0 && !selectedSeason && (
         <>
-          <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <div className="center-margin-top">
             <button onClick={() => {
               setSelectedItem(null);
               setSeasons([]);
@@ -757,12 +600,12 @@ transform: "translateX(-50%)"
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <div className="center-margin-top">
             <h2>{selectedItem.name}</h2>
             <h3>Select Season</h3>
 
             {seasons.map((s) => (
-              <button key={s} className="season-btn" onClick={() => setSelectedSeason(s)} style={{ margin: "5px" }}>
+              <button key={s} className="season-btn" onClick={() => setSelectedSeason(s)}>
                 Season {s}
               </button>
             ))}
@@ -772,7 +615,7 @@ transform: "translateX(-50%)"
 
       {selectedSeason && (
         <>
-          <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <div className="center-margin-top">
             <button onClick={() => setSelectedSeason(null)}>⬅ Back to Seasons</button>
           </div>
 
@@ -782,7 +625,7 @@ transform: "translateX(-50%)"
             {episodes
               .filter((ep) => Number(ep.season) === Number(selectedSeason))
               .map((ep, i) => (
-                <div key={i} className="episode-card" tabIndex="0" style={{ border: "1px solid gray", margin: "10px", padding: "10px", cursor: "pointer", borderRadius: "8px", outline: "none" }}
+                <div key={i} className="episode-card" tabIndex="0"
                   onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                   onClick={async () => {
                     setLoading(true);
@@ -802,7 +645,7 @@ transform: "translateX(-50%)"
       )}
 
       {results.length > 0 && !imdbMode && selectedSeason === null && (
-        <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <div className="center-margin-top">
           <button onClick={() => {
             setResults([]);
 
@@ -818,10 +661,10 @@ transform: "translateX(-50%)"
       )}
 
       {(imdbMode || results.length > 0) && (
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <div className="results-container">
           {results.map((item, index) => (
-            <div key={index} style={{ marginTop: "10px", border: "1px solid gray", padding: "10px", borderRadius: "8px", overflow: "hidden" }}>
-              <h3 style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{item.title}</h3>
+            <div key={index} className="result-item">
+              <h3 className="result-title">{item.title}</h3>
               <p>Source: {item.provider}</p>
 
               {useJackett && (
@@ -831,19 +674,14 @@ transform: "translateX(-50%)"
                 </>
               )}
 
-              <div className="button-container" style={{ display: "flex", gap: "10px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <div className="button-container">
                 <button
+                  className="action-button"
                   onClick={() => handleDownload(item.magnet)}
                   disabled={processingMagnet === item.magnet}
                   style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "none",
                     background: processingMagnet === item.magnet ? "#6c757d" : "#007BFF",
-                    color: "#fff",
                     cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                    fontWeight: "500",
-                    minWidth: "165px"
                   }}
                 >
                   {processingMagnet === item.magnet ? (
@@ -854,16 +692,11 @@ transform: "translateX(-50%)"
                 </button>
 
                 <button
+                  className="action-button"
                   onClick={() => copyMagnet(item.magnet)}
                   style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "none",
                 background: "#6c757d",
-                    color: "#fff",
                     cursor: "pointer",
-                    fontWeight: "500",
-                    minWidth: "165px"
                   }}
                 >
                   Copy Magnet
@@ -871,19 +704,13 @@ transform: "translateX(-50%)"
 
                 {/* ✅ NEW: Stream Button */}
                 <button
-                  className="result-btn"
+                  className="result-btn action-button"
                   onClick={() => handleStream(item.magnet)}
                   disabled={processingMagnet === item.magnet}
                   style={{
                     marginLeft: "auto",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "none",
                     background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
-                    color: "#fff",
                     cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                    fontWeight: "500",
-                    minWidth: "165px"
                   }}
                 >
                   {processingMagnet === item.magnet ? (
@@ -895,17 +722,12 @@ transform: "translateX(-50%)"
 
                 {/* ✅ NEW: External Stream Button */}
                 <button
+                  className="action-button"
                   onClick={() => handleExternalStream(item.magnet)}
                   disabled={processingMagnet === item.magnet}
                   style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "none",
                     background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
-                    color: "#fff",
                     cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                    fontWeight: "500",
-                    minWidth: "165px"
                   }}
                 >
                   {processingMagnet === item.magnet ? (
@@ -924,18 +746,10 @@ transform: "translateX(-50%)"
 
       {/* ✅ NEW: Video Player Modal */}
       {streamUrl && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-          backgroundColor: "rgba(0,0,0,0.95)", display: "flex", justifyContent: "center",
-          alignItems: "center", zIndex: 9999, flexDirection: "column"
-        }}>
+        <div className="video-modal">
           <button
             onClick={() => setStreamUrl(null)}
-            style={{
-              position: "absolute", top: "20px", right: "30px", padding: "10px 20px",
-              background: "transparent", color: "#fff", border: "2px solid #fff",
-              cursor: "pointer", borderRadius: "5px", fontSize: "16px", fontWeight: "bold"
-            }}
+            className="video-close-btn"
           >
             ✖ Close
           </button>
@@ -945,13 +759,7 @@ transform: "translateX(-50%)"
             controls
             autoPlay
             playsInline
-            style={{
-              width: "90%",
-              maxWidth: "1200px",
-              maxHeight: "80vh",
-              borderRadius: "8px",
-              backgroundColor: "#000"
-            }}
+            className="video-player"
             onError={(e) => {
               const error = e.target.error;
               const errorMsg = error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
