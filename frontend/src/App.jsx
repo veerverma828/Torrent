@@ -16,10 +16,13 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const [imdbMode, setImdbMode] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
   const [movies, setMovies] = useState([]);
   const [series, setSeries] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // ✅ NEW: Store default catalogs
+  const [defaultMovies, setDefaultMovies] = useState([]);
+  const [defaultSeries, setDefaultSeries] = useState([]);
 
   // ✅ NEW: Debrid service selector
   const [debridService, setDebridService] = useState("torbox"); // "real-debrid" or "torbox"
@@ -50,8 +53,6 @@ function App() {
     try {
       const res = await fetch(`${API}/search-content?q=${query}`);
       const data = await res.json();
-
-      setSearchResults(data);
 
       // ✅ NEW: separate movies & series
       const movieList = data.filter((item) => item.type === "movie");
@@ -190,6 +191,36 @@ function App() {
       alert(data.message);
     }
   };
+
+  // ✅ NEW: Fetch default catalog on mount
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const res = await fetch(`${API}/catalog`);
+        const data = await res.json();
+        setDefaultMovies(data.movies || []);
+        setDefaultSeries(data.series || []);
+        setMovies(data.movies || []);
+        setSeries(data.series || []);
+      } catch (err) {
+        console.error("Error fetching catalog:", err);
+      }
+    };
+    fetchCatalog();
+  }, [API]);
+
+  // ✅ NEW: Restore default catalog when search is cleared
+  useEffect(() => {
+    if (query.trim() === "") {
+      setMovies(defaultMovies);
+      setSeries(defaultSeries);
+      setResults([]);
+      setSelectedItem(null);
+      setSelectedSeason(null);
+      setSeasons([]);
+      setEpisodes([]);
+    }
+  }, [query, defaultMovies, defaultSeries]);
 
   useEffect(() => {
     if (!autoSearch) return;
@@ -417,6 +448,34 @@ transform: "translateX(-50%)"
           outline: 3px solid #007BFF !important;
           outline-offset: 2px;
         }
+
+        /* ✅ NEW: CSS Spinners */
+        @keyframes rotation {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .loader {
+          width: 36px;
+          height: 36px;
+          border: 4px solid #FFF;
+          border-bottom-color: transparent;
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: rotation 1s linear infinite;
+        }
+        .loader-small {
+          width: 14px;
+          height: 14px;
+          border: 2px solid #FFF;
+          border-bottom-color: transparent;
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: rotation 1s linear infinite;
+          vertical-align: middle;
+          margin-right: 8px;
+        }
       `}</style>
 
       <div style={{ textAlign: "center", margin: "10px 0" }}>
@@ -430,9 +489,8 @@ transform: "translateX(-50%)"
             setSeasons([]);
             setEpisodes([]);
             setSelectedSeason(null);
-            setSearchResults([]);
-            setMovies([]);
-            setSeries([]);
+            setMovies(defaultMovies);
+            setSeries(defaultSeries);
             setQuery("");
           }}
         />
@@ -577,9 +635,13 @@ transform: "translateX(-50%)"
         </button>
       </div>
 
-      {loading && <p style={{ textAlign: "center", marginTop: "20px" }}>⏳ Loading...</p>}
+      {loading && (
+        <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <span className="loader" title="Loading..."></span>
+        </div>
+      )}
 
-      {!imdbMode && !selectedItem && searchResults.length > 0 && (
+      {!imdbMode && !selectedItem && results.length === 0 && (movies.length > 0 || series.length > 0) && (
         <div style={{ marginTop: "20px" }}>
 
           {/* 🎬 MOVIES */}
@@ -593,7 +655,7 @@ transform: "translateX(-50%)"
                 color: "#fff",
                 letterSpacing: "0.5px"
               }}>
-                🎬 Movies
+                🎬 {query.trim() ? "Movies" : "Top Movies"}
               </h2>
 
               <div style={{
@@ -609,6 +671,8 @@ transform: "translateX(-50%)"
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
+                    setSeasons([]);
+                    setEpisodes([]);
 
                     if (item.type === "movie") {
                       setLoading(true);
@@ -640,7 +704,7 @@ transform: "translateX(-50%)"
                 color: "#fff",
                 letterSpacing: "0.5px"
               }}>
-                📺 Series
+                📺 {query.trim() ? "Series" : "Top Series"}
               </h2>
 
               <div style={{
@@ -656,6 +720,8 @@ transform: "translateX(-50%)"
                     setSelectedItem(item);
                     setResults([]);
                     setSelectedSeason(null);
+                    setSeasons([]);
+                    setEpisodes([]);
 
                     setLoading(true);
 
@@ -780,7 +846,11 @@ transform: "translateX(-50%)"
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? `⏳ Processing (${debridService === "torbox" ? "Torbox" : "RD"})...` : `Download (${debridService === "torbox" ? "Torbox" : "RD"})`}
+                  {processingMagnet === item.magnet ? (
+                <><span className="loader-small"></span> Processing ({debridService === "torbox" ? "Torbox" : "RD"})...</>
+                  ) : (
+                    `Download (${debridService === "torbox" ? "Torbox" : "RD"})`
+                  )}
                 </button>
 
                 <button
@@ -816,7 +886,11 @@ transform: "translateX(-50%)"
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? `⏳ Loading (${debridService === "torbox" ? "Torbox" : "RD"})...` : "▶ Stream"}
+                  {processingMagnet === item.magnet ? (
+                <><span className="loader-small"></span> Loading ({debridService === "torbox" ? "Torbox" : "RD"})...</>
+                  ) : (
+                    "▶ Stream"
+                  )}
                 </button>
 
                 {/* ✅ NEW: External Stream Button */}
@@ -834,7 +908,11 @@ transform: "translateX(-50%)"
                     minWidth: "165px"
                   }}
                 >
-                  {processingMagnet === item.magnet ? `⏳ Loading (${debridService === "torbox" ? "Torbox" : "RD"})...` : "▶ External"}
+                  {processingMagnet === item.magnet ? (
+                <><span className="loader-small"></span> Loading ({debridService === "torbox" ? "Torbox" : "RD"})...</>
+                  ) : (
+                    "▶ External"
+                  )}
                 </button>
               </div>
 
