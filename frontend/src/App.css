@@ -215,6 +215,22 @@ button:focus, input:focus {
   min-width: 165px;
 }
 
+/* ✅ NEW: Split Button Styles */
+.split-btn-group {
+  display: flex;
+}
+.split-btn-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+}
+.split-btn-arrow {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  min-width: 35px;
+  padding: 0 10px;
+}
+
 @media (max-width: 768px) {
   .button-container {
     flex-direction: column;
@@ -224,6 +240,17 @@ button:focus, input:focus {
     margin-left: 0 !important;
     width: 100%;
     max-width: 280px;
+  }
+  .split-btn-group {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 280px;
+  }
+  .split-btn-group .split-btn-main {
+    width: 100%;
+  }
+  .split-btn-group .split-btn-arrow {
+    width: auto !important;
   }
 }
 
@@ -291,22 +318,43 @@ button:focus, input:focus {
   background-color: #000;
 }
 
-/* ✅ NEW: File Selection Modal */
-.file-modal-container {
+/* ✅ NEW: Inline File Selection Dropdown */
+.file-dropdown {
+  margin-top: 15px;
   background-color: #1a1a1a;
-  padding: 25px 20px;
-  border-radius: 10px;
-  max-width: 700px;
-  width: 90%;
-  max-height: 85vh;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+.file-dropdown-header {
   display: flex;
-  flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  position: relative;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  color: #aaa;
+  font-size: 14px;
+  padding: 0 5px;
+}
+.file-dropdown-header button {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+}
+.file-dropdown-header button:hover {
+  color: #ff4d4d;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .file-list {
+  max-height: 250px;
   overflow-y: auto;
-  margin-top: 15px;
+  margin-top: 10px;
   padding-right: 5px;
 }
 .file-item {
