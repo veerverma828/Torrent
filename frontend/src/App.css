@@ -167,17 +167,228 @@ button:focus, input:focus {
   outline-offset: 2px;
 }
 
-.season-btn {
-  margin: 5px;
+/* Premium Episodes Grid */
+.episodes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 10px;
 }
 
 .episode-card {
-  border: 1px solid gray;
-  margin: 10px;
-  padding: 10px;
+  background-color: #1e1e1e;
   cursor: pointer;
   border-radius: 8px;
   outline: none;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.episode-card:hover, .episode-card:focus {
+  transform: scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+  border-color: #007BFF;
+}
+
+.episode-thumbnail {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #000;
+  overflow: hidden;
+}
+
+.episode-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+.episode-card:hover .episode-thumbnail img,
+.episode-card:focus .episode-thumbnail img {
+  opacity: 0.4;
+}
+
+.episode-number {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.episode-play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: rgba(0, 123, 255, 0.9);
+  color: white;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  opacity: 0;
+  transition: all 0.2s ease-in-out;
+  padding-left: 4px; /* Centers the triangle optically */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.episode-card:hover .episode-play-icon,
+.episode-card:focus .episode-play-icon {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.episode-info {
+  padding: 12px;
+  text-align: left;
+}
+
+.episode-info h4 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.episode-airdate {
+  display: block;
+  font-size: 11px;
+  color: #88a;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.episode-overview {
+  font-size: 12px;
+  color: #aaa;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Truncates to exactly 3 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Season Bar Styles */
+.season-bar-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 20px auto 0;
+  overflow: hidden;
+  border-bottom: 2px solid #333;
+  position: relative;
+}
+
+.season-bar {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE 10+ */
+  scroll-behavior: smooth; /* Enhances scrollBy behavior natively */
+}
+
+.season-bar::-webkit-scrollbar {
+  display: none; /* Chrome Safari */
+}
+
+.season-tab {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #888;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.season-tab:hover, .season-tab:focus {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.season-tab.active {
+  color: #fff;
+  background: #007BFF;
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+}
+
+/* Season Bar Fades & Arrows */
+.fade-left, .fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 12px; /* Prevent covering the bottom border line */
+  width: 60px;
+  pointer-events: none; /* Allow clicks to pass through to items below */
+  z-index: 1;
+}
+
+.fade-left {
+  left: 0;
+  background: linear-gradient(to right, #141414 20%, transparent);
+}
+
+.fade-right {
+  right: 0;
+  background: linear-gradient(to left, #141414 20%, transparent);
+}
+
+.scroll-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  width: 40px;
+  background: rgba(20, 20, 20, 0.6);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.3s ease, color 0.3s ease;
+}
+
+.season-bar-container:hover .scroll-arrow {
+  opacity: 1;
+}
+
+.scroll-arrow:hover {
+  background: rgba(20, 20, 20, 0.9);
+  color: #007BFF;
+}
+
+.scroll-arrow.left { left: 0; }
+.scroll-arrow.right { right: 0; }
+
+/* Animation for episodes grid */
+.fade-in-episodes {
+  animation: fadeInEpisodes 0.4s ease-in-out;
+}
+
+@keyframes fadeInEpisodes {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .results-container {

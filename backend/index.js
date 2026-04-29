@@ -259,6 +259,7 @@ app.get("/series-meta", async (req, res) => {
 
     const videos = response.data.meta?.videos || [];
     const seasons = [...new Set(videos.map((v) => v.season))];
+    const seasons = [...new Set(videos.map((v) => v.season))].sort((a, b) => a - b);
 
     console.log(`✅ Found ${seasons.length} seasons`);
 
