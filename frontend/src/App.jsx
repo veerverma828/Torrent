@@ -10,6 +10,8 @@ function App() {
   const location = useLocation();
   const lastFetchedUrl = useRef("");
 
+  const TORRENTIO_API = "https://torrentio.strem.fun";
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [autoSearch, setAutoSearch] = useState(true);
@@ -83,8 +85,8 @@ function App() {
         const id = movieMatch.params.id;
         setSelectedItem(stateItem || { id, name: "Movie", type: "movie" });
         setLoading(true);
-        try {
-          const res = await fetch(`https://torrentio.strem.fun/stream/movie/${id}.json`);
+    try { // Use the constant
+      const res = await fetch(`${TORRENTIO_API}/stream/movie/${id}.json`);
           const data = await res.json();
           setResults(formatTorrentio(data));
         } catch (e) { console.error(e); }
