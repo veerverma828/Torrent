@@ -709,7 +709,10 @@ function App() {
               <div className="episodes-grid">
                 {episodes
                   .filter((ep) => Number(ep.season) === Number(selectedSeason))
-                  .map((ep, i) => (
+                  .map((ep, i) => {
+                    const isUnreleased = ep.released ? new Date(ep.released) > new Date() : false;
+                    
+                    return (
                     <div key={i} className="episode-card" tabIndex="0"
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                       onClick={async () => {
@@ -730,17 +733,22 @@ function App() {
                       </div>
                       
                       <div className="episode-info">
-                        <h4>{ep.name || ep.title || `Episode ${ep.episode}`}</h4>
+                        <h4>
+                          <span className="episode-title-text" title={ep.name || ep.title || `Episode ${ep.episode}`}>
+                            {ep.name || ep.title || `Episode ${ep.episode}`}
+                          </span>
+                          {isUnreleased && <span className="unreleased-badge">Unreleased</span>}
+                        </h4>
                         {ep.released && (
                           <span className="episode-airdate">
-                            Aired: {new Date(ep.released).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                            {isUnreleased ? "Airs: " : "Aired: "} {new Date(ep.released).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                           </span>
                         )}
                         {ep.overview && <p className="episode-overview">{ep.overview}</p>}
                       </div>
 
                     </div>
-                  ))}
+                  )})}
               </div>
             </div>
           )}
