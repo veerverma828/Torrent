@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import appLogo from "../Images/TITLE.png";
 import "./App.css";
 
 function App() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const lastFetchedUrl = useRef("");
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -54,10 +59,90 @@ function App() {
     }));
   };
 
+  // ✅ NEW: Route-based Data Syncing
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const modal = searchParams.get("modal");
+
+    // Safely close modals on back press
+    if (modal !== "file") setFileModalData(null);
+    if (modal !== "stream") setStreamUrl(null);
+
+    // Only fetch page data if the actual path changes (ignore modal query updates)
+    if (lastFetchedUrl.current === location.pathname) return;
+    lastFetchedUrl.current = location.pathname;
+
+    const movieMatch = matchPath("/movie/:id", location.pathname);
+    const seriesMatch = matchPath("/series/:id", location.pathname);
+    const episodeMatch = matchPath("/series/:id/season/:season/episode/:episode", location.pathname);
+
+    const fetchUrlData = async () => {
+      const stateItem = location.state?.item;
+
+      if (movieMatch) {
+        const id = movieMatch.params.id;
+        setSelectedItem(stateItem || { id, name: "Movie", type: "movie" });
+        setLoading(true);
+        try {
+          const res = await fetch(`https://torrentio.strem.fun/stream/movie/${id}.json`);
+          const data = await res.json();
+          setResults(formatTorrentio(data));
+        } catch (e) { console.error(e); }
+        setLoading(false);
+      } else if (episodeMatch) {
+        const { id, season, episode } = episodeMatch.params;
+        setSelectedItem(stateItem || { id, name: `Season ${season} Ep ${episode}`, type: "series" });
+        setSelectedSeason(season);
+        
+        if (episodes.length === 0) {
+          try {
+            const res = await fetch(`${API}/series-meta?id=${id}`);
+            const data = await res.json();
+            setSeasons(data.seasons);
+            setEpisodes(data.episodes);
+          } catch (e) {}
+        }
+        setLoading(true);
+        try {
+          const res = await fetch(`https://torrentio.strem.fun/stream/series/${id}:${season}:${episode}.json`);
+          const data = await res.json();
+          setResults(formatTorrentio(data));
+        } catch (e) { console.error(e); }
+        setLoading(false);
+      } else if (seriesMatch) {
+        const id = seriesMatch.params.id;
+        setSelectedItem(stateItem || { id, name: "Series", type: "series" });
+        setLoading(true);
+        try {
+          const res = await fetch(`${API}/series-meta?id=${id}`);
+          const data = await res.json();
+          setSeasons(data.seasons);
+          setEpisodes(data.episodes);
+          if (data.seasons && data.seasons.length > 0) {
+            const hasSeason1 = data.seasons.some(s => Number(s) === 1);
+            setSelectedSeason(hasSeason1 ? 1 : data.seasons[0]);
+          }
+        } catch (e) { console.error(e); }
+        setLoading(false);
+        setResults([]);
+      } else if (location.pathname === "/") {
+        if (selectedItem !== null) {
+          setSelectedItem(null);
+          if (!useJackett && !imdbMode) setResults([]);
+        }
+        if (seasons.length > 0) setSeasons([]);
+        if (episodes.length > 0) setEpisodes([]);
+        if (selectedSeason !== null) setSelectedSeason(null);
+      }
+    };
+    fetchUrlData();
+  }, [location.pathname, location.search, location.state, episodes.length, API, imdbMode, useJackett, seasons.length, selectedItem, selectedSeason]);
+
   const searchContent = async () => {
     if (!query.trim()) return;
 
     setLoading(true);
+    navigate('/');
 
     try {
       const res = await fetch(`${API}/search-content?q=${query}`);
@@ -85,8 +170,11 @@ function App() {
     setLoading(true);
 
     if (imdbMode && !useJackett && !query.startsWith("tt")) {
-      setLoading(false);
       alert("Please enter a valid IMDb ID (e.g. tt10872600)");
+      return;
+    }
+    if (imdbMode && !useJackett) {
+      navigate(`/movie/${query.trim()}`);
       return;
     }
 
@@ -96,16 +184,6 @@ function App() {
         const data = await res.json();
         setResults(data);
       } else {
-        const url = `https://torrentio.strem.fun/stream/movie/${query}.json`;
-
-        const res = await fetch(url);
-        const data = await res.json();
-
-        setResults(formatTorrentio(data));
-      }
-
-      if (imdbMode) {
-        setSelectedItem(null);
       }
     } catch (err) {
       console.error("Error:", err);
@@ -151,6 +229,7 @@ function App() {
         if (autoPlayFirst) {
           await selectFileAndExecute(data.files[0].id, data.torrentId, actionType);
         } else {
+          navigate(`${location.pathname}?modal=file`, { state: location.state });
           setFileModalData({ magnet, torrentId: data.torrentId, files: data.files, actionType });
         }
       } else {
@@ -191,10 +270,13 @@ function App() {
         if (fileModalData) setFileModalData(null); // Close the modal immediately
 
         if (action === "download") {
+          if (fileModalData) navigate(-1);
           window.open(data.downloadUrl);
         } else if (action === "stream") {
+          navigate(`${location.pathname}?modal=stream`, { state: location.state, replace: !!fileModalData });
           setStreamUrl(data.downloadUrl);
         } else if (action === "external") {
+          if (fileModalData) navigate(-1);
           const isAndroid = /Android/i.test(navigator.userAgent);
           const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -437,14 +519,8 @@ function App() {
           alt="App Logo"
           className="app-logo"
           onClick={() => {
-            setSelectedItem(null);
-            setResults([]);
-            setSeasons([]);
-            setEpisodes([]);
-            setSelectedSeason(null);
-            setMovies(defaultMovies);
-            setSeries(defaultSeries);
             setQuery("");
+            navigate('/');
           }}
         />
       </div>
@@ -580,22 +656,7 @@ function App() {
                   <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
-                    setSelectedItem(item);
-                    setResults([]);
-                    setSelectedSeason(null);
-                    setSeasons([]);
-                    setEpisodes([]);
-
-                    if (item.type === "movie") {
-                      setLoading(true);
-
-                      const url = `https://torrentio.strem.fun/stream/movie/${item.id}.json`;
-                      const res = await fetch(url);
-                      const data = await res.json();
-
-                      setResults(formatTorrentio(data));
-                      setLoading(false);
-                    }
+                    navigate(`/movie/${item.id}`, { state: { item } });
                   }}>
                     <img src={item.poster} alt={item.name} />
                     <p>{item.name}</p>
@@ -618,26 +679,7 @@ function App() {
                   <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
-                    setSelectedItem(item);
-                    setResults([]);
-                    setSelectedSeason(null);
-                    setSeasons([]);
-                    setEpisodes([]);
-
-                    setLoading(true);
-
-                    const res = await fetch(`${API}/series-meta?id=${item.id}`);
-                    const data = await res.json();
-
-                    setSeasons(data.seasons);
-                    setEpisodes(data.episodes);
-                    if (data.seasons && data.seasons.length > 0) {
-                      // Default to Season 1 if it exists, otherwise the first available season
-                      const hasSeason1 = data.seasons.some(s => Number(s) === 1);
-                      setSelectedSeason(hasSeason1 ? 1 : data.seasons[0]);
-                    }
-
-                    setLoading(false);
+                    navigate(`/series/${item.id}`, { state: { item } });
                   }}>
                     <img src={item.poster} alt={item.name} />
                     <p>{item.name}</p>
@@ -654,13 +696,7 @@ function App() {
       {!imdbMode && selectedItem && seasons.length > 0 && (
         <div className="series-view-container">
           <div className="center-margin-top">
-            <button onClick={() => {
-              setSelectedItem(null);
-              setSeasons([]);
-              setEpisodes([]);
-              setSelectedSeason(null);
-              setResults([]);
-            }}>
+            <button onClick={() => navigate('/')}>
               ⬅ Back to Search
             </button>
           </div>
@@ -716,14 +752,7 @@ function App() {
                     <div key={i} className="episode-card" tabIndex="0"
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                       onClick={async () => {
-                        setLoading(true);
-
-                        const url = `https://torrentio.strem.fun/stream/series/${selectedItem.id}:${ep.season}:${ep.episode}.json`;
-                        const res = await fetch(url);
-                        const data = await res.json();
-
-                        setResults(formatTorrentio(data));
-                        setLoading(false);
+                        navigate(`/series/${selectedItem.id}/season/${ep.season}/episode/${ep.episode}`, { state: { item: selectedItem } });
                       }}>
                       
                       <div className="episode-thumbnail">
@@ -758,12 +787,10 @@ function App() {
       {results.length > 0 && !imdbMode && selectedSeason === null && (
         <div className="center-margin-top">
           <button onClick={() => {
-            setResults([]);
-
-            if (selectedSeason) {
-              setSelectedSeason(null);
-            } else if (selectedItem) {
-              setSelectedItem(null);
+            if (selectedItem?.type === "series") {
+              navigate(`/series/${selectedItem.id}`, { state: { item: selectedItem } });
+            } else {
+              navigate('/');
             }
           }}>
             ⬅ Back
@@ -883,7 +910,7 @@ function App() {
                 <div className="file-dropdown">
                   <div className="file-dropdown-header">
                     <span>Select a file to <strong>{fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}</strong>:</span>
-                    <button onClick={() => setFileModalData(null)} title="Close">✖</button>
+                    <button onClick={() => navigate(-1)} title="Close">✖</button>
                   </div>
                   <div className="file-list">
                     {fileModalData.files.map((f) => (
@@ -919,7 +946,7 @@ function App() {
       {streamUrl && (
         <div className="video-modal">
           <button
-            onClick={() => setStreamUrl(null)}
+            onClick={() => navigate(-1)}
             className="video-close-btn"
           >
             ✖ Close
