@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import appLogo from "../Images/TITLE.png";
 import "./App.css";
 
@@ -19,6 +19,11 @@ function App() {
   const [movies, setMovies] = useState([]);
   const [series, setSeries] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // ✅ NEW: Season bar scrolling state
+  const seasonBarRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   // ✅ NEW: Store default catalogs
   const [defaultMovies, setDefaultMovies] = useState([]);
@@ -221,6 +226,30 @@ function App() {
     setProcessingFile(null);
   };
 
+  // ✅ NEW: Season bar scroll logic
+  const checkScroll = () => {
+    if (seasonBarRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = seasonBarRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      // -1 buffer for rounding issues on high DPI screens
+      setCanScrollRight(Math.round(scrollLeft + clientWidth) < scrollWidth - 1);
+    }
+  };
+
+  useEffect(() => {
+    const handleResizeOrUpdate = () => setTimeout(checkScroll, 50);
+    handleResizeOrUpdate();
+    window.addEventListener("resize", handleResizeOrUpdate);
+    return () => window.removeEventListener("resize", handleResizeOrUpdate);
+  }, [seasons, selectedItem]);
+
+  const scrollSeasons = (direction) => {
+    if (seasonBarRef.current) {
+      const scrollAmount = 300; // Scrolls smoothly by 300px
+      seasonBarRef.current.scrollBy({ left: direction === "left" ? -scrollAmount : scrollAmount, behavior: "smooth" });
+    }
+  };
+
   // ✅ NEW: Fetch default catalog on mount
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -297,7 +326,7 @@ function App() {
           // ✨ Smart Fallback: if focus is lost, jump to the most relevant content!
           const defaultTarget = document.querySelector('.result-btn') || 
                                 document.querySelector('.episode-card') || 
-                                document.querySelector('.season-btn') || 
+                                document.querySelector('.season-tab') || 
                                 document.querySelector('.poster-card') || 
                                 focusable[0];
           if (defaultTarget) {
@@ -384,8 +413,6 @@ function App() {
         target = document.querySelector('.result-btn'); // Targets the Stream button
       } else if (selectedSeason && episodes.length > 0) {
         target = document.querySelector('.episode-card');
-      } else if (seasons.length > 0 && !selectedSeason) {
-        target = document.querySelector('.season-btn');
       }
 
       if (target) {
@@ -604,6 +631,11 @@ function App() {
 
                     setSeasons(data.seasons);
                     setEpisodes(data.episodes);
+                    if (data.seasons && data.seasons.length > 0) {
+                      // Default to Season 1 if it exists, otherwise the first available season
+                      const hasSeason1 = data.seasons.some(s => Number(s) === 1);
+                      setSelectedSeason(hasSeason1 ? 1 : data.seasons[0]);
+                    }
 
                     setLoading(false);
                   }}>
@@ -619,60 +651,100 @@ function App() {
         </div>
       )}
 
-      {!imdbMode && selectedItem && seasons.length > 0 && !selectedSeason && (
-        <>
+      {!imdbMode && selectedItem && seasons.length > 0 && (
+        <div className="series-view-container">
           <div className="center-margin-top">
             <button onClick={() => {
               setSelectedItem(null);
               setSeasons([]);
               setEpisodes([]);
+              setSelectedSeason(null);
+              setResults([]);
             }}>
-              ⬅ Back
+              ⬅ Back to Search
             </button>
           </div>
 
           <div className="center-margin-top">
-            <h2>{selectedItem.name}</h2>
-            <h3>Select Season</h3>
-
-            {seasons.map((s) => (
-              <button key={s} className="season-btn" onClick={() => setSelectedSeason(s)}>
-                Season {s}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {selectedSeason && (
-        <>
-          <div className="center-margin-top">
-            <button onClick={() => setSelectedSeason(null)}>⬅ Back to Seasons</button>
+            <h2 style={{ marginBottom: "20px" }}>{selectedItem.name}</h2>
           </div>
 
-          <div style={{ marginTop: "20px" }}>
-            <h2 style={{ textAlign: "center" }}>Season {selectedSeason}</h2>
-
-            {episodes
-              .filter((ep) => Number(ep.season) === Number(selectedSeason))
-              .map((ep, i) => (
-                <div key={i} className="episode-card" tabIndex="0"
-                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
-                  onClick={async () => {
-                    setLoading(true);
-
-                    const url = `https://torrentio.strem.fun/stream/series/${selectedItem.id}:${ep.season}:${ep.episode}.json`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-
-                    setResults(formatTorrentio(data));
-                    setLoading(false);
-                  }}>
-                  <p>Episode {ep.episode}: {ep.title}</p>
+          {/* SEASON BAR */}
+          <div className="season-bar-container">
+            {canScrollLeft && (
+              <>
+                <div className="fade-left"></div>
+                <button className="scroll-arrow left" tabIndex="-1" onClick={() => scrollSeasons('left')}>
+                  &#10094;
+                </button>
+              </>
+            )}
+            <div className="season-bar" ref={seasonBarRef} onScroll={checkScroll}>
+              {seasons.map((s) => (
+                <div
+                  key={s}
+                  className={`season-tab ${Number(selectedSeason) === Number(s) ? "active" : ""}`}
+                  onMouseEnter={() => { setSelectedSeason(s); setResults([]); }}
+                  onClick={() => { setSelectedSeason(s); setResults([]); }}
+                  tabIndex="0"
+                  onKeyDown={(e) => { if (e.key === "Enter") { setSelectedSeason(s); setResults([]); } }}
+                >
+                  Season {s}
                 </div>
               ))}
+            </div>
+            {canScrollRight && (
+              <>
+                <div className="fade-right"></div>
+                <button className="scroll-arrow right" tabIndex="-1" onClick={() => scrollSeasons('right')}>
+                  &#10095;
+                </button>
+              </>
+            )}
           </div>
-        </>
+
+          {/* EPISODES GRID */}
+          {selectedSeason && (
+            <div className="fade-in-episodes" key={selectedSeason} style={{ marginTop: "20px", width: "100%" }}>
+              <div className="episodes-grid">
+                {episodes
+                  .filter((ep) => Number(ep.season) === Number(selectedSeason))
+                  .map((ep, i) => (
+                    <div key={i} className="episode-card" tabIndex="0"
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
+                      onClick={async () => {
+                        setLoading(true);
+
+                        const url = `https://torrentio.strem.fun/stream/series/${selectedItem.id}:${ep.season}:${ep.episode}.json`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+
+                        setResults(formatTorrentio(data));
+                        setLoading(false);
+                      }}>
+                      
+                      <div className="episode-thumbnail">
+                        <img src={ep.thumbnail || selectedItem.poster} alt={ep.name || ep.title || `Episode ${ep.episode}`} />
+                        <div className="episode-number">Ep {ep.episode}</div>
+                        <div className="episode-play-icon">▶</div>
+                      </div>
+                      
+                      <div className="episode-info">
+                        <h4>{ep.name || ep.title || `Episode ${ep.episode}`}</h4>
+                        {ep.released && (
+                          <span className="episode-airdate">
+                            Aired: {new Date(ep.released).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        {ep.overview && <p className="episode-overview">{ep.overview}</p>}
+                      </div>
+
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {results.length > 0 && !imdbMode && selectedSeason === null && (
