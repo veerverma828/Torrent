@@ -170,21 +170,21 @@ function App() {
     setLoading(true);
 
     if (imdbMode && !useJackett && !query.startsWith("tt")) {
+      setLoading(false);
       alert("Please enter a valid IMDb ID (e.g. tt10872600)");
       return;
     }
     if (imdbMode && !useJackett) {
+      setLoading(false);
       navigate(`/movie/${query.trim()}`);
       return;
     }
 
     try {
-      if (useJackett) {
-        const res = await fetch(`${API}/search?q=${query}`);
-        const data = await res.json();
-        setResults(data);
-      } else {
-      }
+      // If execution reaches here, useJackett is guaranteed to be true
+      const res = await fetch(`${API}/search?q=${query}`);
+      const data = await res.json();
+      setResults(data);
     } catch (err) {
       console.error("Error:", err);
       alert("Something went wrong");
@@ -373,7 +373,7 @@ function App() {
           searchContent();
         }
       }
-      }, 500); // ⏱ Reduced from 800ms to 500ms for snappier auto-searching
+          }, 400); // ⏱ Reduced to 400ms for snappier auto-searching
 
     return () => clearTimeout(delay);
   }, [query, autoSearch, useJackett, imdbMode]);
@@ -695,11 +695,6 @@ function App() {
 
       {!imdbMode && selectedItem && seasons.length > 0 && (
         <div className="series-view-container">
-          <div className="center-margin-top">
-            <button onClick={() => navigate('/')}>
-              ⬅ Back to Search
-            </button>
-          </div>
 
           <div className="center-margin-top">
             <h2 style={{ marginBottom: "20px" }}>{selectedItem.name}</h2>
@@ -781,20 +776,6 @@ function App() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {results.length > 0 && !imdbMode && selectedSeason === null && (
-        <div className="center-margin-top">
-          <button onClick={() => {
-            if (selectedItem?.type === "series") {
-              navigate(`/series/${selectedItem.id}`, { state: { item: selectedItem } });
-            } else {
-              navigate('/');
-            }
-          }}>
-            ⬅ Back
-          </button>
         </div>
       )}
 
