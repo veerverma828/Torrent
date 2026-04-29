@@ -124,7 +124,7 @@ function App() {
   };
 
   // ✅ NEW: Step 1 - Fetch files inside the torrent
-  const initAction = async (magnet, actionType) => {
+  const initAction = async (magnet, actionType, autoPlayFirst = false) => {
     setProcessingMagnet(magnet);
     try {
       const headers = { "Content-Type": "application/json" };
@@ -142,7 +142,12 @@ function App() {
       if (data.files && data.files.length > 0) {
         // Auto-sort so largest files (video files) are at the top
         data.files.sort((a, b) => b.size - a.size);
-        setFileModalData({ magnet, torrentId: data.torrentId, files: data.files, actionType });
+        
+        if (autoPlayFirst) {
+          await selectFileAndExecute(data.files[0].id, data.torrentId, actionType);
+        } else {
+          setFileModalData({ magnet, torrentId: data.torrentId, files: data.files, actionType });
+        }
       } else {
         alert(data.message || "❌ No files found or timeout.");
       }
@@ -154,7 +159,7 @@ function App() {
   };
 
   // ✅ NEW: Step 2 - Execute the specific file link
-  const selectFileAndExecute = async (fileId) => {
+  const selectFileAndExecute = async (fileId, overrideTorrentId, overrideActionType) => {
     setProcessingFile(fileId);
     try {
       const headers = { "Content-Type": "application/json" };
@@ -162,11 +167,14 @@ function App() {
         headers["x-admin-code"] = rdAdminCode;
       }
 
+      const torrentId = overrideTorrentId || (fileModalData ? fileModalData.torrentId : null);
+      const action = overrideActionType || (fileModalData ? fileModalData.actionType : null);
+
       const res = await fetch(`${API}/generate-link`, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          torrentId: fileModalData.torrentId,
+          torrentId: torrentId,
           fileId,
           service: debridService
         }),
@@ -175,8 +183,7 @@ function App() {
       const data = await res.json();
 
       if (data.downloadUrl) {
-        const action = fileModalData.actionType;
-        setFileModalData(null); // Close the modal immediately
+        if (fileModalData) setFileModalData(null); // Close the modal immediately
 
         if (action === "download") {
           window.open(data.downloadUrl);
@@ -255,7 +262,7 @@ function App() {
           searchContent();
         }
       }
-    }, 800);
+      }, 500); // ⏱ Reduced from 800ms to 500ms for snappier auto-searching
 
     return () => clearTimeout(delay);
   }, [query, autoSearch, useJackett, imdbMode]);
@@ -726,41 +733,101 @@ function App() {
                   Copy Magnet
                 </button>
 
-                {/* ✅ NEW: Stream Button */}
-                <button
-                  className="result-btn action-button"
-                  onClick={() => initAction(item.magnet, 'stream')}
-                  disabled={processingMagnet === item.magnet}
-                  style={{
-                    marginLeft: "auto",
-                    background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
-                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {processingMagnet === item.magnet ? (
-                <><span className="loader-small"></span> Loading ({debridService === "torbox" ? "Torbox" : "RD"})...</>
-                  ) : (
-                    "▶ Stream"
-                  )}
-                </button>
+                {/* ✅ NEW: Split Stream Button Group */}
+                <div className="split-btn-group" style={{ marginLeft: "auto" }}>
+                  <button
+                    className="result-btn action-button split-btn-main"
+                    onClick={() => initAction(item.magnet, 'stream', true)}
+                    disabled={processingMagnet === item.magnet}
+                    style={{
+                      background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    }}
+                    title="Instantly stream the main video file"
+                  >
+                    {processingMagnet === item.magnet ? (
+                      <><span className="loader-small"></span> Loading...</>
+                    ) : (
+                      "▶ Stream"
+                    )}
+                  </button>
+                  <button
+                    className="action-button split-btn-arrow"
+                    onClick={() => initAction(item.magnet, 'stream', false)}
+                    disabled={processingMagnet === item.magnet}
+                    style={{
+                      background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    }}
+                    title="Choose a specific file to stream"
+                  >
+                    ▼
+                  </button>
+                </div>
 
-                {/* ✅ NEW: External Stream Button */}
-                <button
-                  className="action-button"
-                  onClick={() => initAction(item.magnet, 'external')}
-                  disabled={processingMagnet === item.magnet}
-                  style={{
-                    background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
-                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {processingMagnet === item.magnet ? (
-                <><span className="loader-small"></span> Loading ({debridService === "torbox" ? "Torbox" : "RD"})...</>
-                  ) : (
-                    "▶ External"
-                  )}
-                </button>
+                {/* ✅ NEW: Split External Stream Button */}
+                <div className="split-btn-group">
+                  <button
+                    className="result-btn action-button split-btn-main"
+                    onClick={() => initAction(item.magnet, 'external', true)}
+                    disabled={processingMagnet === item.magnet}
+                    style={{
+                      background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
+                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    }}
+                    title="Instantly play the main video file in an external player"
+                  >
+                    {processingMagnet === item.magnet ? (
+                      <><span className="loader-small"></span> Loading...</>
+                    ) : (
+                      "▶ External"
+                    )}
+                  </button>
+                  <button
+                    className="action-button split-btn-arrow"
+                    onClick={() => initAction(item.magnet, 'external', false)}
+                    disabled={processingMagnet === item.magnet}
+                    style={{
+                      background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
+                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                    }}
+                    title="Choose a specific file to play externally"
+                  >
+                    ▼
+                  </button>
+                </div>
               </div>
+
+              {/* ✅ NEW: Inline File Selection Dropdown */}
+              {fileModalData && fileModalData.magnet === item.magnet && (
+                <div className="file-dropdown">
+                  <div className="file-dropdown-header">
+                    <span>Select a file to <strong>{fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}</strong>:</span>
+                    <button onClick={() => setFileModalData(null)} title="Close">✖</button>
+                  </div>
+                  <div className="file-list">
+                    {fileModalData.files.map((f) => (
+                      <div
+                        key={f.id}
+                        className="file-item"
+                        tabIndex="0"
+                        onKeyDown={(e) => { if (e.key === "Enter") selectFileAndExecute(f.id); }}
+                        onClick={() => selectFileAndExecute(f.id)}
+                        style={{
+                          opacity: processingFile && processingFile !== f.id ? 0.5 : 1,
+                          pointerEvents: processingFile ? "none" : "auto"
+                        }}
+                      >
+                        <div className="file-name">
+                          {processingFile === f.id && <span className="loader-small"></span>}
+                          {f.name.replace(/^\//, "")}
+                        </div>
+                        <div className="file-size">{formatBytes(f.size)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
             </div>
 
@@ -803,50 +870,6 @@ function App() {
               }).catch(err => console.log("Failed to send log to backend"));
             }}
           />
-        </div>
-      )}
-
-      {/* ✅ NEW: File Selection Modal */}
-      {fileModalData && (
-        <div className="video-modal">
-          <div className="file-modal-container">
-            <button
-              onClick={() => setFileModalData(null)}
-              className="video-close-btn"
-              style={{ top: "10px", right: "10px", position: "absolute", zIndex: 10 }}
-            >
-              ✖ Close
-            </button>
-            
-            <h2 style={{ marginTop: 0, marginBottom: "5px", paddingRight: "80px" }}>
-              Select a File to {fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}
-            </h2>
-            <p style={{ color: "#aaa", fontSize: "14px", margin: 0 }}>
-              Choose the exact file you want to extract from this torrent.
-            </p>
-
-            <div className="file-list">
-              {fileModalData.files.map((f) => (
-                <div
-                  key={f.id}
-                  className="file-item"
-                  tabIndex="0"
-                  onKeyDown={(e) => { if (e.key === "Enter") selectFileAndExecute(f.id); }}
-                  onClick={() => selectFileAndExecute(f.id)}
-                  style={{
-                    opacity: processingFile && processingFile !== f.id ? 0.5 : 1,
-                    pointerEvents: processingFile ? "none" : "auto"
-                  }}
-                >
-                  <div className="file-name">
-                    {processingFile === f.id && <span className="loader-small"></span>}
-                    {f.name.replace(/^\//, "") /* Cleans up any weird leading slashes */}
-                  </div>
-                  <div className="file-size">{formatBytes(f.size)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
