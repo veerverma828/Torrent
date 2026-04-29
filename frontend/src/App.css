@@ -260,9 +260,29 @@ button:focus, input:focus {
   margin: 0 0 6px 0;
   font-size: 15px;
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.episode-title-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.unreleased-badge {
+  background-color: #e50914;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(229, 9, 20, 0.3);
 }
 
 .episode-airdate {
