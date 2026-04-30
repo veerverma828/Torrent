@@ -12,7 +12,27 @@ const app = express();
 //   origin: "https://torrent-gamma.vercel.app"
 // }));
 
-app.use(cors());
+// app.use(cors());
+
+// 🔒 Advanced CORS Configuration - Restricted to allowed origins
+const allowedOrigins = [
+  "https://torrent-gamma.vercel.app",  // Production
+  "http://localhost:5173",              // Local frontend (Vite default)
+  "http://localhost:3000"               // Alternative local port
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "x-admin-code"]
+}));
 
 app.use(express.json());
 
