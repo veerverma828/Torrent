@@ -10,8 +10,15 @@ function App() {
   const location = useLocation();
   const lastFetchedUrl = useRef("");
 
-  const TORRENTIO_API = "https://torrentio.strem.fun";
+  const lastFetchedApis = useRef("");
 
+  // ✅ NEW: Settings & Addon State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [addonApis, setAddonApis] = useState(() => {
+    const saved = localStorage.getItem("addonApis");
+    return saved ? JSON.parse(saved) : ["https://torrentio.strem.fun/manifest.json"];
+  });
+  const [tempAddonApis, setTempAddonApis] = useState([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [autoSearch, setAutoSearch] = useState(true);
@@ -48,16 +55,16 @@ function App() {
   const [fileModalData, setFileModalData] = useState(null);
   const [processingFile, setProcessingFile] = useState(null);
 
-  // ✅ Helper function to format Torrentio results
+  // ✅ Helper function to format Addon results
   const formatTorrentio = (data) => {
     const streams = data.streams || [];
 
     return streams.map((item) => ({
-      title: item.title,
+      title: item.title || item.name || "Unknown Stream",
       size: 0,
       seeders: 0,
-      magnet: `magnet:?xt=urn:btih:${item.infoHash}`,
-      provider: "Torrentio",
+      magnet: item.infoHash ? `magnet:?xt=urn:btih:${item.infoHash}` : item.url,
+      provider: item.name || "Addon",
     }));
   };
 
@@ -70,9 +77,12 @@ function App() {
     if (modal !== "file") setFileModalData(null);
     if (modal !== "stream") setStreamUrl(null);
 
-    // Only fetch page data if the actual path changes (ignore modal query updates)
-    if (lastFetchedUrl.current === location.pathname) return;
+    const currentApisStr = JSON.stringify(addonApis);
+
+    // Only fetch page data if the actual path or addon APIs change
+    if (lastFetchedUrl.current === location.pathname && lastFetchedApis.current === currentApisStr) return;
     lastFetchedUrl.current = location.pathname;
+    lastFetchedApis.current = currentApisStr;
 
     const movieMatch = matchPath("/movie/:id", location.pathname);
     const seriesMatch = matchPath("/series/:id", location.pathname);
@@ -85,10 +95,14 @@ function App() {
         const id = movieMatch.params.id;
         setSelectedItem(stateItem || { id, name: "Movie", type: "movie" });
         setLoading(true);
-    try { // Use the constant
-      const res = await fetch(`${TORRENTIO_API}/stream/movie/${id}.json`);
-          const data = await res.json();
-          setResults(formatTorrentio(data));
+        try {
+          const fetchPromises = addonApis.map(api => {
+            const baseUrl = api.replace(/\/manifest\.json$/i, "").replace(/\/$/, "");
+            return fetch(`${baseUrl}/stream/movie/${id}.json`).then(r => r.json()).catch(() => ({ streams: [] }));
+          });
+          const dataArray = await Promise.all(fetchPromises);
+          const combinedResults = dataArray.flatMap(data => formatTorrentio(data));
+          setResults(combinedResults);
         } catch (e) { console.error(e); }
         setLoading(false);
       } else if (episodeMatch) {
@@ -106,9 +120,13 @@ function App() {
         }
         setLoading(true);
         try {
-          const res = await fetch(`https://torrentio.strem.fun/stream/series/${id}:${season}:${episode}.json`);
-          const data = await res.json();
-          setResults(formatTorrentio(data));
+          const fetchPromises = addonApis.map(api => {
+            const baseUrl = api.replace(/\/manifest\.json$/i, "").replace(/\/$/, "");
+            return fetch(`${baseUrl}/stream/series/${id}:${season}:${episode}.json`).then(r => r.json()).catch(() => ({ streams: [] }));
+          });
+          const dataArray = await Promise.all(fetchPromises);
+          const combinedResults = dataArray.flatMap(data => formatTorrentio(data));
+          setResults(combinedResults);
         } catch (e) { console.error(e); }
         setLoading(false);
       } else if (seriesMatch) {
@@ -138,7 +156,7 @@ function App() {
       }
     };
     fetchUrlData();
-  }, [location.pathname, location.search, location.state, episodes.length, API, imdbMode, useJackett, seasons.length, selectedItem, selectedSeason]);
+  }, [location.pathname, location.search, location.state, episodes.length, API, imdbMode, useJackett, seasons.length, selectedItem, selectedSeason, addonApis]);
 
   const searchContent = async () => {
     if (!query.trim()) return;
@@ -209,8 +227,41 @@ function App() {
   };
 
   // ✅ NEW: Step 1 - Fetch files inside the torrent
-  const initAction = async (magnet, actionType, autoPlayFirst = false) => {
-    setProcessingMagnet(magnet);
+  const initAction = async (magnetOrUrl, actionType, autoPlayFirst = false) => {
+    
+    // ✅ SMART ROUTING: Handle Direct HTTP links from Debrid-configured Addons instantly!
+    if (magnetOrUrl && magnetOrUrl.startsWith("http")) {
+      if (actionType === "download") {
+        window.open(magnetOrUrl);
+      } else if (actionType === "stream") {
+        navigate(`${location.pathname}?modal=stream`, { state: location.state });
+        setStreamUrl(magnetOrUrl);
+      } else if (actionType === "external") {
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          const urlObj = new URL(magnetOrUrl);
+          window.location.href = `intent://${urlObj.host}${urlObj.pathname}${urlObj.search}#Intent;scheme=${urlObj.protocol.replace(":", "")};type=video/*;action=android.intent.action.VIEW;end`;
+        } else if (isIOS) {
+          window.location.href = `vlc://${magnetOrUrl}`;
+        } else {
+          const m3uContent = `#EXTM3U\n#EXTINF:-1, Stream\n${magnetOrUrl}`;
+          const blob = new Blob([m3uContent], { type: "audio/x-mpegurl" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "Play_Stream.m3u";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+      return; // Skip backend completely
+    }
+
+    setProcessingMagnet(magnetOrUrl);
     try {
       const headers = { "Content-Type": "application/json" };
       if (debridService === "real-debrid" && rdAdminCode) {
@@ -220,7 +271,7 @@ function App() {
       const res = await fetch(`${API}/get-files`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ magnet, service: debridService }),
+        body: JSON.stringify({ magnet: magnetOrUrl, service: debridService }),
       });
       const data = await res.json();
 
@@ -232,7 +283,7 @@ function App() {
           await selectFileAndExecute(data.files[0].id, data.torrentId, actionType);
         } else {
           navigate(`${location.pathname}?modal=file`, { state: location.state });
-          setFileModalData({ magnet, torrentId: data.torrentId, files: data.files, actionType });
+          setFileModalData({ magnet: magnetOrUrl, torrentId: data.torrentId, files: data.files, actionType });
         }
       } else {
         alert(data.message || "❌ No files found or timeout.");
@@ -518,6 +569,21 @@ function App() {
   return (
     <div className="app-container">
 
+      {/* ✅ NEW: Settings Button */}
+      <button 
+        className="settings-btn"
+        onClick={() => {
+          setTempAddonApis([...addonApis]);
+          setIsSettingsOpen(true);
+        }}
+        title="Settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+
       <div className="logo-container">
         <img
           src={appLogo}
@@ -786,145 +852,155 @@ function App() {
 
       {(imdbMode || results.length > 0) && (
         <div className="results-container">
-          {results.map((item, index) => (
-            <div key={index} className="result-item">
-              <h3 className="result-title">{item.title}</h3>
-              <p>Source: {item.provider}</p>
+          {results.map((item, index) => {
+            const isDirect = item.magnet && item.magnet.startsWith("http");
 
-              {useJackett && (
-                <>
-                  <p>Size: {Math.round(item.size / 1000000)} MB</p>
-                  <p>Seeders: {item.seeders}</p>
-                </>
-              )}
-
-              <div className="button-container">
-                <button
-                  className="action-button"
-                  onClick={() => initAction(item.magnet, 'download')}
-                  disabled={processingMagnet === item.magnet}
-                  style={{
-                    background: processingMagnet === item.magnet ? "#6c757d" : "#007BFF",
-                    cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {processingMagnet === item.magnet ? (
-                <><span className="loader-small"></span> Processing ({debridService === "torbox" ? "Torbox" : "RD"})...</>
-                  ) : (
-                    `Download (${debridService === "torbox" ? "Torbox" : "RD"})`
-                  )}
-                </button>
-
-                <button
-                  className="action-button"
-                  onClick={() => copyMagnet(item.magnet)}
-                  style={{
-                background: "#6c757d",
-                    cursor: "pointer",
-                  }}
-                >
-                  Copy Magnet
-                </button>
-
-                {/* ✅ NEW: Split Stream Button Group */}
-                <div className="split-btn-group" style={{ marginLeft: "auto" }}>
+            return (
+              <div key={index} className="result-item">
+                <h3 className="result-title">{item.title}</h3>
+                <p>Source: {item.provider}</p>
+  
+                {useJackett && (
+                  <>
+                    <p>Size: {Math.round(item.size / 1000000)} MB</p>
+                    <p>Seeders: {item.seeders}</p>
+                  </>
+                )}
+  
+                <div className="button-container">
                   <button
-                    className="result-btn action-button split-btn-main"
-                    onClick={() => initAction(item.magnet, 'stream', true)}
+                    className="action-button"
+                    onClick={() => initAction(item.magnet, 'download')}
                     disabled={processingMagnet === item.magnet}
                     style={{
-                      background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                      background: processingMagnet === item.magnet ? "#6c757d" : "#007BFF",
                       cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
                     }}
-                    title="Instantly stream the main video file"
                   >
                     {processingMagnet === item.magnet ? (
-                      <><span className="loader-small"></span> Loading...</>
+                      <><span className="loader-small"></span> Processing...</>
+                    ) : isDirect ? (
+                      "⬇ Direct Download"
                     ) : (
-                      "▶ Stream"
+                      `Download (${debridService === "torbox" ? "Torbox" : "RD"})`
                     )}
                   </button>
+  
                   <button
-                    className="action-button split-btn-arrow"
-                    onClick={() => initAction(item.magnet, 'stream', false)}
-                    disabled={processingMagnet === item.magnet}
+                    className="action-button"
+                    onClick={() => copyMagnet(item.magnet)}
                     style={{
-                      background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
-                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                      background: "#6c757d",
+                      cursor: "pointer",
                     }}
-                    title="Choose a specific file to stream"
                   >
-                    ▼
+                    Copy {isDirect ? "Link" : "Magnet"}
                   </button>
-                </div>
-
-                {/* ✅ NEW: Split External Stream Button */}
-                <div className="split-btn-group">
-                  <button
-                    className="result-btn action-button split-btn-main"
-                    onClick={() => initAction(item.magnet, 'external', true)}
-                    disabled={processingMagnet === item.magnet}
-                    style={{
-                      background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
-                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                    }}
-                    title="Instantly play the main video file in an external player"
-                  >
-                    {processingMagnet === item.magnet ? (
-                      <><span className="loader-small"></span> Loading...</>
-                    ) : (
-                      "▶ External"
-                    )}
-                  </button>
-                  <button
-                    className="action-button split-btn-arrow"
-                    onClick={() => initAction(item.magnet, 'external', false)}
-                    disabled={processingMagnet === item.magnet}
-                    style={{
-                      background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
-                      cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
-                    }}
-                    title="Choose a specific file to play externally"
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-
-              {/* ✅ NEW: Inline File Selection Dropdown */}
-              {fileModalData && fileModalData.magnet === item.magnet && (
-                <div className="file-dropdown">
-                  <div className="file-dropdown-header">
-                    <span>Select a file to <strong>{fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}</strong>:</span>
-                    <button onClick={() => navigate(-1)} title="Close">✖</button>
-                  </div>
-                  <div className="file-list">
-                    {fileModalData.files.map((f) => (
-                      <div
-                        key={f.id}
-                        className="file-item"
-                        tabIndex="0"
-                        onKeyDown={(e) => { if (e.key === "Enter") selectFileAndExecute(f.id); }}
-                        onClick={() => selectFileAndExecute(f.id)}
+  
+                  {/* ✅ Stream Button Group */}
+                  <div className="split-btn-group" style={{ marginLeft: "auto" }}>
+                    <button
+                      className={`result-btn action-button ${!isDirect ? 'split-btn-main' : ''}`}
+                      onClick={() => initAction(item.magnet, 'stream', true)}
+                      disabled={processingMagnet === item.magnet}
+                      style={{
+                        background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                        cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                      }}
+                      title={isDirect ? "Instantly stream video" : "Instantly stream the main video file"}
+                    >
+                      {processingMagnet === item.magnet ? (
+                        <><span className="loader-small"></span> Loading...</>
+                      ) : (
+                        "▶ Stream"
+                      )}
+                    </button>
+                    {/* Hide the arrow selector if it's a direct pre-configured link */}
+                    {!isDirect && (
+                      <button
+                        className="action-button split-btn-arrow"
+                        onClick={() => initAction(item.magnet, 'stream', false)}
+                        disabled={processingMagnet === item.magnet}
                         style={{
-                          opacity: processingFile && processingFile !== f.id ? 0.5 : 1,
-                          pointerEvents: processingFile ? "none" : "auto"
+                          background: processingMagnet === item.magnet ? "#6c757d" : "#1e7e34",
+                          cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
                         }}
+                        title="Choose a specific file to stream"
                       >
-                        <div className="file-name">
-                          {processingFile === f.id && <span className="loader-small"></span>}
-                          {f.name.replace(/^\//, "")}
-                        </div>
-                        <div className="file-size">{formatBytes(f.size)}</div>
-                      </div>
-                    ))}
+                        ▼
+                      </button>
+                    )}
+                  </div>
+  
+                  {/* ✅ External Stream Button */}
+                  <div className="split-btn-group">
+                    <button
+                      className={`result-btn action-button ${!isDirect ? 'split-btn-main' : ''}`}
+                      onClick={() => initAction(item.magnet, 'external', true)}
+                      disabled={processingMagnet === item.magnet}
+                      style={{
+                        background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
+                        cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                      }}
+                      title={isDirect ? "Instantly play in an external player" : "Instantly play the main video file in an external player"}
+                    >
+                      {processingMagnet === item.magnet ? (
+                        <><span className="loader-small"></span> Loading...</>
+                      ) : (
+                        "▶ External"
+                      )}
+                    </button>
+                    {!isDirect && (
+                      <button
+                        className="action-button split-btn-arrow"
+                        onClick={() => initAction(item.magnet, 'external', false)}
+                        disabled={processingMagnet === item.magnet}
+                        style={{
+                          background: processingMagnet === item.magnet ? "#6c757d" : "#6f42c1",
+                          cursor: processingMagnet === item.magnet ? "not-allowed" : "pointer",
+                        }}
+                        title="Choose a specific file to play externally"
+                      >
+                        ▼
+                      </button>
+                    )}
                   </div>
                 </div>
-              )}
-
-            </div>
-
-          ))}
+  
+                {/* Inline File Selection Dropdown (Hidden for direct links) */}
+                {fileModalData && fileModalData.magnet === item.magnet && !isDirect && (
+                  <div className="file-dropdown">
+                    <div className="file-dropdown-header">
+                      <span>Select a file to <strong>{fileModalData.actionType.charAt(0).toUpperCase() + fileModalData.actionType.slice(1)}</strong>:</span>
+                      <button onClick={() => navigate(-1)} title="Close">✖</button>
+                    </div>
+                    <div className="file-list">
+                      {fileModalData.files.map((f) => (
+                        <div
+                          key={f.id}
+                          className="file-item"
+                          tabIndex="0"
+                          onKeyDown={(e) => { if (e.key === "Enter") selectFileAndExecute(f.id); }}
+                          onClick={() => selectFileAndExecute(f.id)}
+                          style={{
+                            opacity: processingFile && processingFile !== f.id ? 0.5 : 1,
+                            pointerEvents: processingFile ? "none" : "auto"
+                          }}
+                        >
+                          <div className="file-name">
+                            {processingFile === f.id && <span className="loader-small"></span>}
+                            {f.name.replace(/^\//, "")}
+                          </div>
+                          <div className="file-size">{formatBytes(f.size)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+  
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -963,6 +1039,61 @@ function App() {
               }).catch(err => console.log("Failed to send log to backend"));
             }}
           />
+        </div>
+      )}
+
+      {/* ✅ NEW: Settings Modal */}
+      {isSettingsOpen && (
+        <div className="settings-modal-overlay">
+          <div className="settings-modal-content">
+            <h2>Settings</h2>
+            <div className="settings-section">
+              <h3 style={{ marginBottom: '15px' }}>Addon APIs</h3>
+              {tempAddonApis.map((api, index) => (
+                <div key={index} className="addon-input-group">
+                  <input
+                    type="text"
+                    className="addon-input"
+                    value={api}
+                    onChange={(e) => {
+                      const newApis = [...tempAddonApis];
+                      newApis[index] = e.target.value;
+                      setTempAddonApis(newApis);
+                    }}
+                    placeholder="https://example.addon.com/manifest.json"
+                  />
+                  <button
+                    className="addon-remove-btn"
+                    onClick={() => {
+                      const newApis = tempAddonApis.filter((_, i) => i !== index);
+                      setTempAddonApis(newApis);
+                    }}
+                    title="Remove API"
+                  >
+                    ✖
+                  </button>
+                </div>
+              ))}
+              <button className="addon-add-btn" onClick={() => setTempAddonApis([...tempAddonApis, ""])}>
+                + Add API
+              </button>
+            </div>
+            
+            <div className="settings-actions">
+              <button className="settings-default-btn" onClick={() => {
+                setTempAddonApis(["https://torrentio.strem.fun/manifest.json"]);
+              }}>Restore Default</button>
+              <div className="settings-actions-right">
+                <button className="settings-save-btn" onClick={() => {
+                  const finalApis = tempAddonApis.filter(api => api.trim() !== "").map(api => api.trim());
+                  setAddonApis(finalApis);
+                  localStorage.setItem("addonApis", JSON.stringify(finalApis));
+                  setIsSettingsOpen(false);
+                }}>Save</button>
+                <button className="settings-cancel-btn" onClick={() => setIsSettingsOpen(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

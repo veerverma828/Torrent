@@ -427,6 +427,44 @@ button:focus, input:focus {
 .result-title {
   word-break: break-word;
   overflow-wrap: anywhere;
+  margin-top: 0;
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+/* ✅ NEW: Extracted Stream Data Badges */
+.stream-badges {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.quality-badge {
+  background: #e50914;
+  color: white;
+}
+.provider-badge {
+  background: #007BFF;
+  color: white;
+}
+.stream-stats {
+  display: flex;
+  gap: 15px;
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .button-container {
@@ -619,4 +657,147 @@ button:focus, input:focus {
 }
 .file-item:hover .file-size, .file-item:focus .file-size {
   color: #fff;
+}
+
+/* ✅ NEW: Settings Modal Styles */
+.settings-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: #ccc;
+  transition: all 0.3s ease;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+.settings-btn:hover {
+  transform: rotate(90deg) scale(1.05);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+.settings-modal-content {
+  background: #1a1a1a;
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+.settings-modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+.addon-input-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.addon-input {
+  flex: 1;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
+  padding: 0 15px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.addon-input:focus {
+  border-color: #007BFF;
+}
+.addon-remove-btn {
+  background: transparent;
+  color: #ff4d4d;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 5px;
+}
+.addon-add-btn {
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: background 0.2s;
+}
+.addon-add-btn:hover {
+  background: #444;
+}
+.settings-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #333;
+  padding-top: 20px;
+}
+.settings-actions-right {
+  display: flex;
+  gap: 12px;
+}
+.settings-default-btn {
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: transparent;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+.settings-default-btn:hover {
+  color: #fff;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+.settings-save-btn, .settings-cancel-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+.settings-save-btn {
+  background: #007BFF;
+  color: #fff;
+}
+.settings-save-btn:hover {
+  background: #0056b3;
+}
+.settings-cancel-btn {
+  background: #444;
+  color: #fff;
+}
+.settings-cancel-btn:hover {
+  background: #555;
 }
