@@ -1,6 +1,15 @@
 /* Hide the horizontal scrollbar caused by 100vw pushing past the vertical scrollbar */
 body {
   overflow-x: hidden;
+  margin: 0;
+}
+
+/* Reset standard React/Vite #root constraints that cause the layout to shift right */
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .app-container {
@@ -9,13 +18,11 @@ body {
   color: #fff;
   min-height: 100vh;
   font-family: Arial, sans-serif;
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   margin: 0;
   box-sizing: border-box;
   position: relative;
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 .logo-container {
@@ -467,6 +474,11 @@ button:focus, input:focus {
   gap: 4px;
 }
 
+/* ✅ Utility to push items to the right in flex containers */
+.push-right {
+  margin-left: auto;
+}
+
 .button-container {
   display: flex;
   gap: 10px;
@@ -506,12 +518,12 @@ button:focus, input:focus {
     align-items: center;
   }
   .button-container button {
-    margin-left: 0 !important;
     width: 100%;
     max-width: 280px;
   }
-  .split-btn-group {
-    margin-left: 0 !important;
+  .split-btn-group,
+  .split-btn-group.push-right {
+    margin-left: 0;
     width: 100%;
     max-width: 280px;
   }
@@ -519,7 +531,7 @@ button:focus, input:focus {
     width: 100%;
   }
   .split-btn-group .split-btn-arrow {
-    width: auto !important;
+    width: auto;
   }
 }
 
@@ -555,8 +567,8 @@ button:focus, input:focus {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0,0,0,0.95);
   display: flex;
   justify-content: center;
@@ -689,8 +701,8 @@ button:focus, input:focus {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
@@ -800,4 +812,17 @@ button:focus, input:focus {
 }
 .settings-cancel-btn:hover {
   background: #555;
+}
+
+/* Floating bottom-right Settings button for Mobile */
+@media (max-width: 768px) {
+  .settings-btn {
+    position: fixed;
+    top: auto;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: rgba(30, 30, 30, 0.9);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  }
 }

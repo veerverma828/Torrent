@@ -898,7 +898,7 @@ function App() {
                   </button>
   
                   {/* ✅ Stream Button Group */}
-                  <div className="split-btn-group" style={{ marginLeft: "auto" }}>
+                  <div className="split-btn-group push-right">
                     <button
                       className={`result-btn action-button ${!isDirect ? 'split-btn-main' : ''}`}
                       onClick={() => initAction(item.magnet, 'stream', true)}
