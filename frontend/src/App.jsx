@@ -356,13 +356,16 @@ function App() {
     if (query.trim() === "") {
       setMovies(defaultMovies);
       setSeries(defaultSeries);
-      setResults([]);
-      setSelectedItem(null);
-      setSelectedSeason(null);
-      setSeasons([]);
-      setEpisodes([]);
+      // Only clear selection state if the user is actually on the home page
+      if (location.pathname === "/") {
+        setResults([]);
+        setSelectedItem(null);
+        setSelectedSeason(null);
+        setSeasons([]);
+        setEpisodes([]);
+      }
     }
-  }, [query, defaultMovies, defaultSeries]);
+  }, [query, defaultMovies, defaultSeries, location.pathname]);
 
   useEffect(() => {
     if (!autoSearch) return;
