@@ -2,6 +2,51 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import appLogo from "../Images/TITLE.png";
 import "./App.css";
+import { saveProgress, getMovieProgress, getEpisodeProgress, getContinueWatching, updateTrackingMetadata } from "./progressTracker";
+
+// ✅ NEW: Self-hydrating card for Continue Watching items that might be missing legacy metadata
+const ContinueWatchingCard = ({ item, onClick }) => {
+  const [meta, setMeta] = useState({
+    title: item.type === 'movie' ? item.title : item.seriesTitle,
+    poster: item.type === 'movie' ? item.poster : item.seriesPoster
+  });
+  const hasHydrated = useRef(false); // ✅ Prevent infinite loop if API returns no poster
+
+  useEffect(() => {
+    // If old progress tracking data is missing the poster or title, fetch it dynamically
+    if (!hasHydrated.current && (!meta.poster || !meta.title || meta.title.includes("Unknown"))) {
+      const fetchMeta = async () => {
+        hasHydrated.current = true;
+        try {
+          const type = item.type === 'movie' ? 'movie' : 'series';
+          const id = item.type === 'movie' ? item.id : item.seriesId;
+          const res = await fetch(`https://v3-cinemeta.strem.io/meta/${type}/${id}.json`);
+          const data = await res.json();
+          if (data && data.meta) {
+            setMeta({ title: data.meta.name, poster: data.meta.poster });
+            
+            // ✅ Safely repair localStorage without bypassing cache/quota limits
+            updateTrackingMetadata(type, id, data.meta.name, data.meta.poster);
+          }
+        } catch(e) { console.error("Failed to hydrate meta", e) }
+      };
+      fetchMeta();
+    }
+  }, [item, meta]);
+
+  return (
+    <div className="poster-card" tabIndex="0" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }} onClick={() => onClick(meta)}>
+      <div className="poster-img-container">
+        {meta.poster ? ( <img src={meta.poster} alt={meta.title} /> ) : ( <div style={{width:'100%', aspectRatio:'2/3', backgroundColor:'#222', display:'flex', alignItems:'center', justifyContent:'center'}}><span className="loader-small" style={{margin: 0}}></span></div> )}
+        <div className="progress-bar-container">
+          <div className="progress-bar" style={{ width: `${item.percentage}%`, backgroundColor: '#007BFF' }}></div>
+        </div>
+      </div>
+      <p>{meta.title || "Loading..."}</p>
+      <small>{item.type === 'movie' ? 'Movie' : `S${item.season} E${item.episode}`}</small>
+    </div>
+  );
+};
 
 function App() {
   const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -9,6 +54,8 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const lastFetchedUrl = useRef("");
+  const progressInterval = useRef({ lastSaveTime: 0, lastTick: 0 });
+  const videoRef = useRef(null);
 
   const lastFetchedApis = useRef("");
 
@@ -54,6 +101,9 @@ function App() {
   // ✅ NEW: File Selection Modal state
   const [fileModalData, setFileModalData] = useState(null);
   const [processingFile, setProcessingFile] = useState(null);
+
+  // Reactive retrieval: Fetches the tracked movies/series automatically
+  const continueWatchingList = getContinueWatching();
 
   // ✅ Helper function to format Addon results
   const formatTorrentio = (data) => {
@@ -726,28 +776,61 @@ function App() {
         </div>
       )}
 
-      {!imdbMode && !selectedItem && results.length === 0 && (movies.length > 0 || series.length > 0) && (
+      {!imdbMode && !selectedItem && results.length === 0 && (movies.length > 0 || series.length > 0 || continueWatchingList.length > 0) && (
         <div className="content-section">
+
+          {/* ⏯ CONTINUE WATCHING */}
+          {query.trim() === "" && continueWatchingList.length > 0 && (
+            <>
+              <h2 className="section-title">
+                ⏯ Continue Watching
+              </h2>
+              <div className="poster-grid">
+                {continueWatchingList.map((item, i) => (
+                  <ContinueWatchingCard 
+                    key={`cw-${i}`} 
+                    item={item} 
+                    onClick={(hydratedMeta) => {
+                      if (item.type === 'movie') {
+                        navigate(`/movie/${item.id}`, { state: { item: { id: item.id, name: hydratedMeta.title, poster: hydratedMeta.poster, type: 'movie' } } });
+                      } else {
+                        navigate(`/series/${item.seriesId}/season/${item.season}/episode/${item.episode}`, { state: { item: { id: item.seriesId, name: hydratedMeta.title, poster: hydratedMeta.poster, type: 'series' } } });
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
           {/* 🎬 MOVIES */}
           {movies.length > 0 && (
             <>
-              <h2 className="section-title">
+              <h2 className="section-title" style={{ marginTop: continueWatchingList.length > 0 ? "30px" : "20px" }}>
                 🎬 {query.trim() ? "Movies" : "Top Movies"}
               </h2>
 
               <div className="poster-grid">
-                {movies.map((item, i) => (
+                {movies.map((item, i) => {
+                  const progress = getMovieProgress(item.id);
+                  return (
                   <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
                     navigate(`/movie/${item.id}`, { state: { item } });
                   }}>
-                    <img src={item.poster} alt={item.name} />
+                    <div className="poster-img-container">
+                      <img src={item.poster} alt={item.name} />
+                      {progress && progress.percentage > 0 && (
+                        <div className="progress-bar-container">
+                          <div className="progress-bar" style={{ width: `${progress.percentage}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
+                        </div>
+                      )}
+                    </div>
                     <p>{item.name}</p>
                     <small>{item.type}</small>
                   </div>
-                ))}
+                )})}
               </div>
             </>
           )}
@@ -760,17 +843,20 @@ function App() {
               </h2>
 
               <div className="poster-grid">
-                {series.map((item, i) => (
+                {series.map((item, i) => {
+                  return (
                   <div key={i} className="poster-card" tabIndex="0"
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }}
                     onClick={async () => {
                     navigate(`/series/${item.id}`, { state: { item } });
                   }}>
-                    <img src={item.poster} alt={item.name} />
+                    <div className="poster-img-container">
+                      <img src={item.poster} alt={item.name} />
+                    </div>
                     <p>{item.name}</p>
                     <small>{item.type}</small>
                   </div>
-                ))}
+                )})}
               </div>
             </>
           )}
@@ -827,6 +913,7 @@ function App() {
                   .filter((ep) => Number(ep.season) === Number(selectedSeason))
                   .map((ep, i) => {
                     const isUnreleased = ep.released ? new Date(ep.released) > new Date() : false;
+                    const progress = getEpisodeProgress(selectedItem.id, ep.season, ep.episode);
                     
                     return (
                     <div key={i} className="episode-card" tabIndex="0"
@@ -839,6 +926,11 @@ function App() {
                         <img src={ep.thumbnail || selectedItem.poster} alt={ep.name || ep.title || `Episode ${ep.episode}`} />
                         <div className="episode-number">Ep {ep.episode}</div>
                         <div className="episode-play-icon">▶</div>
+                        {progress && progress.percentage > 0 && (
+                          <div className="progress-bar-container">
+                            <div className="progress-bar" style={{ width: `${progress.percentage}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="episode-info">
@@ -851,6 +943,11 @@ function App() {
                         {ep.released && (
                           <span className="episode-airdate">
                             {isUnreleased ? "Airs: " : "Aired: "} {new Date(ep.released).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        {progress && progress.percentage > 0 && (
+                          <span style={{ fontSize: "11px", color: progress.percentage > 90 ? '#28a745' : '#007BFF', display: "block", marginBottom: "6px", fontWeight: "bold" }}>
+                            {progress.percentage > 90 ? "Watched" : `Watched: ${Math.round(progress.percentage)}%`}
                           </span>
                         )}
                         {ep.overview && <p className="episode-overview">{ep.overview}</p>}
@@ -1029,11 +1126,65 @@ function App() {
           </button>
           
           <video
+            ref={videoRef}
             src={streamUrl}
             controls
             autoPlay
             playsInline
             className="video-player"
+            onLoadedMetadata={(e) => {
+              let savedProgress = null;
+              const movieMatch = matchPath("/movie/:id", location.pathname);
+              const episodeMatch = matchPath("/series/:id/season/:season/episode/:episode", location.pathname);
+              
+              if (movieMatch) {
+                savedProgress = getMovieProgress(movieMatch.params.id);
+              } else if (episodeMatch) {
+                savedProgress = getEpisodeProgress(episodeMatch.params.id, episodeMatch.params.season, episodeMatch.params.episode);
+              }
+
+              if (savedProgress && savedProgress.progress > 0 && savedProgress.percentage < 95) {
+                e.target.currentTime = savedProgress.progress;
+              }
+            }}
+            onTimeUpdate={(e) => {
+              const currentTime = e.target.currentTime;
+              const duration = e.target.duration;
+              const now = Date.now();
+              
+              // Throttle to save roughly every 5 seconds
+              if (now - progressInterval.current.lastTick > 5000 || Math.abs(currentTime - progressInterval.current.lastSaveTime) > 5) {
+                progressInterval.current = { lastSaveTime: currentTime, lastTick: now };
+                const movieMatch = matchPath("/movie/:id", location.pathname);
+                const episodeMatch = matchPath("/series/:id/season/:season/episode/:episode", location.pathname);
+                let metadata = null;
+                if (movieMatch) {
+                  metadata = { 
+                    type: 'movie', 
+                    id: movieMatch.params.id,
+                    title: selectedItem?.name,
+                    poster: selectedItem?.poster
+                  };
+                } else if (episodeMatch) {
+                  const seasonNum = Number(episodeMatch.params.season);
+                  const epNum = Number(episodeMatch.params.episode);
+                  const episodesInSeason = episodes.filter(ep => Number(ep.season) === seasonNum).length;
+                  const currentEp = episodes.find(ep => Number(ep.season) === seasonNum && Number(ep.episode) === epNum);
+                  
+                  metadata = { 
+                    type: 'series', id: episodeMatch.params.id, season: episodeMatch.params.season, episode: episodeMatch.params.episode, 
+                    episodesInSeason, totalSeasons: seasons.length,
+                    title: selectedItem?.name,
+                    poster: selectedItem?.poster,
+                    episodeTitle: currentEp?.name || currentEp?.title,
+                    thumbnail: currentEp?.thumbnail
+                  };
+                }
+                if (metadata) {
+                  saveProgress(metadata, currentTime, duration);
+                }
+              }
+            }}
             onError={(e) => {
               const error = e.target.error;
               const errorMsg = error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
