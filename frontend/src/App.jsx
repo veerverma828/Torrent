@@ -39,7 +39,7 @@ const ContinueWatchingCard = ({ item, onClick }) => {
       <div className="poster-img-container">
         {meta.poster ? ( <img src={meta.poster} alt={meta.title} /> ) : ( <div style={{width:'100%', aspectRatio:'2/3', backgroundColor:'#222', display:'flex', alignItems:'center', justifyContent:'center'}}><span className="loader-small" style={{margin: 0}}></span></div> )}
         <div className="progress-bar-container">
-          <div className="progress-bar" style={{ width: `${item.percentage}%`, backgroundColor: '#007BFF' }}></div>
+          <div className="progress-bar" style={{ width: `${Math.max(item.percentage || 0, 3)}%`, backgroundColor: '#007BFF' }}></div>
         </div>
       </div>
       <p>{meta.title || "Loading..."}</p>
@@ -821,9 +821,9 @@ function App() {
                   }}>
                     <div className="poster-img-container">
                       <img src={item.poster} alt={item.name} />
-                      {progress && progress.percentage > 0 && (
+                      {progress && progress.progress > 0 && (
                         <div className="progress-bar-container">
-                          <div className="progress-bar" style={{ width: `${progress.percentage}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
+                          <div className="progress-bar" style={{ width: `${Math.max(progress.percentage || 0, 3)}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
                         </div>
                       )}
                     </div>
@@ -926,9 +926,9 @@ function App() {
                         <img src={ep.thumbnail || selectedItem.poster} alt={ep.name || ep.title || `Episode ${ep.episode}`} />
                         <div className="episode-number">Ep {ep.episode}</div>
                         <div className="episode-play-icon">▶</div>
-                        {progress && progress.percentage > 0 && (
+                        {progress && progress.progress > 0 && (
                           <div className="progress-bar-container">
-                            <div className="progress-bar" style={{ width: `${progress.percentage}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
+                            <div className="progress-bar" style={{ width: `${Math.max(progress.percentage || 0, 3)}%`, backgroundColor: progress.percentage > 90 ? '#28a745' : '#007BFF' }}></div>
                           </div>
                         )}
                       </div>
@@ -945,9 +945,9 @@ function App() {
                             {isUnreleased ? "Airs: " : "Aired: "} {new Date(ep.released).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                           </span>
                         )}
-                        {progress && progress.percentage > 0 && (
+                        {progress && progress.progress > 0 && (
                           <span style={{ fontSize: "11px", color: progress.percentage > 90 ? '#28a745' : '#007BFF', display: "block", marginBottom: "6px", fontWeight: "bold" }}>
-                            {progress.percentage > 90 ? "Watched" : `Watched: ${Math.round(progress.percentage)}%`}
+                            {progress.percentage > 90 ? "Watched" : progress.percentage > 0 ? `Watched: ${Math.round(progress.percentage)}%` : "Started"}
                           </span>
                         )}
                         {ep.overview && <p className="episode-overview">{ep.overview}</p>}

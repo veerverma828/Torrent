@@ -62,7 +62,7 @@ export const getContinueWatching = () => {
 
   // Movies
   for (const [id, movie] of Object.entries(data.movies)) {
-    if (movie.percentage > 0 && movie.percentage <= 90) {
+    if (movie.progress > 0 && movie.percentage <= 90) {
       list.push({ ...movie, id, type: 'movie' });
     }
   }
@@ -74,7 +74,7 @@ export const getContinueWatching = () => {
     
     for (const [seasonNum, season] of Object.entries(series.seasons || {})) {
       for (const [epNum, ep] of Object.entries(season.episodes || {})) {
-        if (!ep.completed && ep.percentage > 0) {
+        if (!ep.completed && ep.progress > 0) {
           // Capture the latest incomplete episode per series
           if (!latestEpisode || ep.lastUpdated > latestEpisode.lastUpdated) {
             latestEpisode = { ...ep, seriesId, season: seasonNum, episode: epNum, seriesTitle: series.title || "Unknown Series", seriesPoster: series.poster };
@@ -109,8 +109,11 @@ export const updateTrackingMetadata = (type, id, title, poster) => {
 };
 
 export const saveProgress = (metadata, currentTime, duration) => {
-  if (!duration || isNaN(duration) || duration <= 0) return;
-  const percentage = (currentTime / duration) * 100;
+  if (!currentTime || currentTime <= 0) return; // Prevent saving blank 0-second starts
+
+  // Handle live/remote streams where duration returns as NaN or Infinity
+  const safeDuration = (duration && !isNaN(duration) && duration !== Infinity) ? duration : 0;
+  const percentage = safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
   const isCompleted = percentage > 90;
   
   let data = getStorage();
@@ -119,7 +122,7 @@ export const saveProgress = (metadata, currentTime, duration) => {
     data.movies[metadata.id] = {
       ...(data.movies[metadata.id] || {}), // Preserve historical data if missing
       progress: currentTime,
-      duration: duration,
+      duration: safeDuration,
       percentage: Math.min(percentage, 100),
       lastUpdated: Date.now(),
       title: metadata.title || data.movies[metadata.id]?.title || "Unknown Movie",
@@ -138,7 +141,7 @@ export const saveProgress = (metadata, currentTime, duration) => {
     data.series[id].seasons[season].episodes[episode] = {
       ...(data.series[id].seasons[season].episodes[episode] || {}),
       progress: currentTime,
-      duration: duration,
+      duration: safeDuration,
       percentage: Math.min(percentage, 100),
       completed: isCompleted,
       lastUpdated: Date.now(),
