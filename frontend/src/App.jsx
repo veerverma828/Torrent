@@ -112,10 +112,11 @@ function App() {
         
         if (episodes.length === 0) {
           try {
-            const res = await fetch(`${API}/series-meta?id=${id}`);
+            const res = await fetch(`https://v3-cinemeta.strem.io/meta/series/${id}.json`);
             const data = await res.json();
-            setSeasons(data.seasons);
-            setEpisodes(data.episodes);
+            const videos = data.meta?.videos || [];
+            setSeasons([...new Set(videos.map((v) => v.season))]);
+            setEpisodes(videos);
           } catch (e) {}
         }
         setLoading(true);
@@ -134,13 +135,15 @@ function App() {
         setSelectedItem(stateItem || { id, name: "Series", type: "series" });
         setLoading(true);
         try {
-          const res = await fetch(`${API}/series-meta?id=${id}`);
+          const res = await fetch(`https://v3-cinemeta.strem.io/meta/series/${id}.json`);
           const data = await res.json();
-          setSeasons(data.seasons);
-          setEpisodes(data.episodes);
-          if (data.seasons && data.seasons.length > 0) {
-            const hasSeason1 = data.seasons.some(s => Number(s) === 1);
-            setSelectedSeason(hasSeason1 ? 1 : data.seasons[0]);
+          const videos = data.meta?.videos || [];
+          const extractedSeasons = [...new Set(videos.map((v) => v.season))];
+          setSeasons(extractedSeasons);
+          setEpisodes(videos);
+          if (extractedSeasons.length > 0) {
+            const hasSeason1 = extractedSeasons.some(s => Number(s) === 1);
+            setSelectedSeason(hasSeason1 ? 1 : extractedSeasons[0]);
           }
         } catch (e) { console.error(e); }
         setLoading(false);
@@ -165,12 +168,20 @@ function App() {
     navigate('/');
 
     try {
-      const res = await fetch(`${API}/search-content?q=${query}`);
-      const data = await res.json();
+      // Fetch directly from Cinemeta instead of the backend
+      const [movieRes, seriesRes] = await Promise.all([
+        fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search=${query}.json`).then(r => r.json()),
+        fetch(`https://v3-cinemeta.strem.io/catalog/series/top/search=${query}.json`).then(r => r.json())
+      ]);
+
+      const combined = [
+        ...(movieRes.metas || []),
+        ...(seriesRes.metas || []),
+      ];
 
       // ✅ NEW: separate movies & series
-      const movieList = data.filter((item) => item.type === "movie");
-      const seriesList = data.filter((item) => item.type === "series");
+      const movieList = combined.filter((item) => item.type === "movie");
+      const seriesList = combined.filter((item) => item.type === "series");
 
       setMovies(movieList);
       setSeries(seriesList);
@@ -389,18 +400,21 @@ function App() {
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const res = await fetch(`${API}/catalog`);
-        const data = await res.json();
-        setDefaultMovies(data.movies || []);
-        setDefaultSeries(data.series || []);
-        setMovies(data.movies || []);
-        setSeries(data.series || []);
+        // Fetch directly from Cinemeta, skipping the backend!
+        const [movieRes, seriesRes] = await Promise.all([
+          fetch("https://v3-cinemeta.strem.io/catalog/movie/top.json").then(r => r.json()),
+          fetch("https://v3-cinemeta.strem.io/catalog/series/top.json").then(r => r.json())
+        ]);
+        setDefaultMovies(movieRes.metas || []);
+        setDefaultSeries(seriesRes.metas || []);
+        setMovies(movieRes.metas || []);
+        setSeries(seriesRes.metas || []);
       } catch (err) {
         console.error("Error fetching catalog:", err);
       }
     };
     fetchCatalog();
-  }, [API]);
+  }, []);
 
   // ✅ NEW: Restore default catalog when search is cleared
   useEffect(() => {
