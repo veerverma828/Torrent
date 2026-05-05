@@ -467,39 +467,6 @@ button:focus, input:focus {
 }
 
 /* ✅ NEW: Extracted Stream Data Badges */
-.stream-badges {
-  display: flex;
-  gap: 8px;
-  margin: 8px 0;
-  flex-wrap: wrap;
-}
-.badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-.quality-badge {
-  background: #e50914;
-  color: white;
-}
-.provider-badge {
-  background: #007BFF;
-  color: white;
-}
-.stream-stats {
-  display: flex;
-  gap: 15px;
-  font-size: 13px;
-  color: #aaa;
-  margin-bottom: 12px;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
 /* ✅ Utility to push items to the right in flex containers */
 .push-right {
