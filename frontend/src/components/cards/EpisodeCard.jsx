@@ -1,7 +1,8 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
 
-export default function EpisodeCard({ episode, seriesId, selectedItem }) {
+function EpisodeCard({ episode, seriesId, selectedItem }) {
   const navigate = useNavigate();
   const isUnreleased = episode.released
     ? new Date(episode.released) > new Date()
@@ -26,6 +27,9 @@ export default function EpisodeCard({ episode, seriesId, selectedItem }) {
         <img
           src={episode.thumbnail || selectedItem.poster}
           alt={episode.name || episode.title || `Episode ${episode.episode}`}
+          loading="lazy"
+          decoding="async"
+          draggable="false"
         />
         <div className="episode-number">Ep {episode.episode}</div>
         <div className="episode-play-icon">▶</div>
@@ -86,3 +90,5 @@ export default function EpisodeCard({ episode, seriesId, selectedItem }) {
     </div>
   );
 }
+
+export default memo(EpisodeCard);
