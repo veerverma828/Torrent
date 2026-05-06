@@ -49,10 +49,11 @@ export default function TraktSyncToggle() {
     <div
       style={{
         marginBottom: "20px",
-        padding: "16px",
-        borderRadius: "12px",
+        padding: "18px",
+        borderRadius: "14px",
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.08)",
+        backdropFilter: "blur(10px)",
       }}
     >
       <div
@@ -60,20 +61,37 @@ export default function TraktSyncToggle() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: "12px",
+          gap: "14px",
           flexWrap: "wrap",
         }}
       >
         <div>
-          <h3 style={{ margin: 0 }}>Sync Mode</h3>
-          <p style={{ margin: "6px 0 0", opacity: 0.7, fontSize: "14px" }}>
+          <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 700 }}>
+            Trakt Sync Mode
+          </h3>
+
+          <p
+            style={{
+              margin: "8px 0 0",
+              opacity: 0.78,
+              fontSize: "14px",
+              lineHeight: 1.5,
+            }}
+          >
             {syncMode === "local"
-              ? "Using local device storage"
-              : `Connected to Trakt${traktUser ? ` as ${traktUser.username}` : ""}`}
+              ? "Using secure local device storage for watch progress and continue watching"
+              : `Connected with Trakt cloud sync${traktUser ? ` as @${traktUser.username}` : ""}`}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <button
             className="action-button"
             onClick={() => setSyncMode("local")}
@@ -81,7 +99,7 @@ export default function TraktSyncToggle() {
               background: syncMode === "local" ? "#007BFF" : "#444",
             }}
           >
-            Local
+            Local Storage
           </button>
 
           <button
@@ -101,7 +119,7 @@ export default function TraktSyncToggle() {
             {isConnecting
               ? "Connecting..."
               : traktAuthenticated
-                ? "Trakt"
+                ? "Trakt Synced"
                 : "Connect Trakt"}
           </button>
 
@@ -118,9 +136,15 @@ export default function TraktSyncToggle() {
       </div>
 
       {deviceData && !traktAuthenticated && (
-        <div style={{ marginTop: "14px", fontSize: "14px", opacity: 0.85 }}>
-          Authorize using code:
-          <strong style={{ marginLeft: "8px", letterSpacing: "2px" }}>
+        <div
+          style={{
+            marginTop: "16px",
+            fontSize: "14px",
+            opacity: 0.9,
+          }}
+        >
+          Authorize Trakt using code:
+          <strong style={{ marginLeft: "10px", letterSpacing: "2px" }}>
             {deviceData.user_code}
           </strong>
         </div>
