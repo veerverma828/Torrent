@@ -108,6 +108,17 @@ export const updateTrackingMetadata = (type, id, title, poster) => {
   if (updated) setStorage(data);
 };
 
+export const removeProgress = (type, id) => {
+  let data = getStorage();
+  if (type === 'movie' && data.movies[id]) {
+    delete data.movies[id];
+    setStorage(data);
+  } else if (type === 'series' && data.series[id]) {
+    delete data.series[id];
+    setStorage(data);
+  }
+};
+
 export const saveProgress = (metadata, currentTime, duration) => {
   if (!currentTime || currentTime <= 0) return; // Prevent saving blank 0-second starts
 

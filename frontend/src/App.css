@@ -148,6 +148,31 @@ body {
   box-shadow: none;
 }
 
+.remove-cw-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+.remove-cw-btn:hover {
+  background: rgba(220, 53, 69, 0.9);
+  color: #fff;
+  border-color: rgba(220, 53, 69, 1);
+}
+
 .poster-card p {
   transition: color 0.3s ease;
 }
@@ -158,6 +183,9 @@ body {
   }
   .poster-card:hover .poster-img-container {
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+  }
+  .poster-card:hover .remove-cw-btn {
+    opacity: 1;
   }
   .poster-card:hover p {
     color: #007BFF;
@@ -175,6 +203,9 @@ body {
 }
 .poster-card:focus .poster-img-container {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+}
+.poster-card:focus .remove-cw-btn, .remove-cw-btn:focus {
+  opacity: 1;
 }
 .poster-card:focus p {
   color: #007BFF;
