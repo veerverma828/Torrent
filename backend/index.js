@@ -114,7 +114,7 @@ app.post("/get-files", async (req, res) => {
       const torrentId = addRes.data.id;
 
       // Wait for files metadata
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 4; i++) {
         const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
         if (info.data.status === "waiting_files_selection" || (info.data.files && info.data.files.length > 0)) {
           return res.json({
@@ -139,7 +139,7 @@ app.post("/get-files", async (req, res) => {
       const torrentId = addRes.data.data.torrent_id;
 
       // Wait for files in mylist
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 4; i++) {
         const listRes = await axios.get("https://api.torbox.app/v1/api/torrents/mylist", { headers: { Authorization: `Bearer ${API_KEY}` } });
         const torrent = listRes.data.data?.find(t => t.id === torrentId);
         if (torrent && torrent.files && torrent.files.length > 0) {
@@ -172,7 +172,7 @@ app.post("/generate-link", async (req, res) => {
       // Select the specific file requested by the user
       await axios.post(`https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`, new URLSearchParams({ files: fileId }), { headers: { Authorization: `Bearer ${API_KEY}` } });
 
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 4; i++) {
         const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
         if (info.data.status === "downloaded" && info.data.links && info.data.links.length > 0) {
           const unrestrict = await axios.post("https://api.real-debrid.com/rest/1.0/unrestrict/link", new URLSearchParams({ link: info.data.links[0] }), { headers: { Authorization: `Bearer ${API_KEY}` } });
@@ -190,7 +190,7 @@ app.post("/generate-link", async (req, res) => {
   if (service === "torbox") {
     try {
       const API_KEY = process.env.TORBOX_API_KEY;
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 4; i++) {
         try {
           // Request the precise file ID
           const dlRes = await axios.get(`https://api.torbox.app/v1/api/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`);
