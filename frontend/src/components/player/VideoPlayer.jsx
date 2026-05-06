@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
@@ -11,8 +12,14 @@ import { API_URL } from "../../services/api.js";
 export default function VideoPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
+  const hasLoggedStreamError = useRef(false);
+
   const { selectedItem, episodes, seasons } = useAppContext();
   const { streamUrl, videoRef, currentMagnet, progressInterval } = usePlayerContext();
+
+  useEffect(() => {
+    hasLoggedStreamError.current = false;
+  }, [streamUrl]);
 
   if (!streamUrl) return null;
 
@@ -100,6 +107,12 @@ export default function VideoPlayer() {
       error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
 
     alert(`❌ Error playing video: ${errorMsg}\n\nTry downloading it instead.`);
+
+    if (hasLoggedStreamError.current) {
+      return;
+    }
+
+    hasLoggedStreamError.current = true;
 
     fetch(`${API_URL}/log-stream-error`, {
       method: "POST",
