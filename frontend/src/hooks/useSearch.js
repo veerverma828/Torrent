@@ -14,6 +14,7 @@ export function useSearch() {
   const location = useLocation();
   const contentSearchRequestId = useRef(0);
   const torrentSearchRequestId = useRef(0);
+  const torrentSearchAbortController = useRef(null);
 
   const {
     query,
@@ -82,6 +83,11 @@ export function useSearch() {
 
     const requestId = ++torrentSearchRequestId.current;
 
+    torrentSearchAbortController.current?.abort();
+
+    const controller = new AbortController();
+    torrentSearchAbortController.current = controller;
+
     setLoading(true);
 
     if (imdbMode && !useJackett && !query.startsWith("tt")) {
@@ -97,7 +103,10 @@ export function useSearch() {
 
     try {
       const encodedQuery = encodeURIComponent(query.trim());
-      const res = await fetch(`${API_URL}/search?q=${encodedQuery}`);
+      const res = await fetch(`${API_URL}/search?q=${encodedQuery}`, {
+        signal: controller.signal,
+      });
+
       const data = await res.json();
 
       if (requestId !== torrentSearchRequestId.current) {
@@ -106,8 +115,10 @@ export function useSearch() {
 
       setResults(data);
     } catch (err) {
-      console.error("Error:", err);
-      alert("Something went wrong");
+      if (err.name !== "AbortError") {
+        console.error("Error:", err);
+        alert("Something went wrong");
+      }
     }
 
     if (requestId === torrentSearchRequestId.current) {
