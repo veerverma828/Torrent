@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
@@ -5,7 +6,7 @@ import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { formatBytes } from "../../utils/formatBytes.js";
 import FileSelectorModal from "../modals/FileSelectorModal.jsx";
 
-export default function ResultCard({ item, index }) {
+function ResultCard({ item, index }) {
   const navigate = useNavigate();
   const { useJackett, debridService } = useSettingsContext();
   const { processingMagnet, fileModalData } = usePlayerContext();
@@ -16,7 +17,7 @@ export default function ResultCard({ item, index }) {
   const isFileModalOpen = fileModalData && fileModalData.magnet === item.magnet && !isDirect;
 
   return (
-    <div key={index} className="result-item">
+    <div className="result-item">
       <h3 className="result-title">{item.title}</h3>
       <p>Source: {item.provider}</p>
 
@@ -145,3 +146,5 @@ export default function ResultCard({ item, index }) {
     </div>
   );
 }
+
+export default memo(ResultCard);
