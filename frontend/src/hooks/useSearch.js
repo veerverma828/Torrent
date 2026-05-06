@@ -1,6 +1,10 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAppContext } from "../context/AppContext.jsx";
+import {
+  useCatalogContext,
+  useMediaContext,
+  useSearchContext,
+} from "../context/AppContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
 import { API_URL } from "../services/api.js";
 import {
@@ -16,17 +20,21 @@ export function useSearch() {
   const torrentSearchRequestId = useRef(0);
   const torrentSearchAbortController = useRef(null);
 
+  const { query, setQuery, loading, setLoading, results, setResults } =
+    useSearchContext();
+
   const {
-    query,
-    setQuery,
-    loading,
-    setLoading,
     movies,
     setMovies,
     series,
     setSeries,
-    results,
-    setResults,
+    defaultMovies,
+    setDefaultMovies,
+    defaultSeries,
+    setDefaultSeries,
+  } = useCatalogContext();
+
+  const {
     selectedItem,
     setSelectedItem,
     seasons,
@@ -35,11 +43,7 @@ export function useSearch() {
     setEpisodes,
     selectedSeason,
     setSelectedSeason,
-    defaultMovies,
-    setDefaultMovies,
-    defaultSeries,
-    setDefaultSeries,
-  } = useAppContext();
+  } = useMediaContext();
 
   const { addonApis, autoSearch, useJackett, imdbMode } = useSettingsContext();
 
