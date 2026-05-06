@@ -1,16 +1,18 @@
 import { useCallback } from "react";
 import { useAppContext } from "../context/AppContext.jsx";
-import { getContinueWatching, removeProgress } from "../trackers/progressTracker.js";
+import { progressService } from "../trackers/progressService.js";
 
 export function useContinueWatching() {
   const { cwTrigger, setCwTrigger } = useAppContext();
 
-  const continueWatchingList = getContinueWatching();
+  const continueWatchingList = progressService.getContinueWatching();
 
   const removeFromContinueWatching = useCallback(
     (item) => {
       const id = item.type === "movie" ? item.id : item.seriesId;
-      removeProgress(item.type, id);
+
+      progressService.removeProgress(item.type, id);
+
       setCwTrigger((prev) => prev + 1);
     },
     [setCwTrigger]
