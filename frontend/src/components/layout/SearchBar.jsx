@@ -1,9 +1,9 @@
-import { useAppContext } from "../../context/AppContext.jsx";
+import { useSearchContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useSearch } from "../../hooks/useSearch.js";
 
 export default function SearchBar() {
-  const { query, setQuery } = useAppContext();
+  const { query, setQuery } = useSearchContext();
   const { imdbMode, useJackett, autoSearch } = useSettingsContext();
   const { searchContent, searchTorrents } = useSearch();
 
