@@ -1,11 +1,35 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppContext } from "../context/AppContext.jsx";
 import { progressService } from "../trackers/progressService.js";
 
 export function useContinueWatching() {
   const { cwTrigger, setCwTrigger } = useAppContext();
 
-  const continueWatchingList = progressService.getContinueWatching();
+  const [continueWatchingList, setContinueWatchingList] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadContinueWatching = async () => {
+      try {
+        const data = await progressService.getContinueWatching();
+
+        if (active) {
+          setContinueWatchingList(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (active) {
+          setContinueWatchingList([]);
+        }
+      }
+    };
+
+    loadContinueWatching();
+
+    return () => {
+      active = false;
+    };
+  }, [cwTrigger]);
 
   const removeFromContinueWatching = useCallback(
     (item) => {
