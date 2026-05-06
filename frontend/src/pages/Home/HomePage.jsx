@@ -6,7 +6,6 @@ import Loader from "../../components/common/Loader.jsx";
 import PosterCard from "../../components/cards/PosterCard.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
-import TraktSyncToggle from "../../components/trakt/TraktSyncToggle.jsx";
 import "./HomePage.css";
 
 export default function HomePage() {
@@ -44,8 +43,6 @@ export default function HomePage() {
   return (
     <>
       {loading && <Loader />}
-
-      <TraktSyncToggle />
 
       {showCatalog && (movies.length > 0 || series.length > 0 || continueWatchingList.length > 0) && (
         <div className="content-section">
