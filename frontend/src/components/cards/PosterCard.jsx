@@ -1,7 +1,8 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
 
-export default function PosterCard({ item, type = "movie" }) {
+function PosterCard({ item, type = "movie" }) {
   const navigate = useNavigate();
   const progress = type === "movie" ? getMovieProgress(item.id) : null;
 
@@ -21,7 +22,13 @@ export default function PosterCard({ item, type = "movie" }) {
       }}
     >
       <div className="poster-img-container">
-        <img src={item.poster} alt={item.name} />
+        <img
+          src={item.poster}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          draggable="false"
+        />
         {progress && progress.progress > 0 && (
           <div className="progress-bar-container">
             <div
@@ -39,3 +46,5 @@ export default function PosterCard({ item, type = "movie" }) {
     </div>
   );
 }
+
+export default memo(PosterCard);
