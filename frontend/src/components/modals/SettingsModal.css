@@ -158,16 +158,3 @@
 .settings-cancel-btn:hover {
   background: #555;
 }
-
-/* Stable top-right Settings button for Mobile */
-@media (max-width: 768px) {
-  .settings-btn {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    bottom: auto;
-    z-index: 9999;
-    background: rgba(30, 30, 30, 0.82);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.45);
-  }
-}
