@@ -45,106 +45,158 @@ export default function TraktSyncToggle() {
     setSyncMode("local");
   };
 
+  const buttonBaseStyle = {
+    flex: 1,
+    minWidth: "140px",
+    border: "none",
+    borderRadius: "12px",
+    padding: "12px 14px",
+    fontWeight: 600,
+    color: "#fff",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  };
+
   return (
     <div
       style={{
         marginBottom: "20px",
-        padding: "18px",
-        borderRadius: "14px",
-        background: "rgba(255,255,255,0.04)",
+        padding: "20px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.05)",
         border: "1px solid rgba(255,255,255,0.08)",
-        backdropFilter: "blur(10px)",
+        backdropFilter: "blur(12px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "18px",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "14px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 700 }}>
-            Trakt Sync Mode
-          </h3>
-
-          <p
-            style={{
-              margin: "8px 0 0",
-              opacity: 0.78,
-              fontSize: "14px",
-              lineHeight: 1.5,
-            }}
-          >
-            {syncMode === "local"
-              ? "Using secure local device storage for watch progress and continue watching"
-              : `Connected with Trakt cloud sync${traktUser ? ` as @${traktUser.username}` : ""}`}
-          </p>
-        </div>
-
+      <div>
         <div
           style={{
             display: "flex",
-            gap: "10px",
             alignItems: "center",
+            gap: "10px",
+            marginBottom: "10px",
             flexWrap: "wrap",
           }}
         >
-          <button
-            className="action-button"
-            onClick={() => setSyncMode("local")}
+          <div
             style={{
-              background: syncMode === "local" ? "#007BFF" : "#444",
+              width: "10px",
+              height: "10px",
+              borderRadius: "999px",
+              background: syncMode === "trakt" ? "#ed1c24" : "#007BFF",
+              boxShadow:
+                syncMode === "trakt"
+                  ? "0 0 10px rgba(237,28,36,0.7)"
+                  : "0 0 10px rgba(0,123,255,0.7)",
+            }}
+          />
+
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "20px",
+              fontWeight: 700,
+              letterSpacing: "0.2px",
             }}
           >
-            Local Storage
-          </button>
-
-          <button
-            className="action-button"
-            onClick={() => {
-              if (traktAuthenticated) {
-                setSyncMode("trakt");
-              } else {
-                handleConnect();
-              }
-            }}
-            disabled={isConnecting}
-            style={{
-              background: syncMode === "trakt" ? "#ed1c24" : "#444",
-            }}
-          >
-            {isConnecting
-              ? "Connecting..."
-              : traktAuthenticated
-                ? "Trakt Synced"
-                : "Connect Trakt"}
-          </button>
-
-          {traktAuthenticated && (
-            <button
-              className="action-button"
-              onClick={handleLogout}
-              style={{ background: "#6c757d" }}
-            >
-              Logout
-            </button>
-          )}
+            Trakt Sync Mode
+          </h3>
         </div>
+
+        <p
+          style={{
+            margin: 0,
+            opacity: 0.82,
+            fontSize: "14px",
+            lineHeight: 1.6,
+          }}
+        >
+          {syncMode === "local"
+            ? "Your watch progress is currently stored securely on this device."
+            : `Cloud sync enabled with Trakt${traktUser ? ` • @${traktUser.username}` : ""}`}
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          flexWrap: "wrap",
+          width: "100%",
+        }}
+      >
+        <button
+          className="action-button"
+          onClick={() => setSyncMode("local")}
+          style={{
+            ...buttonBaseStyle,
+            background: syncMode === "local" ? "#007BFF" : "#3f3f46",
+          }}
+        >
+          Local Storage
+        </button>
+
+        <button
+          className="action-button"
+          onClick={() => {
+            if (traktAuthenticated) {
+              setSyncMode("trakt");
+            } else {
+              handleConnect();
+            }
+          }}
+          disabled={isConnecting}
+          style={{
+            ...buttonBaseStyle,
+            background: syncMode === "trakt" ? "#ed1c24" : "#3f3f46",
+          }}
+        >
+          {isConnecting
+            ? "Connecting..."
+            : traktAuthenticated
+              ? "Trakt Synced"
+              : "Connect Trakt"}
+        </button>
+
+        {traktAuthenticated && (
+          <button
+            className="action-button"
+            onClick={handleLogout}
+            style={{
+              ...buttonBaseStyle,
+              background: "#5a5a5a",
+            }}
+          >
+            Logout
+          </button>
+        )}
       </div>
 
       {deviceData && !traktAuthenticated && (
         <div
           style={{
-            marginTop: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "14px",
+            padding: "14px",
             fontSize: "14px",
-            opacity: 0.9,
+            lineHeight: 1.5,
           }}
         >
-          Authorize Trakt using code:
-          <strong style={{ marginLeft: "10px", letterSpacing: "2px" }}>
+          <div style={{ opacity: 0.8, marginBottom: "8px" }}>
+            Authorize Trakt using this code:
+          </div>
+
+          <strong
+            style={{
+              fontSize: "20px",
+              letterSpacing: "3px",
+              color: "#fff",
+            }}
+          >
             {deviceData.user_code}
           </strong>
         </div>
