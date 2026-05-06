@@ -2,11 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
-import {
-  saveProgress,
-  getMovieProgress,
-  getEpisodeProgress,
-} from "../../trackers/progressTracker.js";
+import { progressService } from "../../trackers/progressService.js";
 import { API_URL } from "../../services/api.js";
 
 export default function VideoPlayer() {
@@ -60,9 +56,9 @@ export default function VideoPlayer() {
     let savedProgress = null;
 
     if (movieMatch) {
-      savedProgress = getMovieProgress(movieMatch.params.id);
+      savedProgress = progressService.getMovieProgress(movieMatch.params.id);
     } else if (episodeMatch) {
-      savedProgress = getEpisodeProgress(
+      savedProgress = progressService.getEpisodeProgress(
         episodeMatch.params.id,
         episodeMatch.params.season,
         episodeMatch.params.episode
@@ -91,6 +87,7 @@ export default function VideoPlayer() {
         metadata = {
           type: "movie",
           id: movieMatch.params.id,
+          imdbId: selectedItem?.id,
           title: selectedItem?.name,
           poster: selectedItem?.poster,
           magnet: currentMagnet.current,
@@ -99,6 +96,7 @@ export default function VideoPlayer() {
         metadata = {
           type: "series",
           id: episodeMatch.params.id,
+          imdbId: selectedItem?.id,
           season: episodeMatch.params.season,
           episode: episodeMatch.params.episode,
           episodesInSeason: episodeMetadata.episodesInSeason,
@@ -113,7 +111,7 @@ export default function VideoPlayer() {
       }
 
       if (metadata) {
-        saveProgress(metadata, currentTime, duration);
+        progressService.saveProgress(metadata, currentTime, duration);
       }
     }
   };
@@ -141,7 +139,7 @@ export default function VideoPlayer() {
         networkState: e.target.networkState,
         readyState: e.target.readyState,
       }),
-    }).catch((err) => console.log("Failed to send log to backend"));
+    }).catch(() => console.log("Failed to send log to backend"));
   };
 
   return (
