@@ -164,7 +164,7 @@
   .settings-btn {
     position: fixed;
     top: auto;
-    bottom: 20px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
     right: 20px;
     z-index: 9999;
     background: rgba(30, 30, 30, 0.9);
