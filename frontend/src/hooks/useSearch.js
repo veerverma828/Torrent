@@ -12,6 +12,8 @@ import {
 export function useSearch() {
   const navigate = useNavigate();
   const location = useLocation();
+  const contentSearchRequestId = useRef(0);
+  const torrentSearchRequestId = useRef(0);
 
   const {
     query,
@@ -43,6 +45,8 @@ export function useSearch() {
   const searchContent = useCallback(async () => {
     if (!query.trim()) return;
 
+    const requestId = ++contentSearchRequestId.current;
+
     setLoading(true);
     navigate("/");
 
@@ -51,6 +55,10 @@ export function useSearch() {
         searchMovies(query),
         searchSeries(query),
       ]);
+
+      if (requestId !== contentSearchRequestId.current) {
+        return;
+      }
 
       const combined = [...movieList, ...seriesList];
       const movieListFiltered = combined.filter((item) => item.type === "movie");
@@ -64,11 +72,15 @@ export function useSearch() {
       console.error(err);
     }
 
-    setLoading(false);
+    if (requestId === contentSearchRequestId.current) {
+      setLoading(false);
+    }
   }, [query, navigate, setLoading, setMovies, setSeries, setSelectedItem, setResults]);
 
   const searchTorrents = useCallback(async () => {
     if (!query.trim()) return;
+
+    const requestId = ++torrentSearchRequestId.current;
 
     setLoading(true);
 
@@ -87,13 +99,20 @@ export function useSearch() {
       const encodedQuery = encodeURIComponent(query.trim());
       const res = await fetch(`${API_URL}/search?q=${encodedQuery}`);
       const data = await res.json();
+
+      if (requestId !== torrentSearchRequestId.current) {
+        return;
+      }
+
       setResults(data);
     } catch (err) {
       console.error("Error:", err);
       alert("Something went wrong");
     }
 
-    setLoading(false);
+    if (requestId === torrentSearchRequestId.current) {
+      setLoading(false);
+    }
   }, [query, imdbMode, useJackett, navigate, setLoading, setResults]);
 
   // Auto-search debounce
