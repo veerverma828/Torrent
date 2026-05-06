@@ -1,10 +1,10 @@
 import Providers from "./providers.jsx";
-import MaintenancePage from "../pages/MaintenancePage.jsx";
+import AppRoutes from "./routes.jsx";
 
 function App() {
   return (
     <Providers>
-      <MaintenancePage />
+      <AppRoutes />
     </Providers>
   );
 }
