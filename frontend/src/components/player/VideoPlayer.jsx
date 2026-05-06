@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
-import { useAppContext } from "../../context/AppContext.jsx";
+import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import {
   saveProgress,
@@ -14,7 +14,7 @@ export default function VideoPlayer() {
   const location = useLocation();
   const hasLoggedStreamError = useRef(false);
 
-  const { selectedItem, episodes, seasons } = useAppContext();
+  const { selectedItem, episodes, seasons } = useMediaContext();
   const { streamUrl, videoRef, currentMagnet, progressInterval } = usePlayerContext();
 
   const movieMatch = useMemo(
