@@ -159,15 +159,15 @@
   background: #555;
 }
 
-/* Floating bottom-right Settings button for Mobile */
+/* Stable top-right Settings button for Mobile */
 @media (max-width: 768px) {
   .settings-btn {
     position: fixed;
-    top: auto;
-    bottom: 88px;
-    right: 20px;
+    top: 16px;
+    right: 16px;
+    bottom: auto;
     z-index: 9999;
-    background: rgba(30, 30, 30, 0.9);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    background: rgba(30, 30, 30, 0.82);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.45);
   }
 }
