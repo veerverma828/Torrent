@@ -72,8 +72,8 @@ export default function HomePage() {
                 🎬 {query.trim() ? "Movies" : "Top Movies"}
               </h2>
               <div className="poster-grid">
-                {movies.map((item, i) => (
-                  <PosterCard key={i} item={item} type="movie" />
+                {movies.map((item) => (
+                  <PosterCard key={`movie-${item.id}`} item={item} type="movie" />
                 ))}
               </div>
             </>
@@ -86,8 +86,8 @@ export default function HomePage() {
                 📺 {query.trim() ? "Series" : "Top Series"}
               </h2>
               <div className="poster-grid">
-                {series.map((item, i) => (
-                  <PosterCard key={i} item={item} type="series" />
+                {series.map((item) => (
+                  <PosterCard key={`series-${item.id}`} item={item} type="series" />
                 ))}
               </div>
             </>
@@ -98,7 +98,11 @@ export default function HomePage() {
       {(imdbMode || results.length > 0) && (
         <div className="results-container">
           {results.map((item, index) => (
-            <ResultCard key={index} item={item} index={index} />
+            <ResultCard
+              key={item.infoHash || item.magnet || `${item.title}-${index}`}
+              item={item}
+              index={index}
+            />
           ))}
         </div>
       )}
