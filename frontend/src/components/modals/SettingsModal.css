@@ -158,3 +158,13 @@
 .settings-cancel-btn:hover {
   background: #555;
 }
+
+@media (max-width: 768px) {
+  .settings-btn {
+    position: fixed;
+    top: auto;
+    bottom: 24px;
+    right: 20px;
+    z-index: 9999;
+  }
+}
