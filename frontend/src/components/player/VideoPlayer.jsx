@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
@@ -17,6 +17,39 @@ export default function VideoPlayer() {
   const { selectedItem, episodes, seasons } = useAppContext();
   const { streamUrl, videoRef, currentMagnet, progressInterval } = usePlayerContext();
 
+  const movieMatch = useMemo(
+    () => matchPath("/movie/:id", location.pathname),
+    [location.pathname]
+  );
+
+  const episodeMatch = useMemo(
+    () =>
+      matchPath(
+        "/series/:id/season/:season/episode/:episode",
+        location.pathname
+      ),
+    [location.pathname]
+  );
+
+  const episodeMetadata = useMemo(() => {
+    if (!episodeMatch) {
+      return null;
+    }
+
+    const seasonNum = Number(episodeMatch.params.season);
+    const epNum = Number(episodeMatch.params.episode);
+
+    const currentEp = episodes.find(
+      (ep) => Number(ep.season) === seasonNum && Number(ep.episode) === epNum
+    );
+
+    return {
+      seasonNum,
+      episodesInSeason: episodes.filter((ep) => Number(ep.season) === seasonNum).length,
+      currentEp,
+    };
+  }, [episodeMatch, episodes]);
+
   useEffect(() => {
     hasLoggedStreamError.current = false;
   }, [streamUrl]);
@@ -25,11 +58,6 @@ export default function VideoPlayer() {
 
   const handleLoadedMetadata = (e) => {
     let savedProgress = null;
-    const movieMatch = matchPath("/movie/:id", location.pathname);
-    const episodeMatch = matchPath(
-      "/series/:id/season/:season/episode/:episode",
-      location.pathname
-    );
 
     if (movieMatch) {
       savedProgress = getMovieProgress(movieMatch.params.id);
@@ -57,13 +85,8 @@ export default function VideoPlayer() {
     ) {
       progressInterval.current = { lastSaveTime: currentTime, lastTick: now };
 
-      const movieMatch = matchPath("/movie/:id", location.pathname);
-      const episodeMatch = matchPath(
-        "/series/:id/season/:season/episode/:episode",
-        location.pathname
-      );
-
       let metadata = null;
+
       if (movieMatch) {
         metadata = {
           type: "movie",
@@ -72,25 +95,19 @@ export default function VideoPlayer() {
           poster: selectedItem?.poster,
           magnet: currentMagnet.current,
         };
-      } else if (episodeMatch) {
-        const seasonNum = Number(episodeMatch.params.season);
-        const epNum = Number(episodeMatch.params.episode);
-        const episodesInSeason = episodes.filter((ep) => Number(ep.season) === seasonNum).length;
-        const currentEp = episodes.find(
-          (ep) => Number(ep.season) === seasonNum && Number(ep.episode) === epNum
-        );
-
+      } else if (episodeMatch && episodeMetadata) {
         metadata = {
           type: "series",
           id: episodeMatch.params.id,
           season: episodeMatch.params.season,
           episode: episodeMatch.params.episode,
-          episodesInSeason,
+          episodesInSeason: episodeMetadata.episodesInSeason,
           totalSeasons: seasons.length,
           title: selectedItem?.name,
           poster: selectedItem?.poster,
-          episodeTitle: currentEp?.name || currentEp?.title,
-          thumbnail: currentEp?.thumbnail,
+          episodeTitle:
+            episodeMetadata.currentEp?.name || episodeMetadata.currentEp?.title,
+          thumbnail: episodeMetadata.currentEp?.thumbnail,
           magnet: currentMagnet.current,
         };
       }
