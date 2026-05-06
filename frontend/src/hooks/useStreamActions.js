@@ -1,0 +1,114 @@
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAppContext } from "../context/AppContext.jsx";
+import { useSettingsContext } from "../context/SettingsContext.jsx";
+import { usePlayerContext } from "../context/PlayerContext.jsx";
+import { getFiles, generateLink } from "../services/torrentService.js";
+import { openExternalPlayer, openDirectDownload } from "../services/streamService.js";
+import { copyMagnet as copyMagnetUtil } from "../utils/streamHelpers.js";
+
+export function useStreamActions() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const { setResults } = useAppContext();
+  const { debridService, rdAdminCode } = useSettingsContext();
+  const {
+    setStreamUrl,
+    setFileModalData,
+    setProcessingMagnet,
+    setProcessingFile,
+    currentMagnet,
+    fileModalData,
+  } = usePlayerContext();
+
+  // NOTE: intentionally NOT using useCallback so closures are always fresh.
+  // These are event handlers — re-creation per render is harmless.
+
+  async function selectFileAndExecute(fileId, overrideTorrentId, overrideActionType) {
+    setProcessingFile(fileId);
+    try {
+      const torrentId = overrideTorrentId || (fileModalData ? fileModalData.torrentId : null);
+      const action = overrideActionType || (fileModalData ? fileModalData.actionType : null);
+
+      const data = await generateLink(torrentId, fileId, debridService, rdAdminCode);
+
+      if (data.downloadUrl) {
+        if (fileModalData) setFileModalData(null);
+
+        if (action === "download") {
+          if (fileModalData) navigate(-1);
+          window.open(data.downloadUrl);
+        } else if (action === "stream") {
+          navigate(`${location.pathname}?modal=stream`, {
+            state: location.state,
+            replace: !!fileModalData,
+          });
+          setStreamUrl(data.downloadUrl);
+        } else if (action === "external") {
+          if (fileModalData) navigate(-1);
+          openExternalPlayer(data.downloadUrl);
+        }
+      } else {
+        alert(data.message || "❌ Failed to generate link. Torrent may not be fully cached yet.");
+      }
+    } catch (err) {
+      alert("Error generating link.");
+      console.error(err);
+    }
+    setProcessingFile(null);
+  }
+
+  async function initAction(magnetOrUrl, actionType, autoPlayFirst = false) {
+    if (actionType === "stream") {
+      currentMagnet.current = magnetOrUrl;
+    }
+
+    // SMART ROUTING: Handle Direct HTTP links instantly
+    if (magnetOrUrl && magnetOrUrl.startsWith("http")) {
+      if (actionType === "download") {
+        openDirectDownload(magnetOrUrl);
+      } else if (actionType === "stream") {
+        navigate(`${location.pathname}?modal=stream`, { state: location.state });
+        setStreamUrl(magnetOrUrl);
+      } else if (actionType === "external") {
+        openExternalPlayer(magnetOrUrl);
+      }
+      return;
+    }
+
+    setProcessingMagnet(magnetOrUrl);
+    try {
+      const data = await getFiles(magnetOrUrl, debridService, rdAdminCode);
+
+      if (data.files && data.files.length > 0) {
+        if (autoPlayFirst) {
+          await selectFileAndExecute(data.files[0].id, data.torrentId, actionType);
+        } else {
+          navigate(`${location.pathname}?modal=file`, { state: location.state });
+          setFileModalData({
+            magnet: magnetOrUrl,
+            torrentId: data.torrentId,
+            files: data.files,
+            actionType,
+          });
+        }
+      } else {
+        alert(data.message || "❌ No files found or timeout.");
+      }
+    } catch (err) {
+      alert("Error fetching files. Check console.");
+      console.error(err);
+    }
+    setProcessingMagnet(null);
+  }
+
+  function copyMagnet(magnet) {
+    copyMagnetUtil(magnet);
+  }
+
+  return {
+    initAction,
+    selectFileAndExecute,
+    copyMagnet,
+  };
+}
