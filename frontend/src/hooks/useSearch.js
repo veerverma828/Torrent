@@ -84,7 +84,8 @@ export function useSearch() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/search?q=${query}`);
+      const encodedQuery = encodeURIComponent(query.trim());
+      const res = await fetch(`${API_URL}/search?q=${encodedQuery}`);
       const data = await res.json();
       setResults(data);
     } catch (err) {
