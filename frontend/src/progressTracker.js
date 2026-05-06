@@ -137,10 +137,11 @@ export const saveProgress = (metadata, currentTime, duration) => {
       percentage: Math.min(percentage, 100),
       lastUpdated: Date.now(),
       title: metadata.title || data.movies[metadata.id]?.title || "Unknown Movie",
-      poster: metadata.poster || data.movies[metadata.id]?.poster || ""
+      poster: metadata.poster || data.movies[metadata.id]?.poster || "",
+      magnet: metadata.magnet || data.movies[metadata.id]?.magnet || ""
     };
   } else if (metadata.type === 'series') {
-    const { id, season, episode, totalSeasons, episodesInSeason, title, poster, episodeTitle, thumbnail } = metadata;
+    const { id, season, episode, totalSeasons, episodesInSeason, title, poster, episodeTitle, thumbnail, magnet } = metadata;
     
     if (!data.series[id]) data.series[id] = { completed: false, seasons: {} };
     // Store/Update top-level series visual metadata seamlessly
@@ -157,7 +158,8 @@ export const saveProgress = (metadata, currentTime, duration) => {
       completed: isCompleted,
       lastUpdated: Date.now(),
       episodeTitle: episodeTitle || data.series[id].seasons[season].episodes[episode]?.episodeTitle || "",
-      thumbnail: thumbnail || data.series[id].seasons[season].episodes[episode]?.thumbnail || ""
+      thumbnail: thumbnail || data.series[id].seasons[season].episodes[episode]?.thumbnail || "",
+      magnet: magnet || data.series[id].seasons[season].episodes[episode]?.magnet || ""
     };
 
     // Evaluate Series Completion Logic

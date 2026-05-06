@@ -69,6 +69,7 @@ function App() {
   const lastFetchedUrl = useRef("");
   const progressInterval = useRef({ lastSaveTime: 0, lastTick: 0 });
   const videoRef = useRef(null);
+  const currentMagnet = useRef(null);
 
   const lastFetchedApis = useRef("");
 
@@ -156,10 +157,18 @@ function App() {
 
     const fetchUrlData = async () => {
       const stateItem = location.state?.item;
+      const autoPlayMagnet = location.state?.autoPlayMagnet;
 
       if (movieMatch) {
         const id = movieMatch.params.id;
         setSelectedItem(stateItem || { id, name: "Movie", type: "movie" });
+        
+        // Auto-play intercepted: clear the trigger state and start the stream immediately
+        if (autoPlayMagnet) {
+          navigate(location.pathname, { state: { ...location.state, autoPlayMagnet: null }, replace: true });
+          initAction(autoPlayMagnet, 'stream', true);
+        }
+
         setLoading(true);
         try {
           const fetchPromises = addonApis.map(api => {
@@ -176,6 +185,12 @@ function App() {
         setSelectedItem(stateItem || { id, name: `Season ${season} Ep ${episode}`, type: "series" });
         setSelectedSeason(season);
         
+        // Auto-play intercepted: clear the trigger state and start the stream immediately
+        if (autoPlayMagnet) {
+          navigate(location.pathname, { state: { ...location.state, autoPlayMagnet: null }, replace: true });
+          initAction(autoPlayMagnet, 'stream', true);
+        }
+
         if (episodes.length === 0) {
           try {
             const res = await fetch(`https://v3-cinemeta.strem.io/meta/series/${id}.json`);
@@ -305,6 +320,11 @@ function App() {
 
   // ✅ NEW: Step 1 - Fetch files inside the torrent
   const initAction = async (magnetOrUrl, actionType, autoPlayFirst = false) => {
+    
+    // Track the stream source so we can save it to the watch history!
+    if (actionType === "stream") {
+      currentMagnet.current = magnetOrUrl;
+    }
     
     // ✅ SMART ROUTING: Handle Direct HTTP links from Debrid-configured Addons instantly!
     if (magnetOrUrl && magnetOrUrl.startsWith("http")) {
@@ -807,10 +827,14 @@ function App() {
                     key={`cw-${item.type}-${item.type === 'movie' ? item.id : item.seriesId}`} 
                     item={item} 
                     onClick={(hydratedMeta) => {
+                      const navState = { 
+                        item: { id: item.type === 'movie' ? item.id : item.seriesId, name: hydratedMeta.title, poster: hydratedMeta.poster, type: item.type },
+                        autoPlayMagnet: item.magnet || null 
+                      };
                       if (item.type === 'movie') {
-                        navigate(`/movie/${item.id}`, { state: { item: { id: item.id, name: hydratedMeta.title, poster: hydratedMeta.poster, type: 'movie' } } });
+                        navigate(`/movie/${item.id}`, { state: navState });
                       } else {
-                        navigate(`/series/${item.seriesId}/season/${item.season}/episode/${item.episode}`, { state: { item: { id: item.seriesId, name: hydratedMeta.title, poster: hydratedMeta.poster, type: 'series' } } });
+                        navigate(`/series/${item.seriesId}/season/${item.season}/episode/${item.episode}`, { state: navState });
                       }
                     }}
                     onRemove={(removedItem) => {
@@ -1184,7 +1208,8 @@ function App() {
                     type: 'movie', 
                     id: movieMatch.params.id,
                     title: selectedItem?.name,
-                    poster: selectedItem?.poster
+                    poster: selectedItem?.poster,
+                    magnet: currentMagnet.current
                   };
                 } else if (episodeMatch) {
                   const seasonNum = Number(episodeMatch.params.season);
@@ -1198,7 +1223,8 @@ function App() {
                     title: selectedItem?.name,
                     poster: selectedItem?.poster,
                     episodeTitle: currentEp?.name || currentEp?.title,
-                    thumbnail: currentEp?.thumbnail
+                    thumbnail: currentEp?.thumbnail,
+                    magnet: currentMagnet.current
                   };
                 }
                 if (metadata) {
