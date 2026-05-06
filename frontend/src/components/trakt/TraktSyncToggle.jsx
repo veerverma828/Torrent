@@ -97,6 +97,9 @@ export default function TraktSyncToggle() {
             onClick={() => setSyncMode("local")}
             style={{
               background: syncMode === "local" ? "#007BFF" : "#444",
+              border: "none",
+              color: "#fff",
+              opacity: 1,
             }}
           >
             Local Storage
@@ -114,6 +117,9 @@ export default function TraktSyncToggle() {
             disabled={isConnecting}
             style={{
               background: syncMode === "trakt" ? "#ed1c24" : "#444",
+              border: "none",
+              color: "#fff",
+              opacity: 1,
             }}
           >
             {isConnecting
@@ -127,7 +133,12 @@ export default function TraktSyncToggle() {
             <button
               className="action-button"
               onClick={handleLogout}
-              style={{ background: "#6c757d" }}
+              style={{
+                background: "#6c757d",
+                border: "none",
+                color: "#fff",
+                opacity: 1,
+              }}
             >
               Logout
             </button>
