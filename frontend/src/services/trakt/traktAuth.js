@@ -63,6 +63,55 @@ export const traktAuth = {
     );
   },
 
+  async refreshAccessToken() {
+    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+
+    if (!refreshToken) {
+      throw new Error("Missing refresh token");
+    }
+
+    const response = await fetch("https://api.trakt.tv/oauth/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refresh_token: refreshToken,
+        client_id: import.meta.env.VITE_TRAKT_CLIENT_ID,
+        client_secret: import.meta.env.VITE_TRAKT_CLIENT_SECRET,
+        redirect_uri: "urn:ietf:wg:oauth:2.0:oob",
+        grant_type: "refresh_token",
+      }),
+    });
+
+    if (!response.ok) {
+      this.logout();
+      throw new Error("Failed to refresh Trakt token");
+    }
+
+    const data = await response.json();
+
+    this.saveTokens(data);
+
+    return data;
+  },
+
+  async ensureValidToken() {
+    const expiresAt = Number(localStorage.getItem(STORAGE_KEYS.EXPIRES_AT) || 0);
+
+    if (!expiresAt) {
+      return false;
+    }
+
+    const refreshWindow = 5 * 60 * 1000;
+
+    if (Date.now() + refreshWindow >= expiresAt) {
+      await this.refreshAccessToken();
+    }
+
+    return true;
+  },
+
   logout() {
     Object.values(STORAGE_KEYS).forEach((key) => {
       localStorage.removeItem(key);
