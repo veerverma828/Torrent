@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import appLogo from "../Images/TITLE.png";
 import "./App.css";
-import { saveProgress, getMovieProgress, getEpisodeProgress, getContinueWatching, updateTrackingMetadata } from "./progressTracker";
+import { saveProgress, getMovieProgress, getEpisodeProgress, getContinueWatching, updateTrackingMetadata, removeProgress } from "./progressTracker";
 
 // ✅ NEW: Self-hydrating card for Continue Watching items that might be missing legacy metadata
-const ContinueWatchingCard = ({ item, onClick }) => {
+const ContinueWatchingCard = ({ item, onClick, onRemove }) => {
   const [meta, setMeta] = useState({
     title: item.type === 'movie' ? item.title : item.seriesTitle,
     poster: item.type === 'movie' ? item.poster : item.seriesPoster
@@ -37,6 +37,19 @@ const ContinueWatchingCard = ({ item, onClick }) => {
   return (
     <div className="poster-card" tabIndex="0" onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.click(); }} onClick={() => onClick(meta)}>
       <div className="poster-img-container">
+        <button
+          className="remove-cw-btn"
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            onRemove(item); 
+          }}
+          title="Remove from Continue Watching"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         {meta.poster ? ( <img src={meta.poster} alt={meta.title} /> ) : ( <div style={{width:'100%', aspectRatio:'2/3', backgroundColor:'#222', display:'flex', alignItems:'center', justifyContent:'center'}}><span className="loader-small" style={{margin: 0}}></span></div> )}
         <div className="progress-bar-container">
           <div className="progress-bar" style={{ width: `${Math.max(item.percentage || 0, 3)}%`, backgroundColor: '#007BFF' }}></div>
@@ -101,6 +114,9 @@ function App() {
   // ✅ NEW: File Selection Modal state
   const [fileModalData, setFileModalData] = useState(null);
   const [processingFile, setProcessingFile] = useState(null);
+
+  // State to trigger re-renders when removing items from continue watching
+  const [cwTrigger, setCwTrigger] = useState(0);
 
   // Reactive retrieval: Fetches the tracked movies/series automatically
   const continueWatchingList = getContinueWatching();
@@ -788,7 +804,7 @@ function App() {
               <div className="poster-grid">
                 {continueWatchingList.map((item, i) => (
                   <ContinueWatchingCard 
-                    key={`cw-${i}`} 
+                    key={`cw-${item.type}-${item.type === 'movie' ? item.id : item.seriesId}`} 
                     item={item} 
                     onClick={(hydratedMeta) => {
                       if (item.type === 'movie') {
@@ -796,6 +812,11 @@ function App() {
                       } else {
                         navigate(`/series/${item.seriesId}/season/${item.season}/episode/${item.episode}`, { state: { item: { id: item.seriesId, name: hydratedMeta.title, poster: hydratedMeta.poster, type: 'series' } } });
                       }
+                    }}
+                    onRemove={(removedItem) => {
+                      const id = removedItem.type === 'movie' ? removedItem.id : removedItem.seriesId;
+                      removeProgress(removedItem.type, id);
+                      setCwTrigger(prev => prev + 1);
                     }}
                   />
                 ))}
