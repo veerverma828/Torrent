@@ -173,6 +173,13 @@ body {
   border-color: rgba(220, 53, 69, 1);
 }
 
+/* Display the cross button permanently on touch devices and mobile */
+@media (hover: none), (max-width: 768px) {
+  .remove-cw-btn {
+    opacity: 1;
+  }
+}
+
 .poster-card p {
   transition: color 0.3s ease;
 }
