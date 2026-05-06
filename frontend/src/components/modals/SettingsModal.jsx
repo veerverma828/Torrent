@@ -1,4 +1,5 @@
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
+import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS } from "../../utils/constants.js";
 
@@ -26,6 +27,11 @@ export default function SettingsModal() {
     <div className="settings-modal-overlay">
       <div className="settings-modal-content">
         <h2>Settings</h2>
+
+        <div className="settings-section">
+          <TraktSyncToggle />
+        </div>
+
         <div className="settings-section">
           <h3 style={{ marginBottom: "15px" }}>Addon APIs</h3>
           {tempAddonApis.map((api, index) => (
