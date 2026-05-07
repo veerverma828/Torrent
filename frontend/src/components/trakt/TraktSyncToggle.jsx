@@ -24,8 +24,6 @@ export default function TraktSyncToggle() {
 
       setDeviceData(data);
 
-      window.open(data.verification_url, "_blank", "noopener,noreferrer");
-
       await traktAuth.pollForAccessToken(data.device_code, data.interval);
 
       setTraktAuthenticated(true);
@@ -194,7 +192,7 @@ export default function TraktSyncToggle() {
           }}
         >
           <div style={{ opacity: 0.85 }}>
-            Scan the QR code or visit Trakt activation page.
+            Scan the QR code or open the activation link manually.
           </div>
 
           <div
@@ -221,7 +219,7 @@ export default function TraktSyncToggle() {
               textDecoration: "underline",
             }}
           >
-            {deviceData.verification_url}
+            Open Trakt Activation Page
           </a>
 
           <div style={{ opacity: 0.75 }}>
