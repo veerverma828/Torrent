@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
@@ -9,35 +9,23 @@ export default function VideoPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
   const hasLoggedStreamError = useRef(false);
+  const timeoutRef = useRef(null);
+  const [playerError, setPlayerError] = useState(null);
 
-  const { selectedItem, episodes, seasons } = useMediaContext();
+  const { selectedItem, episodes = [], seasons = [] } = useMediaContext();
   const { streamUrl, videoRef, currentMagnet, progressInterval } = usePlayerContext();
 
-  const movieMatch = useMemo(
-    () => matchPath("/movie/:id", location.pathname),
-    [location.pathname]
-  );
+  const movieMatch = useMemo(() => matchPath("/movie/:id", location.pathname), [location.pathname]);
 
-  const episodeMatch = useMemo(
-    () =>
-      matchPath(
-        "/series/:id/season/:season/episode/:episode",
-        location.pathname
-      ),
-    [location.pathname]
-  );
+  const episodeMatch = useMemo(() => matchPath("/series/:id/season/:season/episode/:episode", location.pathname), [location.pathname]);
 
   const episodeMetadata = useMemo(() => {
-    if (!episodeMatch) {
-      return null;
-    }
+    if (!episodeMatch) return null;
 
     const seasonNum = Number(episodeMatch.params.season);
     const epNum = Number(episodeMatch.params.episode);
 
-    const currentEp = episodes.find(
-      (ep) => Number(ep.season) === seasonNum && Number(ep.episode) === epNum
-    );
+    const currentEp = episodes.find((ep) => Number(ep.season) === seasonNum && Number(ep.episode) === epNum);
 
     return {
       seasonNum,
@@ -48,21 +36,32 @@ export default function VideoPlayer() {
 
   useEffect(() => {
     hasLoggedStreamError.current = false;
+    setPlayerError(null);
+
+    if (!streamUrl) return undefined;
+
+    timeoutRef.current = setTimeout(() => {
+      setPlayerError({
+        title: "Stream failed to start",
+        message: "The provider may be slow or this format may not be supported in your browser.",
+      });
+    }, 8000);
+
+    return () => clearTimeout(timeoutRef.current);
   }, [streamUrl]);
 
   if (!streamUrl) return null;
 
   const handleLoadedMetadata = (e) => {
+    clearTimeout(timeoutRef.current);
+    setPlayerError(null);
+
     let savedProgress = null;
 
     if (movieMatch) {
       savedProgress = progressService.getMovieProgress(movieMatch.params.id);
     } else if (episodeMatch) {
-      savedProgress = progressService.getEpisodeProgress(
-        episodeMatch.params.id,
-        episodeMatch.params.season,
-        episodeMatch.params.episode
-      );
+      savedProgress = progressService.getEpisodeProgress(episodeMatch.params.id, episodeMatch.params.season, episodeMatch.params.episode);
     }
 
     if (savedProgress && savedProgress.progress > 0 && savedProgress.percentage < 95) {
@@ -75,10 +74,7 @@ export default function VideoPlayer() {
     const duration = e.target.duration;
     const now = Date.now();
 
-    if (
-      now - progressInterval.current.lastTick > 5000 ||
-      Math.abs(currentTime - progressInterval.current.lastSaveTime) > 5
-    ) {
+    if (now - progressInterval.current.lastTick > 5000 || Math.abs(currentTime - progressInterval.current.lastSaveTime) > 5) {
       progressInterval.current = { lastSaveTime: currentTime, lastTick: now };
 
       let metadata = null;
@@ -103,8 +99,7 @@ export default function VideoPlayer() {
           totalSeasons: seasons.length,
           title: selectedItem?.name,
           poster: selectedItem?.poster,
-          episodeTitle:
-            episodeMetadata.currentEp?.name || episodeMetadata.currentEp?.title,
+          episodeTitle: episodeMetadata.currentEp?.name || episodeMetadata.currentEp?.title,
           thumbnail: episodeMetadata.currentEp?.thumbnail,
           magnet: currentMagnet.current,
         };
@@ -116,12 +111,24 @@ export default function VideoPlayer() {
     }
   };
 
-  const handleError = (e) => {
-    const error = e.target.error;
-    const errorMsg =
-      error?.message || "Unknown error (likely unsupported format like MKV or CORS issue)";
+  const handleRetry = () => {
+    setPlayerError(null);
 
-    alert(`❌ Error playing video: ${errorMsg}\n\nTry downloading it instead.`);
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleError = (e) => {
+    clearTimeout(timeoutRef.current);
+
+    const error = e.target.error;
+
+    setPlayerError({
+      title: "Playback failed",
+      message: error?.message || "Unsupported stream format or temporary provider issue.",
+    });
 
     if (hasLoggedStreamError.current) {
       return;
@@ -139,7 +146,7 @@ export default function VideoPlayer() {
         networkState: e.target.networkState,
         readyState: e.target.readyState,
       }),
-    }).catch(() => console.log("Failed to send log to backend"));
+    }).catch((err) => console.error("Failed to send stream error log", err));
   };
 
   return (
@@ -159,6 +166,25 @@ export default function VideoPlayer() {
         onTimeUpdate={handleTimeUpdate}
         onError={handleError}
       />
+
+      {playerError && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 text-white">
+          <div className="max-w-md rounded-2xl bg-neutral-900 p-6 text-center">
+            <h2 className="mb-3 text-xl font-semibold">{playerError.title}</h2>
+            <p className="mb-5 text-sm text-neutral-300">{playerError.message}</p>
+
+            <div className="flex justify-center gap-3">
+              <button onClick={handleRetry} className="rounded-lg bg-white px-4 py-2 font-medium text-black">
+                Retry Playback
+              </button>
+
+              <button onClick={() => navigate(-1)} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white">
+                Close Player
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
