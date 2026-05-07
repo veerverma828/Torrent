@@ -1,5 +1,33 @@
 import { traktApi } from "../../services/trakt/traktApi.js";
 
+const activeSessions = new Set();
+
+const buildPayload = (metadata, percentage) => {
+  if (metadata.type === "movie") {
+    return {
+      progress: Math.min(percentage, 100),
+      movie: {
+        ids: {
+          imdb: metadata.imdbId,
+        },
+      },
+    };
+  }
+
+  return {
+    progress: Math.min(percentage, 100),
+    episode: {
+      season: Number(metadata.season),
+      number: Number(metadata.episode),
+    },
+    show: {
+      ids: {
+        imdb: metadata.imdbId,
+      },
+    },
+  };
+};
+
 const mapPlaybackItem = (item) => {
   const progress = Math.min(Math.max(item.progress || 0, 0), 100);
 
@@ -39,6 +67,40 @@ const mapPlaybackItem = (item) => {
 export const traktProvider = {
   type: "trakt",
 
+  async startPlayback(metadata) {
+    if (!metadata?.imdbId) {
+      return;
+    }
+
+    const sessionKey = `${metadata.type}-${metadata.imdbId}-${metadata.season || 0}-${metadata.episode || 0}`;
+
+    if (activeSessions.has(sessionKey)) {
+      return;
+    }
+
+    activeSessions.add(sessionKey);
+
+    await traktApi.request("/scrobble/start", {
+      method: "POST",
+      body: JSON.stringify(buildPayload(metadata, 0)),
+    });
+  },
+
+  async stopPlayback(metadata, percentage = 100) {
+    if (!metadata?.imdbId) {
+      return;
+    }
+
+    const sessionKey = `${metadata.type}-${metadata.imdbId}-${metadata.season || 0}-${metadata.episode || 0}`;
+
+    activeSessions.delete(sessionKey);
+
+    await traktApi.request("/scrobble/stop", {
+      method: "POST",
+      body: JSON.stringify(buildPayload(metadata, percentage)),
+    });
+  },
+
   async syncMovieProgress(metadata, progress, percentage) {
     if (!metadata.imdbId) {
       return;
@@ -46,14 +108,7 @@ export const traktProvider = {
 
     await traktApi.request("/scrobble/pause", {
       method: "POST",
-      body: JSON.stringify({
-        progress: Math.min(percentage, 100),
-        movie: {
-          ids: {
-            imdb: metadata.imdbId,
-          },
-        },
-      }),
+      body: JSON.stringify(buildPayload(metadata, percentage)),
     });
   },
 
@@ -64,18 +119,7 @@ export const traktProvider = {
 
     await traktApi.request("/scrobble/pause", {
       method: "POST",
-      body: JSON.stringify({
-        progress: Math.min(percentage, 100),
-        episode: {
-          season: Number(metadata.season),
-          number: Number(metadata.episode),
-        },
-        show: {
-          ids: {
-            imdb: metadata.imdbId,
-          },
-        },
-      }),
+      body: JSON.stringify(buildPayload(metadata, percentage)),
     });
   },
 
