@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { traktAuth } from "../../services/trakt/traktAuth.js";
 
@@ -43,6 +44,7 @@ export default function TraktSyncToggle() {
     setTraktAuthenticated(false);
     setTraktUser(null);
     setSyncMode("local");
+    setDeviceData(null);
   };
 
   const buttonBaseStyle = {
@@ -181,19 +183,55 @@ export default function TraktSyncToggle() {
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: "14px",
-            padding: "14px",
+            padding: "18px",
             fontSize: "14px",
             lineHeight: 1.5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "14px",
+            textAlign: "center",
           }}
         >
-          <div style={{ opacity: 0.8, marginBottom: "8px" }}>
-            Authorize Trakt using this code:
+          <div style={{ opacity: 0.85 }}>
+            Scan the QR code or visit Trakt activation page.
+          </div>
+
+          <div
+            style={{
+              background: "white",
+              padding: "12px",
+              borderRadius: "18px",
+            }}
+          >
+            <QRCodeSVG
+              value={deviceData.verification_url}
+              size={180}
+              includeMargin
+            />
+          </div>
+
+          <a
+            href={deviceData.verification_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              textDecoration: "underline",
+            }}
+          >
+            {deviceData.verification_url}
+          </a>
+
+          <div style={{ opacity: 0.75 }}>
+            Enter this code:
           </div>
 
           <strong
             style={{
-              fontSize: "20px",
-              letterSpacing: "3px",
+              fontSize: "24px",
+              letterSpacing: "4px",
               color: "#fff",
             }}
           >
