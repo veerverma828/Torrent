@@ -7,6 +7,22 @@ import fs from "fs";
 dotenv.config();
 
 const app = express();
+const TRAKT_API = "https://api.trakt.tv";
+
+const getTraktConfig = () => ({
+  clientId: process.env.TRAKT_CLIENT_ID || process.env.VITE_TRAKT_CLIENT_ID,
+  clientSecret: process.env.TRAKT_CLIENT_SECRET || process.env.VITE_TRAKT_CLIENT_SECRET,
+});
+
+const getTraktHeaders = () => {
+  const { clientId } = getTraktConfig();
+
+  return {
+    "Content-Type": "application/json",
+    "trakt-api-version": "2",
+    "trakt-api-key": clientId,
+  };
+};
 
 // app.use(cors({
 //   origin: "https://torrent-gamma.vercel.app"
@@ -59,6 +75,100 @@ app.post("/log-stream-error", (req, res) => {
   console.error("📡 Network State:", networkState);
   console.error("⏳ Ready State:", readyState, "\n--------------------------------------------------");
   res.json({ success: true });
+});
+
+app.post("/trakt/device/code", async (req, res) => {
+  const { clientId } = getTraktConfig();
+
+  if (!clientId) {
+    return res.status(500).json({ message: "Trakt client ID is not configured" });
+  }
+
+  try {
+    const response = await axios.post(
+      `${TRAKT_API}/oauth/device/code`,
+      { client_id: clientId },
+      { headers: getTraktHeaders() }
+    );
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error("Trakt device code error:", error.response?.data || error.message);
+    return res.status(500).json({ message: "Failed to start Trakt device flow" });
+  }
+});
+
+app.post("/trakt/device/token", async (req, res) => {
+  const { code } = req.body;
+  const { clientId, clientSecret } = getTraktConfig();
+
+  if (!clientId || !clientSecret) {
+    return res.status(500).json({ message: "Trakt OAuth is not configured" });
+  }
+
+  if (!code) {
+    return res.status(400).json({ message: "Device code is required" });
+  }
+
+  try {
+    const response = await axios.post(
+      `${TRAKT_API}/oauth/device/token`,
+      {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+      },
+      { headers: getTraktHeaders() }
+    );
+
+    return res.json(response.data);
+  } catch (error) {
+    const status = error.response?.status || 500;
+    const traktError = error.response?.data?.error;
+
+    if (traktError === "authorization_pending") {
+      return res.status(202).json({ pending: true });
+    }
+
+    console.error("Trakt device token error:", error.response?.data || error.message);
+    return res.status(status).json({
+      message: error.response?.data?.error_description || "Failed to complete Trakt device flow",
+    });
+  }
+});
+
+app.post("/trakt/oauth/token", async (req, res) => {
+  const { refreshToken } = req.body;
+  const { clientId, clientSecret } = getTraktConfig();
+
+  if (!clientId || !clientSecret) {
+    return res.status(500).json({ message: "Trakt OAuth is not configured" });
+  }
+
+  if (!refreshToken) {
+    return res.status(400).json({ message: "Refresh token is required" });
+  }
+
+  try {
+    const response = await axios.post(
+      `${TRAKT_API}/oauth/token`,
+      {
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: "urn:ietf:wg:oauth:2.0:oob",
+        grant_type: "refresh_token",
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error("Trakt refresh token error:", error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      message: error.response?.data?.error_description || "Failed to refresh Trakt token",
+    });
+  }
 });
 
 // 🔍 SEARCH API (Jackett)
