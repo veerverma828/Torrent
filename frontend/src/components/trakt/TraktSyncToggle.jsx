@@ -69,6 +69,8 @@ export default function TraktSyncToggle() {
         display: "flex",
         flexDirection: "column",
         gap: "18px",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       <div>
@@ -100,6 +102,7 @@ export default function TraktSyncToggle() {
               fontSize: "20px",
               fontWeight: 700,
               letterSpacing: "0.2px",
+              wordBreak: "break-word",
             }}
           >
             Trakt Sync Mode
@@ -112,6 +115,7 @@ export default function TraktSyncToggle() {
             opacity: 0.82,
             fontSize: "14px",
             lineHeight: 1.6,
+            wordBreak: "break-word",
           }}
         >
           {syncMode === "local"
@@ -189,9 +193,17 @@ export default function TraktSyncToggle() {
             alignItems: "center",
             gap: "14px",
             textAlign: "center",
+            width: "100%",
+            boxSizing: "border-box",
+            overflow: "hidden",
           }}
         >
-          <div style={{ opacity: 0.85 }}>
+          <div
+            style={{
+              opacity: 0.85,
+              maxWidth: "100%",
+            }}
+          >
             Scan the QR code or open the activation link manually.
           </div>
 
@@ -200,11 +212,13 @@ export default function TraktSyncToggle() {
               background: "white",
               padding: "12px",
               borderRadius: "18px",
+              width: "fit-content",
+              maxWidth: "100%",
             }}
           >
             <QRCodeSVG
               value={deviceData.verification_url}
-              size={180}
+              size={window.innerWidth < 480 ? 150 : 180}
               includeMargin
             />
           </div>
@@ -217,6 +231,9 @@ export default function TraktSyncToggle() {
               color: "#fff",
               fontWeight: 600,
               textDecoration: "underline",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              maxWidth: "100%",
             }}
           >
             Open Trakt Activation Page
@@ -228,9 +245,11 @@ export default function TraktSyncToggle() {
 
           <strong
             style={{
-              fontSize: "24px",
-              letterSpacing: "4px",
+              fontSize: window.innerWidth < 480 ? "20px" : "24px",
+              letterSpacing: window.innerWidth < 480 ? "2px" : "4px",
               color: "#fff",
+              wordBreak: "break-word",
+              textAlign: "center",
             }}
           >
             {deviceData.user_code}
