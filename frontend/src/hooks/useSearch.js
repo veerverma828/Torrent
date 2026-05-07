@@ -48,7 +48,9 @@ export function useSearch() {
   const { addonApis, autoSearch, useJackett, imdbMode } = useSettingsContext();
 
   const searchContent = useCallback(async () => {
-    if (!query.trim()) return;
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) return;
 
     const requestId = ++contentSearchRequestId.current;
 
@@ -57,8 +59,8 @@ export function useSearch() {
 
     try {
       const [movieList, seriesList] = await Promise.all([
-        searchMovies(query),
-        searchSeries(query),
+        searchMovies(trimmedQuery),
+        searchSeries(trimmedQuery),
       ]);
 
       if (requestId !== contentSearchRequestId.current) {
@@ -74,16 +76,18 @@ export function useSearch() {
       setSelectedItem(null);
       setResults([]);
     } catch (err) {
-      console.error(err);
-    }
-
-    if (requestId === contentSearchRequestId.current) {
-      setLoading(false);
+      console.error("Content search failed:", err);
+    } finally {
+      if (requestId === contentSearchRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [query, navigate, setLoading, setMovies, setSeries, setSelectedItem, setResults]);
 
   const searchTorrents = useCallback(async () => {
-    if (!query.trim()) return;
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) return;
 
     const requestId = ++torrentSearchRequestId.current;
 
@@ -94,22 +98,27 @@ export function useSearch() {
 
     setLoading(true);
 
-    if (imdbMode && !useJackett && !query.startsWith("tt")) {
+    if (imdbMode && !useJackett && !trimmedQuery.startsWith("tt")) {
+      console.error("Invalid IMDb ID entered");
       setLoading(false);
-      alert("Please enter a valid IMDb ID (e.g. tt10872600)");
       return;
     }
+
     if (imdbMode && !useJackett) {
       setLoading(false);
-      navigate(`/movie/${query.trim()}`);
+      navigate(`/movie/${trimmedQuery}`);
       return;
     }
 
     try {
-      const encodedQuery = encodeURIComponent(query.trim());
+      const encodedQuery = encodeURIComponent(trimmedQuery);
       const res = await fetch(`${API_URL}/search?q=${encodedQuery}`, {
         signal: controller.signal,
       });
+
+      if (!res.ok) {
+        throw new Error(`Search failed with status ${res.status}`);
+      }
 
       const data = await res.json();
 
@@ -117,16 +126,16 @@ export function useSearch() {
         return;
       }
 
-      setResults(data);
+      setResults(Array.isArray(data) ? data : []);
     } catch (err) {
       if (err.name !== "AbortError") {
-        console.error("Error:", err);
-        alert("Something went wrong");
+        console.error("Torrent search failed:", err);
+        setResults([]);
       }
-    }
-
-    if (requestId === torrentSearchRequestId.current) {
-      setLoading(false);
+    } finally {
+      if (requestId === torrentSearchRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [query, imdbMode, useJackett, navigate, setLoading, setResults]);
 
