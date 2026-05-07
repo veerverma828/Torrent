@@ -10,8 +10,8 @@ const app = express();
 const TRAKT_API = "https://api.trakt.tv";
 
 const getTraktConfig = () => ({
-  clientId: process.env.TRAKT_CLIENT_ID || process.env.VITE_TRAKT_CLIENT_ID,
-  clientSecret: process.env.TRAKT_CLIENT_SECRET || process.env.VITE_TRAKT_CLIENT_SECRET,
+  clientId: process.env.TRAKT_CLIENT_ID,
+  clientSecret: process.env.TRAKT_CLIENT_SECRET,
 });
 
 const getTraktHeaders = () => {
@@ -32,9 +32,9 @@ const getTraktHeaders = () => {
 
 // 🔒 Advanced CORS Configuration - Restricted to allowed origins
 const allowedOrigins = [
-  "https://torrent-gamma.vercel.app",  // Production
-  "http://localhost:5173",              // Local frontend (Vite default)
-  "http://localhost:3000"               // Alternative local port
+  "https://torrent-gamma.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000"
 ];
 
 app.use(cors({
@@ -52,7 +52,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// 📝 Helper function to log to a text file
 const logToFile = (message) => {
   const timestamp = new Date().toISOString();
   fs.appendFile("downloads.log", `[${timestamp}] ${message}\n`, (err) => {
@@ -60,12 +59,10 @@ const logToFile = (message) => {
   });
 };
 
-// Root route
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
 
-// 🔴 STREAM ERROR LOGGING (From Frontend)
 app.post("/log-stream-error", (req, res) => {
   const { url, rawMessage, code, networkState, readyState } = req.body;
   console.error("\n❌ [RAW STREAM ERROR] ----------------------------");
@@ -171,7 +168,6 @@ app.post("/trakt/oauth/token", async (req, res) => {
   }
 });
 
-// 🔍 SEARCH API (Jackett)
 app.get("/search", async (req, res) => {
   const query = req.query.q;
 
@@ -207,120 +203,6 @@ app.get("/search", async (req, res) => {
   }
 });
 
-// 🗂 GET FILES (STEP 1)
-app.post("/get-files", async (req, res) => {
-  const { magnet, service } = req.body;
-  const adminCode = req.headers["x-admin-code"];
-
-  logToFile(`📂 Fetching files via ${service} for magnet: ${magnet.substring(0, 40)}...`);
-
-  if (service === "real-debrid") {
-    if (adminCode !== process.env.RD_ADMIN_CODE) {
-      return res.status(403).json({ message: "❌ Unauthorized" });
-    }
-    try {
-      const API_KEY = process.env.REAL_DEBRID_API_KEY;
-      const addRes = await axios.post("https://api.real-debrid.com/rest/1.0/torrents/addMagnet", new URLSearchParams({ magnet }), { headers: { Authorization: `Bearer ${API_KEY}` } });
-      const torrentId = addRes.data.id;
-
-      // Wait for files metadata
-      for (let i = 0; i < 4; i++) {
-        const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
-        if (info.data.status === "waiting_files_selection" || (info.data.files && info.data.files.length > 0)) {
-          return res.json({
-            torrentId,
-            files: info.data.files.map(f => ({ id: f.id, name: f.path, size: f.bytes }))
-          });
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      return res.status(408).json({ message: "⏳ Timeout waiting for torrent metadata." });
-    } catch (error) {
-      console.error(error.response?.data || error.message);
-      return res.status(500).json({ message: "Error fetching files from Real-Debrid" });
-    }
-  }
-
-  if (service === "torbox") {
-    try {
-      const API_KEY = process.env.TORBOX_API_KEY;
-      const addRes = await axios.post("https://api.torbox.app/v1/api/torrents/createtorrent", new URLSearchParams({ magnet }), { headers: { Authorization: `Bearer ${API_KEY}` } });
-      if (!addRes.data.success) return res.status(500).json({ message: "❌ Failed to add magnet to Torbox" });
-      const torrentId = addRes.data.data.torrent_id;
-
-      // Wait for files in mylist
-      for (let i = 0; i < 4; i++) {
-        const listRes = await axios.get("https://api.torbox.app/v1/api/torrents/mylist", { headers: { Authorization: `Bearer ${API_KEY}` } });
-        const torrent = listRes.data.data?.find(t => t.id === torrentId);
-        if (torrent && torrent.files && torrent.files.length > 0) {
-          return res.json({
-            torrentId,
-            files: torrent.files.map(f => ({ id: f.id, name: f.name, size: f.size }))
-          });
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      return res.status(408).json({ message: "⏳ Timeout waiting for torrent metadata." });
-    } catch (error) {
-      console.error(error.response?.data || error.message);
-      return res.status(500).json({ message: "Error fetching files from Torbox" });
-    }
-  }
-});
-
-// 🔗 GENERATE LINK (STEP 2)
-app.post("/generate-link", async (req, res) => {
-  const { torrentId, fileId, service } = req.body;
-  const adminCode = req.headers["x-admin-code"];
-
-  logToFile(`🔗 Generating link via ${service} for torrentId: ${torrentId}, fileId: ${fileId}`);
-
-  if (service === "real-debrid") {
-    if (adminCode !== process.env.RD_ADMIN_CODE) return res.status(403).json({ message: "❌ Unauthorized" });
-    try {
-      const API_KEY = process.env.REAL_DEBRID_API_KEY;
-      // Select the specific file requested by the user
-      await axios.post(`https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`, new URLSearchParams({ files: fileId }), { headers: { Authorization: `Bearer ${API_KEY}` } });
-
-      for (let i = 0; i < 4; i++) {
-        const info = await axios.get(`https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
-        if (info.data.status === "downloaded" && info.data.links && info.data.links.length > 0) {
-          const unrestrict = await axios.post("https://api.real-debrid.com/rest/1.0/unrestrict/link", new URLSearchParams({ link: info.data.links[0] }), { headers: { Authorization: `Bearer ${API_KEY}` } });
-          return res.json({ downloadUrl: unrestrict.data.download });
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      return res.status(408).json({ message: "⏳ Torrent is taking too long to cache/download." });
-    } catch (error) {
-      console.error(error.response?.data || error.message);
-      return res.status(500).json({ message: "Error generating link from Real-Debrid" });
-    }
-  }
-
-  if (service === "torbox") {
-    try {
-      const API_KEY = process.env.TORBOX_API_KEY;
-      for (let i = 0; i < 4; i++) {
-        try {
-          // Request the precise file ID
-          const dlRes = await axios.get(`https://api.torbox.app/v1/api/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}&file_id=${fileId}`);
-          if (dlRes.data.success && dlRes.data.data) {
-            return res.json({ downloadUrl: dlRes.data.data });
-          }
-        } catch (e) {
-          // Torbox throws a 400/500 if the torrent is still downloading internally
-        }
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      return res.status(408).json({ message: "⏳ Torrent is taking too long to cache/download." });
-    } catch (error) {
-      console.error(error.response?.data || error.message);
-      return res.status(500).json({ message: "Error generating link from Torbox" });
-    }
-  }
-});
-
-// 🔐 VERIFY REAL-DEBRID ACCESS
 app.post("/verify-rd", (req, res) => {
   const { code } = req.body;
 
