@@ -24,8 +24,17 @@ export const traktAuth = {
 
   async pollForAccessToken(deviceCode, interval = 5) {
     return new Promise((resolve, reject) => {
+      const maxDuration = 10 * 60 * 1000;
+      const startTime = Date.now();
+
       const poller = setInterval(async () => {
         try {
+          if (Date.now() - startTime >= maxDuration) {
+            clearInterval(poller);
+            reject(new Error("Trakt authentication timed out"));
+            return;
+          }
+
           const response = await fetch(`${API_URL}/trakt/device/token`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -49,10 +58,28 @@ export const traktAuth = {
             }
 
             resolve(data);
-          } else if (response.status !== 202) {
-            clearInterval(poller);
-            reject(new Error("Failed to complete Trakt device flow"));
+            return;
           }
+
+          if (response.status === 202) {
+            return;
+          }
+
+          let errorData = {};
+
+          try {
+            errorData = await response.json();
+          } catch {
+            // Ignore malformed error responses
+          }
+
+          const message =
+            errorData.message ||
+            errorData.error_description ||
+            "Failed to complete Trakt device flow";
+
+          clearInterval(poller);
+          reject(new Error(message));
         } catch (error) {
           clearInterval(poller);
           reject(error);
