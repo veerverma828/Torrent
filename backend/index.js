@@ -30,21 +30,9 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-const isAllowedOrigin = (origin) => {
-  if (!origin) {
-    return true;
-  }
-
-  if (allowedOrigins.includes(origin)) {
-    return true;
-  }
-
-  return origin.endsWith(".vercel.app");
-};
-
 app.use(cors({
   origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("CORS not allowed"));
@@ -225,6 +213,140 @@ app.get("/search", async (req, res) => {
   } catch (error) {
     console.error("Search Error:", error.response?.data || error.message);
     res.status(500).json({ error: "Error fetching torrents" });
+  }
+});
+
+app.post("/get-files", async (req, res) => {
+  const { magnet, service } = req.body;
+  const adminCode = req.headers["x-admin-code"];
+
+  if (service !== "real-debrid") {
+    return res.status(400).json({ message: "Unsupported service" });
+  }
+
+  if (adminCode !== process.env.RD_ADMIN_CODE) {
+    return res.status(403).json({ message: "❌ Unauthorized" });
+  }
+
+  try {
+    const API_KEY = process.env.REAL_DEBRID_API_KEY;
+
+    const addRes = await axios.post(
+      "https://api.real-debrid.com/rest/1.0/torrents/addMagnet",
+      new URLSearchParams({ magnet }),
+      {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      }
+    );
+
+    const torrentId = addRes.data.id;
+
+    for (let i = 0; i < 4; i++) {
+      const info = await axios.get(
+        `https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+          },
+        }
+      );
+
+      if (
+        info.data.status === "waiting_files_selection" ||
+        (info.data.files && info.data.files.length > 0)
+      ) {
+        return res.json({
+          torrentId,
+          files: info.data.files.map((f) => ({
+            id: f.id,
+            name: f.path,
+            size: f.bytes,
+          })),
+        });
+      }
+
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+
+    return res.status(408).json({
+      message: "⏳ Timeout waiting for torrent metadata.",
+    });
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    return res.status(500).json({
+      message: "Error fetching files from Real-Debrid",
+    });
+  }
+});
+
+app.post("/generate-link", async (req, res) => {
+  const { torrentId, fileId, service } = req.body;
+  const adminCode = req.headers["x-admin-code"];
+
+  if (service !== "real-debrid") {
+    return res.status(400).json({ message: "Unsupported service" });
+  }
+
+  if (adminCode !== process.env.RD_ADMIN_CODE) {
+    return res.status(403).json({ message: "❌ Unauthorized" });
+  }
+
+  try {
+    const API_KEY = process.env.REAL_DEBRID_API_KEY;
+
+    await axios.post(
+      `https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`,
+      new URLSearchParams({ files: fileId }),
+      {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+        },
+      }
+    );
+
+    for (let i = 0; i < 4; i++) {
+      const info = await axios.get(
+        `https://api.real-debrid.com/rest/1.0/torrents/info/${torrentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+          },
+        }
+      );
+
+      if (
+        info.data.status === "downloaded" &&
+        info.data.links &&
+        info.data.links.length > 0
+      ) {
+        const unrestrict = await axios.post(
+          "https://api.real-debrid.com/rest/1.0/unrestrict/link",
+          new URLSearchParams({ link: info.data.links[0] }),
+          {
+            headers: {
+              Authorization: `Bearer ${API_KEY}`,
+            },
+          }
+        );
+
+        return res.json({
+          downloadUrl: unrestrict.data.download,
+        });
+      }
+
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+
+    return res.status(408).json({
+      message: "⏳ Torrent is taking too long to cache/download.",
+    });
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    return res.status(500).json({
+      message: "Error generating link from Real-Debrid",
+    });
   }
 });
 
