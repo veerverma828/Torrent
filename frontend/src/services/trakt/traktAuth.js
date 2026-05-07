@@ -1,4 +1,5 @@
 import { traktApi } from "./traktApi.js";
+import { API_URL } from "../api.js";
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: "trakt_access_token",
@@ -9,24 +10,27 @@ const STORAGE_KEYS = {
 
 export const traktAuth = {
   async startDeviceFlow() {
-    return traktApi.getDeviceCode();
+    const response = await fetch(`${API_URL}/trakt/device/code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to start Trakt device flow");
+    }
+
+    return response.json();
   },
 
   async pollForAccessToken(deviceCode, interval = 5) {
     return new Promise((resolve, reject) => {
       const poller = setInterval(async () => {
         try {
-          const response = await fetch("https://api.trakt.tv/oauth/device/token", {
+          const response = await fetch(`${API_URL}/trakt/device/token`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "trakt-api-version": "2",
-              "trakt-api-key": import.meta.env.VITE_TRAKT_CLIENT_ID,
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               code: deviceCode,
-              client_id: import.meta.env.VITE_TRAKT_CLIENT_ID,
-              client_secret: import.meta.env.VITE_TRAKT_CLIENT_SECRET,
             }),
           });
 
@@ -45,6 +49,9 @@ export const traktAuth = {
             }
 
             resolve(data);
+          } else if (response.status !== 202) {
+            clearInterval(poller);
+            reject(new Error("Failed to complete Trakt device flow"));
           }
         } catch (error) {
           clearInterval(poller);
@@ -70,17 +77,13 @@ export const traktAuth = {
       throw new Error("Missing refresh token");
     }
 
-    const response = await fetch("https://api.trakt.tv/oauth/token", {
+    const response = await fetch(`${API_URL}/trakt/oauth/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        refresh_token: refreshToken,
-        client_id: import.meta.env.VITE_TRAKT_CLIENT_ID,
-        client_secret: import.meta.env.VITE_TRAKT_CLIENT_SECRET,
-        redirect_uri: "urn:ietf:wg:oauth:2.0:oob",
-        grant_type: "refresh_token",
+        refreshToken,
       }),
     });
 
