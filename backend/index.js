@@ -24,13 +24,6 @@ const getTraktHeaders = () => {
   };
 };
 
-// app.use(cors({
-//   origin: "https://torrent-gamma.vercel.app"
-// }));
-
-// app.use(cors());
-
-// 🔒 Advanced CORS Configuration - Restricted to allowed origins
 const allowedOrigins = [
   "https://torrent-gamma.vercel.app",
   "http://localhost:5173",
@@ -127,9 +120,29 @@ app.post("/trakt/device/token", async (req, res) => {
       return res.status(202).json({ pending: true });
     }
 
+    if (traktError === "slow_down") {
+      return res.status(202).json({ pending: true, slowDown: true });
+    }
+
+    if (traktError === "expired_token") {
+      return res.status(410).json({
+        message: "Trakt device session expired. Please reconnect.",
+      });
+    }
+
+    if (traktError === "access_denied") {
+      return res.status(403).json({
+        message: "Trakt authorization was denied.",
+      });
+    }
+
     console.error("Trakt device token error:", error.response?.data || error.message);
+
     return res.status(status).json({
-      message: error.response?.data?.error_description || "Failed to complete Trakt device flow",
+      message:
+        error.response?.data?.error_description ||
+        error.response?.data?.error ||
+        "Failed to complete Trakt device flow",
     });
   }
 });
