@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import axios from "axios";
 import fs from "fs";
+import { execFile } from "child_process";
+import { promisify } from "util";
 
 dotenv.config();
 
@@ -24,6 +26,55 @@ const getTraktHeaders = () => {
   };
 };
 
+const execFileAsync = promisify(execFile);
+
+async function curlPost(url, body, extraHeaders = {}) {
+  const args = [
+    "-s", "-S",
+    "-X", "POST",
+    "-H", "Content-Type: application/json",
+    ...Object.entries(extraHeaders).flatMap(([k, v]) => ["-H", `${k}: ${v}`]),
+    "-d", JSON.stringify(body),
+    "-w\n__CURL_HTTP_CODE__%{http_code}",
+    url,
+  ];
+
+  const { stdout } = await execFileAsync("curl", args);
+  const sep = stdout.lastIndexOf("__CURL_HTTP_CODE__");
+  const bodyText = stdout.slice(0, sep).trim();
+  const status = parseInt(stdout.slice(sep + "__CURL_HTTP_CODE__".length), 10);
+
+  let json = null;
+  if (bodyText) {
+    try { json = JSON.parse(bodyText); } catch { /* ignore */ }
+  }
+
+  return { status, bodyText, json };
+}
+
+async function curlRequest(method, url, extraHeaders = {}, body = null) {
+  const args = [
+    "-s", "-S",
+    "-X", method.toUpperCase(),
+    ...Object.entries(extraHeaders).flatMap(([k, v]) => ["-H", `${k}: ${v}`]),
+    ...(body ? ["-d", JSON.stringify(body)] : []),
+    "-w\n__CURL_HTTP_CODE__%{http_code}",
+    url,
+  ];
+
+  const { stdout } = await execFileAsync("curl", args);
+  const sep = stdout.lastIndexOf("__CURL_HTTP_CODE__");
+  const bodyText = stdout.slice(0, sep).trim();
+  const status = parseInt(stdout.slice(sep + "__CURL_HTTP_CODE__".length), 10);
+
+  let json = null;
+  if (bodyText) {
+    try { json = JSON.parse(bodyText); } catch { /* ignore */ }
+  }
+
+  return { status, bodyText, json };
+}
+
 const allowedOrigins = [
   "https://torrent-gamma.vercel.app",
   "http://localhost:5173",
@@ -40,7 +91,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "x-admin-code"]
+  allowedHeaders: ["Content-Type", "x-admin-code", "Authorization"]
 }));
 
 app.use(express.json());
@@ -75,15 +126,20 @@ app.post("/trakt/device/code", async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const { status, json } = await curlPost(
       `${TRAKT_API}/oauth/device/code`,
       { client_id: clientId },
-      { headers: getTraktHeaders() }
+      getTraktHeaders()
     );
 
-    return res.json(response.data);
+    if (status === 200 && json) {
+      return res.json(json);
+    }
+
+    console.error("Trakt device code error:", status, json);
+    return res.status(500).json({ message: "Failed to start Trakt device flow" });
   } catch (error) {
-    console.error("Trakt device code error:", error.response?.data || error.message);
+    console.error("Trakt device code error:", error.message);
     return res.status(500).json({ message: "Failed to start Trakt device flow" });
   }
 });
@@ -101,22 +157,20 @@ app.post("/trakt/device/token", async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const { status, bodyText, json } = await curlPost(
       `${TRAKT_API}/oauth/device/token`,
-      {
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-      },
-      { headers: getTraktHeaders() }
+      { code, client_id: clientId, client_secret: clientSecret },
+      getTraktHeaders()
     );
 
-    return res.json(response.data);
-  } catch (error) {
-    const status = error.response?.status || 500;
-    const traktError = error.response?.data?.error;
+    if (status === 200) {
+      return res.json(json || {});
+    }
 
-    if (traktError === "authorization_pending") {
+    const traktError = json?.error;
+
+    // Trakt returns 400 with empty body for authorization_pending
+    if (traktError === "authorization_pending" || (status === 400 && !bodyText)) {
       return res.status(202).json({ pending: true });
     }
 
@@ -136,13 +190,19 @@ app.post("/trakt/device/token", async (req, res) => {
       });
     }
 
-    console.error("Trakt device token error:", error.response?.data || error.message);
+    console.error("Trakt device token error:", status, bodyText);
 
-    return res.status(status).json({
+    return res.status(status || 500).json({
       message:
-        error.response?.data?.error_description ||
-        error.response?.data?.error ||
+        json?.error_description ||
+        traktError ||
+        bodyText ||
         "Failed to complete Trakt device flow",
+    });
+  } catch (error) {
+    console.error("Trakt device token network error:", error.message);
+    return res.status(500).json({
+      message: "Network error connecting to Trakt",
     });
   }
 });
@@ -160,7 +220,7 @@ app.post("/trakt/oauth/token", async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
+    const { status, bodyText, json } = await curlPost(
       `${TRAKT_API}/oauth/token`,
       {
         refresh_token: refreshToken,
@@ -169,15 +229,64 @@ app.post("/trakt/oauth/token", async (req, res) => {
         redirect_uri: "urn:ietf:wg:oauth:2.0:oob",
         grant_type: "refresh_token",
       },
-      { headers: { "Content-Type": "application/json" } }
+      { "Content-Type": "application/json" }
     );
 
-    return res.json(response.data);
-  } catch (error) {
-    console.error("Trakt refresh token error:", error.response?.data || error.message);
-    return res.status(error.response?.status || 500).json({
-      message: error.response?.data?.error_description || "Failed to refresh Trakt token",
+    if (status === 200 && json) {
+      return res.json(json);
+    }
+
+    console.error("Trakt refresh token error:", status, bodyText);
+    return res.status(status || 500).json({
+      message: json?.error_description || bodyText || "Failed to refresh Trakt token",
     });
+  } catch (error) {
+    console.error("Trakt refresh token error:", error.message);
+    return res.status(500).json({
+      message: "Network error connecting to Trakt",
+    });
+  }
+});
+
+// Generic Trakt API proxy - routes all Trakt calls through backend to bypass CORS/Cloudflare
+app.use("/trakt/proxy", async (req, res) => {
+  const { clientId } = getTraktConfig();
+  const endpoint = req.path.replace(/^\/+/, "");
+  const url = `${TRAKT_API}/${endpoint}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    "trakt-api-version": "2",
+    "trakt-api-key": clientId,
+    ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}),
+  };
+
+  console.log("[TraktProxy]", req.method, endpoint, "->", url, "auth:", req.headers.authorization ? "yes" : "no");
+
+  try {
+    const { status, bodyText, json } = await curlRequest(
+      req.method,
+      url,
+      headers,
+      ["GET", "HEAD"].includes(req.method.toUpperCase()) ? null : req.body
+    );
+
+    res.status(status);
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    if (json) {
+      return res.json(json);
+    }
+    if (bodyText) {
+      return res.send(bodyText);
+    }
+    return res.end();
+  } catch (error) {
+    console.error("Trakt proxy error:", error.message);
+    return res.status(500).json({ message: "Failed to proxy Trakt request" });
   }
 });
 

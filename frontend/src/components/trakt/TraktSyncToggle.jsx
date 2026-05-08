@@ -31,7 +31,7 @@ export default function TraktSyncToggle() {
       setSyncMode("trakt");
     } catch (error) {
       console.error("Trakt connection failed", error);
-      alert("Failed to connect Trakt account");
+      alert(error?.message || "Failed to connect Trakt account");
     } finally {
       setIsConnecting(false);
     }
