@@ -204,7 +204,7 @@ export default function SeriesPage() {
       {(imdbMode || results.length > 0) && (
         <div className="results-container">
           {results.map((item, index) => (
-            <ResultCard key={index} item={item} index={index} />
+            <ResultCard key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`} item={item} index={index} />
           ))}
         </div>
       )}

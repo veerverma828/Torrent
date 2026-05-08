@@ -52,7 +52,7 @@ export default function MoviePage() {
     <div className="results-container">
       {loading && <Loader />}
       {results.map((item, index) => (
-        <ResultCard key={index} item={item} index={index} />
+        <ResultCard key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`} item={item} index={index} />
       ))}
     </div>
   );

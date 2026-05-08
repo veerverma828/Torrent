@@ -98,7 +98,7 @@ export default function HomePage() {
         <div className="results-container">
           {results.map((item, index) => (
             <ResultCard
-              key={item.infoHash || item.magnet || `${item.title}-${index}`}
+              key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`}
               item={item}
               index={index}
             />
