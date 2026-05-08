@@ -1,4 +1,4 @@
-const TRAKT_API = "https://api.trakt.tv";
+import { API_URL } from "../api.js";
 
 export const traktApi = {
   async request(endpoint, options = {}) {
@@ -6,18 +6,19 @@ export const traktApi = {
 
     const headers = {
       "Content-Type": "application/json",
-      "trakt-api-version": "2",
-      "trakt-api-key": import.meta.env.VITE_TRAKT_CLIENT_ID,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     };
 
-    const response = await fetch(`${TRAKT_API}${endpoint}`, {
+    const response = await fetch(`${API_URL}/trakt/proxy${endpoint}`, {
       ...options,
       headers,
     });
 
     if (!response.ok) {
+      if (response.status === 410) {
+        throw new Error("Your Trakt account has been deactivated. Please log in on trakt.tv to reactivate it.");
+      }
       throw new Error(`Trakt API Error: ${response.status}`);
     }
 
@@ -26,15 +27,6 @@ export const traktApi = {
     }
 
     return response.json();
-  },
-
-  async getDeviceCode() {
-    return this.request("/oauth/device/code", {
-      method: "POST",
-      body: JSON.stringify({
-        client_id: import.meta.env.VITE_TRAKT_CLIENT_ID,
-      }),
-    });
   },
 
   async getProfile() {

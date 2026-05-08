@@ -26,65 +26,69 @@ export const traktAuth = {
     return new Promise((resolve, reject) => {
       const maxDuration = 10 * 60 * 1000;
       const startTime = Date.now();
+      let currentInterval = interval * 1000;
 
-      const poller = setInterval(async () => {
+      const poll = async () => {
+        if (Date.now() - startTime >= maxDuration) {
+          reject(new Error("Trakt authentication timed out"));
+          return;
+        }
+
         try {
-          if (Date.now() - startTime >= maxDuration) {
-            clearInterval(poller);
-            reject(new Error("Trakt authentication timed out"));
-            return;
-          }
-
           const response = await fetch(`${API_URL}/trakt/device/token`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code: deviceCode,
-            }),
+            body: JSON.stringify({ code: deviceCode }),
           });
 
           if (response.status === 200) {
-            clearInterval(poller);
-
             const data = await response.json();
-
             this.saveTokens(data);
-
             try {
               const profile = await traktApi.getProfile();
               localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(profile.user));
-            } catch {
-              // Ignore profile fetch failures
+            } catch (error) {
+              // Handle profile fetch failures, especially account deactivation
+              if (error.message.includes("deactivated")) {
+                console.warn("Trakt account deactivated:", error.message);
+                // Clear tokens to force re-authentication
+                this.logout();
+              }
             }
-
             resolve(data);
             return;
           }
 
-          if (response.status === 202) {
+          let data = {};
+          try {
+            data = await response.json();
+          } catch {
+            // Ignore non-JSON responses
+          }
+
+          if (data.error === "slow_down") {
+            currentInterval += 2000;
+          }
+
+          if (data.error === "expired_token") {
+            reject(new Error("Trakt device code expired. Please try again."));
             return;
           }
 
-          let errorData = {};
-
-          try {
-            errorData = await response.json();
-          } catch {
-            // Ignore malformed error responses
+          if (data.error === "access_denied") {
+            reject(new Error("Trakt authorization was denied."));
+            return;
           }
 
-          const message =
-            errorData.message ||
-            errorData.error_description ||
-            "Failed to complete Trakt device flow";
-
-          clearInterval(poller);
-          reject(new Error(message));
+          // authorization_pending and any other status -> keep polling silently
         } catch (error) {
-          clearInterval(poller);
-          reject(error);
+          // Network error -> keep polling silently
         }
-      }, interval * 1000);
+
+        setTimeout(poll, currentInterval);
+      };
+
+      setTimeout(poll, currentInterval);
     });
   },
 
@@ -106,12 +110,8 @@ export const traktAuth = {
 
     const response = await fetch(`${API_URL}/trakt/oauth/token`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        refreshToken,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
     });
 
     if (!response.ok) {
