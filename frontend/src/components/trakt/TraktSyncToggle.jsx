@@ -2,6 +2,7 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { traktAuth } from "../../services/trakt/traktAuth.js";
+import { useSyncStatus } from "../../hooks/useSyncStatus.js";
 
 export default function TraktSyncToggle() {
   const {
@@ -12,6 +13,8 @@ export default function TraktSyncToggle() {
     traktUser,
     setTraktUser,
   } = useSettingsContext();
+  
+  const { isOnline, isSyncing, queueLength, hasIssues, retrySync } = useSyncStatus();
 
   const [deviceData, setDeviceData] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -122,6 +125,64 @@ export default function TraktSyncToggle() {
             ? "Your watch progress is currently stored securely on this device."
             : `Cloud sync enabled with Trakt${traktUser ? ` • @${traktUser.username}` : ""}`}
         </p>
+        
+        {/* Sync Status Indicator */}
+        {syncMode === "trakt" && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: "500",
+              background: hasIssues 
+                ? "rgba(237, 28, 36, 0.1)" 
+                : isSyncing 
+                  ? "rgba(0, 123, 255, 0.1)" 
+                  : "rgba(40, 167, 69, 0.1)",
+              color: hasIssues 
+                ? "#ED1C24" 
+                : isSyncing 
+                  ? "#007BFF" 
+                  : "#28a745",
+              border: `1px solid ${
+                hasIssues 
+                  ? "rgba(237, 28, 36, 0.3)" 
+                  : isSyncing 
+                    ? "rgba(0, 123, 255, 0.3)" 
+                    : "rgba(40, 167, 69, 0.3)"
+              }`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px"
+            }}
+          >
+            <span>
+              {!isOnline 
+                ? "🔴 Offline" 
+                : isSyncing 
+                  ? `🔄 Syncing (${queueLength} items)` 
+                  : "✅ Synced"}
+            </span>
+            {hasIssues && (
+              <button
+                onClick={retrySync}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#ED1C24",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  textDecoration: "underline",
+                  padding: 0
+                }}
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div

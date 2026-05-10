@@ -1,10 +1,18 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
+import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
 function PosterCard({ item, type = "movie" }) {
   const navigate = useNavigate();
+  const { syncMode } = useSettingsContext();
   const progress = type === "movie" ? getMovieProgress(item.id) : null;
+
+  // Determine progress bar color based on sync mode
+  const getProgressColor = (percentage) => {
+    if (percentage > 90) return "#28a745"; // Green for completed
+    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+  };
 
   return (
     <div
@@ -35,7 +43,7 @@ function PosterCard({ item, type = "movie" }) {
               className="progress-bar"
               style={{
                 width: `${Math.max(progress.percentage || 0, 3)}%`,
-                backgroundColor: progress.percentage > 90 ? "#28a745" : "#007BFF",
+                backgroundColor: getProgressColor(progress.percentage || 0),
               }}
             ></div>
           </div>

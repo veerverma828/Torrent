@@ -63,7 +63,7 @@ export const getContinueWatching = () => {
   // Movies
   for (const [id, movie] of Object.entries(data.movies)) {
     if (movie.progress > 0 && movie.percentage <= 90) {
-      list.push({ ...movie, id, type: 'movie', source: 'local' });
+      list.push({ ...movie, id, type: 'movie' });
     }
   }
 
@@ -75,7 +75,7 @@ export const getContinueWatching = () => {
     for (const [seasonNum, season] of Object.entries(series.seasons || {})) {
       for (const [epNum, ep] of Object.entries(season.episodes || {})) {
         if (!ep.completed && ep.progress > 0) {
-          // Capture the latest incomplete episode per series
+          // Capture latest incomplete episode per series
           if (!latestEpisode || ep.lastUpdated > latestEpisode.lastUpdated) {
             latestEpisode = { ...ep, seriesId, season: seasonNum, episode: epNum, seriesTitle: series.title || "Unknown Series", seriesPoster: series.poster };
           }
@@ -84,7 +84,7 @@ export const getContinueWatching = () => {
     }
     
     if (latestEpisode) {
-      list.push({ ...latestEpisode, type: 'series', source: 'local' });
+      list.push({ ...latestEpisode, type: 'series' });
     }
   }
 

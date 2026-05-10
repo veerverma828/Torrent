@@ -2,7 +2,8 @@ import { traktApi } from "../../services/trakt/traktApi.js";
 
 const activeSessions = new Set();
 
-const buildPayload = (metadata, percentage) => {
+// Export buildPayload for use in progressService
+export const buildPayload = (metadata, percentage) => {
   if (metadata.type === "movie") {
     return {
       progress: Math.min(percentage, 100),
@@ -85,6 +86,7 @@ const findPlaybackItem = (items, type, id, season, episode) => {
 
 export const traktProvider = {
   type: "trakt",
+  buildPayload,
 
   async startPlayback(metadata, percentage = 0) {
     if (!metadata?.imdbId) {
