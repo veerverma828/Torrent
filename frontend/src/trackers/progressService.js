@@ -14,16 +14,68 @@ export const progressService = {
     return getProvider();
   },
 
-  getMovieProgress(...args) {
+  async getMovieProgress(...args) {
+    if (getSyncMode() === "trakt") {
+      try {
+        const data = await traktProvider.getMovieProgress(...args);
+        if (data) return data;
+      } catch {}
+    }
     return localProvider.getMovieProgress(...args);
   },
 
-  getEpisodeProgress(...args) {
+  async getEpisodeProgress(...args) {
+    if (getSyncMode() === "trakt") {
+      try {
+        const data = await traktProvider.getEpisodeProgress(...args);
+        if (data) return data;
+      } catch {}
+    }
     return localProvider.getEpisodeProgress(...args);
   },
 
-  getContinueWatching(...args) {
-    return getProvider().getContinueWatching(...args);
+  async getContinueWatching(...args) {
+    if (getSyncMode() !== "trakt") {
+      return localProvider.getContinueWatching(...args);
+    }
+
+    const [traktResult, localResult] = await Promise.allSettled([
+      traktProvider.getContinueWatching(...args),
+      localProvider.getContinueWatching(...args),
+    ]);
+
+    const traktItems = traktResult.status === "fulfilled" ? traktResult.value : [];
+    const localItems = localResult.status === "fulfilled" ? localResult.value : [];
+
+    const merged = new Map();
+
+    for (const item of localItems) {
+      const key = item.type === "movie"
+        ? `movie-${item.id}`
+        : `series-${item.seriesId}-${item.season}-${item.episode}`;
+      merged.set(key, item);
+    }
+
+    for (const item of traktItems) {
+      const key = item.type === "movie"
+        ? `movie-${item.id}`
+        : `series-${item.seriesId}-${item.season}-${item.episode}`;
+      merged.set(key, item);
+    }
+
+    return Array.from(merged.values()).sort((a, b) => {
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.lastUpdated || 0);
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.lastUpdated || 0);
+      return bTime - aTime;
+    });
+  },
+
+  startPlayback(metadata, percentage) {
+    getProvider().startPlayback?.(metadata, percentage);
+  },
+
+  stopPlayback(metadata, percentage) {
+    getProvider().stopPlayback?.(metadata, percentage);
   },
 
   saveProgress(metadata, currentTime, duration) {
@@ -46,7 +98,10 @@ export const progressService = {
     }
   },
 
-  removeProgress(...args) {
-    return localProvider.removeProgress(...args);
+  removeProgress(type, id) {
+    localProvider.removeProgress(type, id);
+    if (getSyncMode() === "trakt") {
+      traktProvider.removeProgress(type, id);
+    }
   },
 };

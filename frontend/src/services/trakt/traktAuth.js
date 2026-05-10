@@ -127,10 +127,15 @@ export const traktAuth = {
   },
 
   async ensureValidToken() {
+    const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (!token) {
+      throw new Error("No Trakt access token found. Please reconnect your Trakt account.");
+    }
+
     const expiresAt = Number(localStorage.getItem(STORAGE_KEYS.EXPIRES_AT) || 0);
 
     if (!expiresAt) {
-      return false;
+      return true;
     }
 
     const refreshWindow = 5 * 60 * 1000;

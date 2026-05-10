@@ -2,6 +2,9 @@ import { API_URL } from "../api.js";
 
 export const traktApi = {
   async request(endpoint, options = {}) {
+    const { traktAuth } = await import("./traktAuth.js");
+    await traktAuth.ensureValidToken();
+
     const token = localStorage.getItem("trakt_access_token");
 
     const headers = {
@@ -10,12 +13,16 @@ export const traktApi = {
       ...(options.headers || {}),
     };
 
-    const response = await fetch(`${API_URL}/trakt/proxy${endpoint}`, {
+    const url = `${API_URL}/trakt/proxy${endpoint}`;
+    console.log(`[TraktAPI] ${options.method || "GET"} ${endpoint}`);
+
+    const response = await fetch(url, {
       ...options,
       headers,
     });
 
     if (!response.ok) {
+      console.error(`[TraktAPI] Error ${response.status} on ${endpoint}`);
       if (response.status === 410) {
         throw new Error("Your Trakt account has been deactivated. Please log in on trakt.tv to reactivate it.");
       }
@@ -26,7 +33,9 @@ export const traktApi = {
       return null;
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`[TraktAPI] Success ${endpoint}`, Array.isArray(data) ? `(${data.length} items)` : "");
+    return data;
   },
 
   async getProfile() {

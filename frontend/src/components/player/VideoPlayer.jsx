@@ -52,21 +52,86 @@ export default function VideoPlayer() {
 
   if (!streamUrl) return null;
 
-  const handleLoadedMetadata = (e) => {
+  const handleLoadedMetadata = async (e) => {
     clearTimeout(timeoutRef.current);
     setPlayerError(null);
 
     let savedProgress = null;
 
     if (movieMatch) {
-      savedProgress = progressService.getMovieProgress(movieMatch.params.id);
+      savedProgress = await progressService.getMovieProgress(movieMatch.params.id);
     } else if (episodeMatch) {
-      savedProgress = progressService.getEpisodeProgress(episodeMatch.params.id, episodeMatch.params.season, episodeMatch.params.episode);
+      savedProgress = await progressService.getEpisodeProgress(
+        episodeMatch.params.id,
+        episodeMatch.params.season,
+        episodeMatch.params.episode
+      );
     }
 
-    if (savedProgress && savedProgress.progress > 0 && savedProgress.percentage < 95) {
-      e.target.currentTime = savedProgress.progress;
+    if (savedProgress) {
+      let resumeTime = savedProgress.progress;
+      if ((!resumeTime || resumeTime <= 0) && savedProgress.percentage > 0 && e.target.duration > 0) {
+        resumeTime = (savedProgress.percentage / 100) * e.target.duration;
+      }
+      if (resumeTime > 0 && savedProgress.percentage < 95) {
+        e.target.currentTime = resumeTime;
+      }
     }
+  };
+
+  const getMetadata = () => {
+    if (movieMatch) {
+      return {
+        type: "movie",
+        id: movieMatch.params.id,
+        imdbId: selectedItem?.id,
+        title: selectedItem?.name,
+        poster: selectedItem?.poster,
+        magnet: currentMagnet.current,
+      };
+    }
+    if (episodeMatch && episodeMetadata) {
+      return {
+        type: "series",
+        id: episodeMatch.params.id,
+        imdbId: selectedItem?.id,
+        season: episodeMatch.params.season,
+        episode: episodeMatch.params.episode,
+        episodesInSeason: episodeMetadata.episodesInSeason,
+        totalSeasons: seasons.length,
+        title: selectedItem?.name,
+        poster: selectedItem?.poster,
+        episodeTitle: episodeMetadata.currentEp?.name || episodeMetadata.currentEp?.title,
+        thumbnail: episodeMetadata.currentEp?.thumbnail,
+        magnet: currentMagnet.current,
+      };
+    }
+    return null;
+  };
+
+  const handlePlay = () => {
+    const metadata = getMetadata();
+    if (!metadata) return;
+    const video = videoRef.current;
+    const percentage = video && video.duration > 0 ? (video.currentTime / video.duration) * 100 : 0;
+    progressService.startPlayback(metadata, percentage);
+  };
+
+  const handleEnded = () => {
+    const metadata = getMetadata();
+    if (metadata) {
+      progressService.stopPlayback(metadata, 100);
+    }
+  };
+
+  const handleClose = () => {
+    const metadata = getMetadata();
+    if (metadata) {
+      const video = videoRef.current;
+      const percentage = video && video.duration > 0 ? (video.currentTime / video.duration) * 100 : 0;
+      progressService.stopPlayback(metadata, percentage);
+    }
+    navigate(-1);
   };
 
   const handleTimeUpdate = (e) => {
@@ -151,7 +216,7 @@ export default function VideoPlayer() {
 
   return (
     <div className="video-modal">
-      <button onClick={() => navigate(-1)} className="video-close-btn">
+      <button onClick={handleClose} className="video-close-btn">
         ✖ Close
       </button>
 
@@ -165,6 +230,8 @@ export default function VideoPlayer() {
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onError={handleError}
+        onPlay={handlePlay}
+        onEnded={handleEnded}
       />
 
       {playerError && (
@@ -178,7 +245,7 @@ export default function VideoPlayer() {
                 Retry Playback
               </button>
 
-              <button onClick={() => navigate(-1)} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white">
+              <button onClick={handleClose} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white">
                 Close Player
               </button>
             </div>

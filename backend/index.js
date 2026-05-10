@@ -268,7 +268,7 @@ app.use("/trakt/proxy", async (req, res) => {
       req.method,
       url,
       headers,
-      ["GET", "HEAD"].includes(req.method.toUpperCase()) ? null : req.body
+      ["GET", "HEAD", "DELETE"].includes(req.method.toUpperCase()) ? null : req.body
     );
 
     res.status(status);
