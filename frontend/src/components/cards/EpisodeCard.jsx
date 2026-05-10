@@ -1,13 +1,21 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
+import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
 function EpisodeCard({ episode, seriesId, selectedItem }) {
   const navigate = useNavigate();
+  const { syncMode } = useSettingsContext();
   const isUnreleased = episode.released
     ? new Date(episode.released) > new Date()
     : false;
   const progress = getEpisodeProgress(seriesId, episode.season, episode.episode);
+
+  // Determine progress bar color based on sync mode
+  const getProgressColor = (percentage) => {
+    if (percentage > 90) return "#28a745"; // Green for completed
+    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+  };
 
   return (
     <div
@@ -39,7 +47,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
               className="progress-bar"
               style={{
                 width: `${Math.max(progress.percentage || 0, 3)}%`,
-                backgroundColor: progress.percentage > 90 ? "#28a745" : "#007BFF",
+                backgroundColor: getProgressColor(progress.percentage || 0),
               }}
             ></div>
           </div>
@@ -70,7 +78,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
           <span
             style={{
               fontSize: "11px",
-              color: progress.percentage > 90 ? "#28a745" : "#007BFF",
+              color: getProgressColor(progress.percentage || 0),
               display: "block",
               marginBottom: "6px",
               fontWeight: "bold",

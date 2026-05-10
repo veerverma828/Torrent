@@ -2,14 +2,22 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMeta } from "../../services/cinemeta.js";
 import { updateTrackingMetadata } from "../../trackers/progressTracker.js";
+import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
 export default function ContinueWatchingCard({ item, onRemove }) {
   const navigate = useNavigate();
+  const { syncMode } = useSettingsContext();
   const [meta, setMeta] = useState({
     title: item.type === "movie" ? item.title : item.seriesTitle,
     poster: item.type === "movie" ? item.poster : item.seriesPoster,
   });
   const hasHydrated = useRef(false);
+
+  // Determine progress bar color based on sync mode (not item.source)
+  const getProgressColor = () => {
+    if (item.percentage > 90) return "#28a745"; // Green for completed
+    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+  };
 
   useEffect(() => {
     if (
@@ -114,7 +122,7 @@ export default function ContinueWatchingCard({ item, onRemove }) {
             className="progress-bar"
             style={{
               width: `${Math.max(item.percentage || 0, 3)}%`,
-              backgroundColor: item.source === "trakt" ? "#ED1C24" : "#007BFF",
+              backgroundColor: getProgressColor(),
             }}
           ></div>
         </div>
