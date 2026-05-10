@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
+import { useTraktWatchlist } from "../../hooks/useTraktWatchlist.js";
 import Loader from "../../components/common/Loader.jsx";
 import PosterCard from "../../components/cards/PosterCard.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
@@ -22,8 +23,9 @@ export default function HomePage() {
     query,
   } = useAppContext();
 
-  const { imdbMode, useJackett } = useSettingsContext();
+  const { imdbMode, useJackett, syncMode } = useSettingsContext();
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
+  const { watchlist } = useTraktWatchlist();
 
   // Cleanup states from other pages on mount
   useEffect(() => {
@@ -61,12 +63,26 @@ export default function HomePage() {
             </>
           )}
 
+          {/* Trakt Watchlist */}
+          {syncMode === "trakt" && query.trim() === "" && watchlist.length > 0 && (
+            <>
+              <h2 className="section-title" style={{ marginTop: continueWatchingList.length > 0 ? "30px" : "20px" }}>
+                ⭐ Trakt Watchlist
+              </h2>
+              <div className="poster-grid">
+                {watchlist.map((item) => (
+                  <PosterCard key={`wl-${item.type}-${item.id}`} item={item} type={item.type} />
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Movies */}
           {movies.length > 0 && (
             <>
               <h2
                 className="section-title"
-                style={{ marginTop: continueWatchingList.length > 0 ? "30px" : "20px" }}
+                style={{ marginTop: (continueWatchingList.length > 0 || (syncMode === "trakt" && watchlist.length > 0)) ? "30px" : "20px" }}
               >
                 🎬 {query.trim() ? "Movies" : "Top Movies"}
               </h2>

@@ -114,7 +114,7 @@ export default function ContinueWatchingCard({ item, onRemove }) {
             className="progress-bar"
             style={{
               width: `${Math.max(item.percentage || 0, 3)}%`,
-              backgroundColor: "#007BFF",
+              backgroundColor: item.source === "trakt" ? "#ED1C24" : "#007BFF",
             }}
           ></div>
         </div>

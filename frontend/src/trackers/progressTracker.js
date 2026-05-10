@@ -63,7 +63,7 @@ export const getContinueWatching = () => {
   // Movies
   for (const [id, movie] of Object.entries(data.movies)) {
     if (movie.progress > 0 && movie.percentage <= 90) {
-      list.push({ ...movie, id, type: 'movie' });
+      list.push({ ...movie, id, type: 'movie', source: 'local' });
     }
   }
 
@@ -84,7 +84,7 @@ export const getContinueWatching = () => {
     }
     
     if (latestEpisode) {
-      list.push({ ...latestEpisode, type: 'series' });
+      list.push({ ...latestEpisode, type: 'series', source: 'local' });
     }
   }
 
