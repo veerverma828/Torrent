@@ -4,12 +4,14 @@ import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
 import { API_URL } from "../../services/api.js";
+import PlaybackEventHandler from "./PlaybackEventHandler.js";
 
 export default function VideoPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
   const hasLoggedStreamError = useRef(false);
   const timeoutRef = useRef(null);
+  const playbackEventHandlerRef = useRef(null);
   const [playerError, setPlayerError] = useState(null);
 
   const { selectedItem, episodes = [], seasons = [] } = useMediaContext();
@@ -47,7 +49,14 @@ export default function VideoPlayer() {
       });
     }, 8000);
 
-    return () => clearTimeout(timeoutRef.current);
+    return () => {
+      clearTimeout(timeoutRef.current);
+      // Cleanup playback event handler
+      if (playbackEventHandlerRef.current) {
+        playbackEventHandlerRef.current.destroy();
+        playbackEventHandlerRef.current = null;
+      }
+    };
   }, [streamUrl]);
 
   if (!streamUrl) return null;
@@ -76,6 +85,34 @@ export default function VideoPlayer() {
       if (resumeTime > 0 && savedProgress.percentage < 95) {
         e.target.currentTime = resumeTime;
       }
+    }
+
+    // Initialize playback event handler
+    const metadata = getMetadata();
+    if (metadata && videoRef.current) {
+      playbackEventHandlerRef.current = new PlaybackEventHandler(videoRef.current, metadata, {
+        onPlay: (metadata, percentage) => {
+          progressService.startPlayback(metadata, percentage);
+        },
+        onPause: (metadata, percentage) => {
+          progressService.stopPlayback(metadata, percentage);
+        },
+        onEnded: (metadata, percentage, totalWatchTime) => {
+          progressService.stopPlayback(metadata, percentage);
+        },
+        onProgress: (metadata, currentTime, duration, percentage) => {
+          progressService.saveProgress(metadata, currentTime, duration);
+        },
+        onSeek: (metadata, newTime, oldTime) => {
+          // Handle seek events if needed
+        },
+        onError: (metadata, error) => {
+          console.error('Playback error:', error);
+        },
+        onBeforeUnload: (metadata, currentTime, duration, percentage) => {
+          progressService.saveProgress(metadata, currentTime, duration);
+        }
+      });
     }
   };
 
@@ -110,70 +147,33 @@ export default function VideoPlayer() {
   };
 
   const handlePlay = () => {
-    const metadata = getMetadata();
-    if (!metadata) return;
-    const video = videoRef.current;
-    const percentage = video && video.duration > 0 ? (video.currentTime / video.duration) * 100 : 0;
-    progressService.startPlayback(metadata, percentage);
+    // Play events are now handled by PlaybackEventHandler
   };
 
   const handleEnded = () => {
-    const metadata = getMetadata();
-    if (metadata) {
-      progressService.stopPlayback(metadata, 100);
-    }
+    // End events are now handled by PlaybackEventHandler
   };
 
   const handleClose = () => {
     const metadata = getMetadata();
-    if (metadata) {
-      const video = videoRef.current;
-      const percentage = video && video.duration > 0 ? (video.currentTime / video.duration) * 100 : 0;
+    if (metadata && videoRef.current) {
+      const percentage = videoRef.current.duration > 0 
+        ? (videoRef.current.currentTime / videoRef.current.duration) * 100 
+        : 0;
       progressService.stopPlayback(metadata, percentage);
     }
+    
+    // Cleanup playback event handler
+    if (playbackEventHandlerRef.current) {
+      playbackEventHandlerRef.current.destroy();
+      playbackEventHandlerRef.current = null;
+    }
+    
     navigate(-1);
   };
 
   const handleTimeUpdate = (e) => {
-    const currentTime = e.target.currentTime;
-    const duration = e.target.duration;
-    const now = Date.now();
-
-    if (now - progressInterval.current.lastTick > 5000 || Math.abs(currentTime - progressInterval.current.lastSaveTime) > 5) {
-      progressInterval.current = { lastSaveTime: currentTime, lastTick: now };
-
-      let metadata = null;
-
-      if (movieMatch) {
-        metadata = {
-          type: "movie",
-          id: movieMatch.params.id,
-          imdbId: selectedItem?.id,
-          title: selectedItem?.name,
-          poster: selectedItem?.poster,
-          magnet: currentMagnet.current,
-        };
-      } else if (episodeMatch && episodeMetadata) {
-        metadata = {
-          type: "series",
-          id: episodeMatch.params.id,
-          imdbId: selectedItem?.id,
-          season: episodeMatch.params.season,
-          episode: episodeMatch.params.episode,
-          episodesInSeason: episodeMetadata.episodesInSeason,
-          totalSeasons: seasons.length,
-          title: selectedItem?.name,
-          poster: selectedItem?.poster,
-          episodeTitle: episodeMetadata.currentEp?.name || episodeMetadata.currentEp?.title,
-          thumbnail: episodeMetadata.currentEp?.thumbnail,
-          magnet: currentMagnet.current,
-        };
-      }
-
-      if (metadata) {
-        progressService.saveProgress(metadata, currentTime, duration);
-      }
-    }
+    // Time update events are now handled by PlaybackEventHandler
   };
 
   const handleRetry = () => {
@@ -186,19 +186,25 @@ export default function VideoPlayer() {
   };
 
   const handleError = (e) => {
-    clearTimeout(timeoutRef.current);
-
-    const error = e.target.error;
-
-    setPlayerError({
-      title: "Playback failed",
-      message: error?.message || "Unsupported stream format or temporary provider issue.",
-    });
-
-    if (hasLoggedStreamError.current) {
-      return;
+    if (!hasLoggedStreamError.current) {
+      hasLoggedStreamError.current = true;
+      const errorMessage = e.target.error?.message || e.target.error || "Unknown error";
+      
+      // Handle privacy fingerprinting errors specifically
+      if (errorMessage.includes("Failed to decode media") || errorMessage.includes("privacy.resistFingerprinting")) {
+        console.warn("Media decode blocked by privacy settings:", errorMessage);
+        setPlayerError({
+          title: "Playback blocked by browser privacy settings",
+          message: "Disable 'Resist Fingerprinting' in browser privacy settings to play this video."
+        });
+      } else {
+        console.error("Video error:", e.target.error);
+        setPlayerError({
+          title: "Playback failed", 
+          message: "This video format might not be supported in your browser."
+        });
+      }
     }
-
     hasLoggedStreamError.current = true;
 
     fetch(`${API_URL}/log-stream-error`, {

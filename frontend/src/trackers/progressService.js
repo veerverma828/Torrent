@@ -1,6 +1,8 @@
 import { localProvider } from "./providers/localProvider.js";
 import { traktProvider } from "./providers/traktProvider.js";
-import { syncQueueService } from "../services/syncQueueService.js";
+import { productionSyncQueue } from "../services/sync/productionSyncQueue.js";
+import { traktStateManager } from "../services/trakt/traktStateManager.js";
+import { continueWatchingAggregator } from "../services/sync/continueWatchingAggregator.js";
 
 const getSyncMode = () => {
   return localStorage.getItem("syncMode") || "local";
@@ -54,64 +56,19 @@ export const progressService = {
   },
 
   async getContinueWatching(...args) {
-    const syncMode = getSyncMode();
-    
-    if (syncMode !== "trakt") {
-      const localItems = localProvider.getContinueWatching(...args);
-      return localItems.map(item => ({
-        ...item,
-        syncMode: 'local'
-      }));
-    }
-
-    const [traktResult, localResult] = await Promise.allSettled([
-      traktProvider.getContinueWatching(...args),
-      localProvider.getContinueWatching(...args),
-    ]);
-
-    const traktItems = traktResult.status === "fulfilled" ? traktResult.value : [];
-    const localItems = localResult.status === "fulfilled" ? localResult.value : [];
-
-    const merged = new Map();
-
-    // Add local items first (as fallback)
-    for (const item of localItems) {
-      const key = item.type === "movie"
-        ? `movie-${item.id}`
-        : `series-${item.seriesId}-${item.season}-${item.episode}`;
-      merged.set(key, { ...item, source: 'local' });
-    }
-
-    // Overlay Trakt items (takes precedence)
-    for (const item of traktItems) {
-      const key = item.type === "movie"
-        ? `movie-${item.id}`
-        : `series-${item.seriesId}-${item.season}-${item.episode}`;
-      merged.set(key, { ...item, source: 'trakt' });
-    }
-
-    // Convert to array and add sync mode to all items for consistent color determination
-    return Array.from(merged.values()).map(item => ({
-      ...item,
-      syncMode: 'trakt' // Always indicate Trakt mode is enabled
-    })).sort((a, b) => {
-      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.lastUpdated || 0);
-      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.lastUpdated || 0);
-      return bTime - aTime;
-    });
+    return continueWatchingAggregator.getContinueWatching();
   },
 
   startPlayback(metadata, percentage) {
     // Always start local playback immediately
     localProvider.startPlayback?.(metadata, percentage);
     
-    // Queue Trakt sync if enabled
+    // Queue Trakt sync if enabled using production queue
     if (getSyncMode() === "trakt") {
-      const payload = traktProvider.buildPayload?.(metadata, percentage) || this.buildPayload(metadata, percentage);
-      syncQueueService.enqueue({
+      productionSyncQueue.enqueue({
         action: 'startPlayback',
         metadata,
-        payload
+        percentage
       });
     }
   },
@@ -120,13 +77,12 @@ export const progressService = {
     // Always stop local playback immediately
     localProvider.stopPlayback?.(metadata, percentage);
     
-    // Queue Trakt sync if enabled
+    // Queue Trakt sync if enabled using production queue
     if (getSyncMode() === "trakt") {
-      const payload = traktProvider.buildPayload?.(metadata, percentage) || this.buildPayload(metadata, percentage);
-      syncQueueService.enqueue({
+      productionSyncQueue.enqueue({
         action: 'stopPlayback',
         metadata,
-        payload
+        percentage
       });
     }
   },
@@ -135,19 +91,17 @@ export const progressService = {
     // Always save locally first (optimistic update)
     localProvider.saveProgress(metadata, currentTime, duration);
 
-    // Queue Trakt sync if enabled (debounced to avoid spam)
+    // Queue Trakt sync if enabled using production queue with debouncing
     if (getSyncMode() === "trakt") {
       const safeDuration =
         duration && !Number.isNaN(duration) && duration !== Infinity ? duration : 0;
       const percentage =
         safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
       
-      const payload = traktProvider.buildPayload?.(metadata, percentage) || this.buildPayload(metadata, percentage);
-      
-      syncQueueService.debouncedSync({
+      productionSyncQueue.debouncedSync({
         action: 'syncProgress',
         metadata,
-        payload
+        percentage
       });
     }
   },
@@ -156,9 +110,9 @@ export const progressService = {
     // Always remove from local storage immediately
     localProvider.removeProgress(type, id);
     
-    // Queue Trakt removal if enabled
+    // Queue Trakt removal if enabled using production queue
     if (getSyncMode() === "trakt") {
-      syncQueueService.enqueue({
+      productionSyncQueue.enqueue({
         action: 'removeProgress',
         type,
         id
@@ -228,11 +182,26 @@ export const progressService = {
 
   // Get sync queue status for UI
   getSyncStatus() {
-    return syncQueueService.getSyncStatus();
+    return productionSyncQueue.getSyncStatus();
   },
 
   // Retry failed sync operations
   retrySync() {
-    return syncQueueService.retryAll();
+    return productionSyncQueue.retryAll();
+  },
+
+  // Clear continue watching cache
+  clearContinueWatchingCache() {
+    return continueWatchingAggregator.clearCache();
+  },
+
+  // Get next episode for series
+  async getNextEpisode(seriesId, currentSeason, currentEpisode) {
+    return continueWatchingAggregator.getNextEpisode(seriesId, currentSeason, currentEpisode);
+  },
+
+  // Get series progress
+  async getSeriesProgress(seriesId) {
+    return continueWatchingAggregator.getSeriesProgress(seriesId);
   }
 };
