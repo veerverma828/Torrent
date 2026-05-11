@@ -5,6 +5,7 @@ import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
 import { API_URL } from "../../services/api.js";
 import PlaybackEventHandler from "./PlaybackEventHandler.js";
+import { crossDeviceSync } from "../../services/sync/crossDeviceSync.js";
 
 export default function VideoPlayer() {
   const navigate = useNavigate();
@@ -64,6 +65,9 @@ export default function VideoPlayer() {
   const handleLoadedMetadata = async (e) => {
     clearTimeout(timeoutRef.current);
     setPlayerError(null);
+
+    // Trigger play manually so we can catch and suppress abort rejections
+    e.target.play().catch(() => {});
 
     let savedProgress = null;
 
@@ -230,7 +234,6 @@ export default function VideoPlayer() {
         ref={videoRef}
         src={streamUrl}
         controls
-        autoPlay
         playsInline
         className="video-player"
         onLoadedMetadata={handleLoadedMetadata}

@@ -18,6 +18,7 @@ export default function TraktSyncToggle() {
 
   const [deviceData, setDeviceData] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const handleConnect = async () => {
     try {
@@ -46,6 +47,19 @@ export default function TraktSyncToggle() {
     setTraktUser(null);
     setSyncMode("local");
     setDeviceData(null);
+  };
+
+  const copyUserCode = async () => {
+    if (deviceData?.user_code) {
+      try {
+        await navigator.clipboard.writeText(deviceData.user_code);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000); // Reset after 2 seconds
+        console.log('Code copied to clipboard');
+      } catch (err) {
+        console.error('Failed to copy code:', err);
+      }
+    }
   };
 
   const buttonBaseStyle = {
@@ -304,17 +318,52 @@ export default function TraktSyncToggle() {
             Enter this code:
           </div>
 
-          <strong
+          <div
             style={{
-              fontSize: window.innerWidth < 480 ? "20px" : "24px",
-              letterSpacing: window.innerWidth < 480 ? "2px" : "4px",
-              color: "#fff",
-              wordBreak: "break-word",
-              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              justifyContent: "center",
             }}
           >
-            {deviceData.user_code}
-          </strong>
+            <strong
+              style={{
+                fontSize: window.innerWidth < 480 ? "20px" : "24px",
+                letterSpacing: window.innerWidth < 480 ? "2px" : "4px",
+                color: "#fff",
+                wordBreak: "break-word",
+                textAlign: "center",
+              }}
+            >
+              {deviceData.user_code}
+            </strong>
+            <button
+              onClick={copyUserCode}
+              style={{
+                background: copiedCode ? "rgba(40, 167, 69, 0.3)" : "rgba(255,255,255,0.1)",
+                border: copiedCode ? "1px solid rgba(40, 167, 69, 0.5)" : "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "6px",
+                padding: "4px 8px",
+                cursor: "pointer",
+                fontSize: "14px",
+                color: "#fff",
+                transition: "background 0.2s ease",
+              }}
+              onMouseOver={(e) => {
+                if (!copiedCode) {
+                  e.target.style.background = "rgba(255,255,255,0.2)";
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!copiedCode) {
+                  e.target.style.background = "rgba(255,255,255,0.1)";
+                }
+              }}
+              title={copiedCode ? "Code copied!" : "Copy code to clipboard"}
+            >
+              {copiedCode ? "✅" : "📋"}
+            </button>
+          </div>
         </div>
       )}
     </div>

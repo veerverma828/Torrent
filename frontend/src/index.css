@@ -109,3 +109,98 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Cross-device sync indicator styles */
+.cross-device-sync-icon {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.sync-icon-only {
+  font-size: 20px;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  line-height: 1;
+}
+
+.sync-icon-only.active {
+  opacity: 1;
+}
+
+.sync-icon-only.inactive {
+  opacity: 0.6;
+}
+
+.sync-icon-only:hover {
+  opacity: 1;
+}
+
+.cross-device-sync-notification {
+  position: fixed;
+  top: 140px;
+  right: 20px;
+  z-index: 1001;
+  max-width: 300px;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(33, 150, 243, 0.95);
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-icon {
+  font-size: 20px;
+}
+
+.notification-message {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.notification-text {
+  font-size: 11px;
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
