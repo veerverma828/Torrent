@@ -79,9 +79,15 @@ export default function ContinueWatchingCard({ item, onRemove }) {
     >
       <div className="poster-img-container">
         <button
+          type="button"
           className="remove-cw-btn"
           onClick={(e) => {
             e.stopPropagation();
+            onRemove(item);
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
             onRemove(item);
           }}
           title="Remove from Continue Watching"
