@@ -311,36 +311,7 @@ class SyncHealthMonitor {
         message: 'Offline - no network connectivity'
       };
     }
-    
-    try {
-      // Test connectivity with a simple, faster request to a reliable service
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      const response = await fetch('https://api.github.com', {
-        method: 'HEAD',
-        cache: 'no-cache',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        return {
-          status: 'warning',
-          message: 'Network connectivity degraded'
-        };
-      }
-      
-      return { status: 'healthy' };
-    } catch (error) {
-      // Don't treat network test failures as critical issues
-      // Many environments block external requests
-      return {
-        status: 'healthy',
-        message: 'Network connectivity assumed (test blocked)'
-      };
-    }
+    return { status: 'healthy' };
   }
 
   async checkAuthentication() {
