@@ -31,20 +31,15 @@ class CrossDeviceSync {
    * Start real-time cross-device sync
    */
   startRealTimeSync() {
-    if (this.isPolling) return;
+    if (this.isPolling || this._started) return;
 
     const isEnabled = this.isTraktSyncEnabled();
-    console.log('[CrossDeviceSync] Detected syncMode:', localStorage.getItem('syncMode') || 'local');
-    console.log('[CrossDeviceSync] Trakt authenticated:', !!localStorage.getItem('trakt_access_token'));
+    if (!isEnabled) return;
 
-    if (!isEnabled) {
-      console.log('[CrossDeviceSync] Trakt sync not enabled or not authenticated, skipping cross-device sync');
-      return;
-    }
-    
+    this._started = true;
     this.isPolling = true;
     console.log('[CrossDeviceSync] Starting real-time sync');
-    
+
     // Initial sync
     this.performSyncCheck();
     
@@ -80,13 +75,14 @@ class CrossDeviceSync {
    */
   stopRealTimeSync() {
     if (!this.isPolling) return;
-    
+
     this.isPolling = false;
+    this._started = false;
     if (this.activePolling) {
       clearInterval(this.activePolling);
       this.activePolling = null;
     }
-    
+
     console.log('[CrossDeviceSync] Stopped real-time sync');
   }
 
