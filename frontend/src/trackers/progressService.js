@@ -91,13 +91,16 @@ export const progressService = {
     // Always save locally first (optimistic update)
     localProvider.saveProgress(metadata, currentTime, duration);
 
+    // Clear aggregator cache so UI refreshes immediately
+    continueWatchingAggregator.clearCache();
+
     // Queue Trakt sync if enabled using production queue with debouncing
     if (getSyncMode() === "trakt") {
       const safeDuration =
         duration && !Number.isNaN(duration) && duration !== Infinity ? duration : 0;
       const percentage =
         safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
-      
+
       productionSyncQueue.debouncedSync({
         action: 'syncProgress',
         metadata,
@@ -109,7 +112,10 @@ export const progressService = {
   removeProgress(type, id) {
     // Always remove from local storage immediately
     localProvider.removeProgress(type, id);
-    
+
+    // Clear aggregator cache so UI refreshes immediately
+    continueWatchingAggregator.clearCache();
+
     // Queue Trakt removal if enabled using production queue
     if (getSyncMode() === "trakt") {
       productionSyncQueue.enqueue({
