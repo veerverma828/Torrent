@@ -21,8 +21,7 @@ export default function Layout() {
 
   const { results, seasons, episodes, selectedSeason } = useAppContext();
   const { streamUrl, fileModalData, setFileModalData, setStreamUrl } = usePlayerContext();
-  const { isSettingsOpen, autoSearch, setAutoSearch, useJackett, setUseJackett, imdbMode, setImdbMode } =
-    useSettingsContext();
+  const { isSettingsOpen } = useSettingsContext();
 
   const { debridService, handleDebridChange, rdUnlocked } = useDebrid();
 
@@ -99,36 +98,6 @@ export default function Layout() {
             {" "}Torbox
           </label>
         </div>
-      </div>
-
-      {/* Options */}
-      <div className="options-container" style={{ marginBottom: "10px" }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={autoSearch}
-            onChange={() => setAutoSearch(!autoSearch)}
-          />
-          {" "}Auto Search
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={useJackett}
-            onChange={() => setUseJackett(!useJackett)}
-          />
-          {" "}Jackett
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={imdbMode}
-            onChange={() => setImdbMode(!imdbMode)}
-          />
-          {" "}IMDb Mode
-        </label>
       </div>
 
       <SearchBar />
