@@ -78,6 +78,7 @@ export default function SeriesPage() {
     // Fetch series metadata if not already loaded
     if (episodes.length === 0) {
       if (!isEpisodePath) setLoading(true);
+
       fetchSeriesMeta(id)
         .then((meta) => {
           if (meta) {
@@ -97,9 +98,13 @@ export default function SeriesPage() {
                         ep.episode !== null
                     );
                   })
-                  .map((v) => v.season)
+                  .map((v) => Number(v.season))
               ),
-            ];
+            ].sort((a, b) => {
+              if (a === 0) return 1;
+              if (b === 0) return -1;
+              return a - b;
+            });
 
             setSeasons(extractedSeasons);
             setEpisodes(videos);
@@ -158,6 +163,7 @@ export default function SeriesPage() {
                 </button>
               </>
             )}
+
             <div className="season-bar" ref={seasonBarRef} onScroll={checkScroll}>
               {seasons.map((s) => (
                 <div
@@ -183,6 +189,7 @@ export default function SeriesPage() {
                 </div>
               ))}
             </div>
+
             {canScrollRight && (
               <>
                 <div className="fade-right"></div>
