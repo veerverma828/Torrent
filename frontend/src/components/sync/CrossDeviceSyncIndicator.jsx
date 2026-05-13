@@ -2,13 +2,23 @@ import { useState, useEffect } from 'react';
 import { crossDeviceSync } from "../../services/sync/crossDeviceSync.js";
 
 export default function CrossDeviceSyncIndicator() {
-  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncStatus, setSyncStatus] = useState({
+    isPolling: false,
+    changes: [],
+    message: 'Initializing sync...'
+  });
   const [showNotification, setShowNotification] = useState(false);
   const [lastSyncMessage, setLastSyncMessage] = useState('');
 
   useEffect(() => {
     // Start cross-device sync
     crossDeviceSync.startRealTimeSync();
+
+    // Load initial status immediately if available
+    const initialStatus = crossDeviceSync.getSyncStatus?.();
+    if (initialStatus) {
+      setSyncStatus(initialStatus);
+    }
 
     // Listen for sync updates
     const unsubscribe = crossDeviceSync.addSyncListener((update) => {
@@ -24,7 +34,10 @@ export default function CrossDeviceSyncIndicator() {
 
     // Update status periodically
     const statusInterval = setInterval(() => {
-      setSyncStatus(crossDeviceSync.getSyncStatus());
+      const currentStatus = crossDeviceSync.getSyncStatus();
+      if (currentStatus) {
+        setSyncStatus(currentStatus);
+      }
     }, 1000);
 
     return () => {
@@ -39,8 +52,6 @@ export default function CrossDeviceSyncIndicator() {
       crossDeviceSync.forceSync();
     }
   };
-
-  if (!syncStatus) return null;
 
   return (
     <>
