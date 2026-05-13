@@ -27,7 +27,6 @@ export default function HomePage() {
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
   const { watchlist } = useTraktWatchlist();
 
-  // Cleanup states from other pages on mount
   useEffect(() => {
     if (selectedItem !== null) {
       setSelectedItem(null);
@@ -41,6 +40,22 @@ export default function HomePage() {
 
   const showCatalog = !imdbMode && !selectedItem && results.length === 0;
 
+  const railStyle = {
+    display: "flex",
+    gap: "14px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    paddingBottom: "10px",
+    scrollBehavior: "smooth",
+    WebkitOverflowScrolling: "touch",
+  };
+
+  const sectionTitleStyle = (marginTop = "20px") => ({
+    marginTop,
+    marginBottom: "14px",
+    paddingInline: "2px",
+  });
+
   return (
     <>
       {loading && <Loader />}
@@ -50,14 +65,18 @@ export default function HomePage() {
           {/* Continue Watching */}
           {query.trim() === "" && continueWatchingList.length > 0 && (
             <>
-              <h2 className="section-title">⏯ Continue Watching</h2>
-              <div className="poster-grid">
+              <h2 className="section-title" style={sectionTitleStyle()}>
+                ⏯ Continue Watching
+              </h2>
+
+              <div style={railStyle}>
                 {continueWatchingList.map((item) => (
-                  <ContinueWatchingCard
-                    key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
-                    item={item}
-                    onRemove={removeFromContinueWatching}
-                  />
+                  <div key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`} style={{ flex: "0 0 auto" }}>
+                    <ContinueWatchingCard
+                      item={item}
+                      onRemove={removeFromContinueWatching}
+                    />
+                  </div>
                 ))}
               </div>
             </>
@@ -66,12 +85,18 @@ export default function HomePage() {
           {/* Trakt Watchlist */}
           {syncMode === "trakt" && query.trim() === "" && watchlist.length > 0 && (
             <>
-              <h2 className="section-title" style={{ marginTop: continueWatchingList.length > 0 ? "30px" : "20px" }}>
-                ⭐ Trakt Watchlist
+              <h2
+                className="section-title"
+                style={sectionTitleStyle(continueWatchingList.length > 0 ? "26px" : "18px")}
+              >
+                ⭐ Watchlist
               </h2>
-              <div className="poster-grid">
+
+              <div style={railStyle}>
                 {watchlist.map((item) => (
-                  <PosterCard key={`wl-${item.type}-${item.id}`} item={item} type={item.type} />
+                  <div key={`wl-${item.type}-${item.id}`} style={{ flex: "0 0 auto" }}>
+                    <PosterCard item={item} type={item.type} />
+                  </div>
                 ))}
               </div>
             </>
@@ -82,13 +107,20 @@ export default function HomePage() {
             <>
               <h2
                 className="section-title"
-                style={{ marginTop: (continueWatchingList.length > 0 || (syncMode === "trakt" && watchlist.length > 0)) ? "30px" : "20px" }}
+                style={sectionTitleStyle(
+                  continueWatchingList.length > 0 || (syncMode === "trakt" && watchlist.length > 0)
+                    ? "26px"
+                    : "18px"
+                )}
               >
-                🎬 {query.trim() ? "Movies" : "Top Movies"}
+                🎬 {query.trim() ? "Movies" : "Trending Movies"}
               </h2>
-              <div className="poster-grid">
+
+              <div style={railStyle}>
                 {movies.map((item) => (
-                  <PosterCard key={`movie-${item.id}`} item={item} type="movie" />
+                  <div key={`movie-${item.id}`} style={{ flex: "0 0 auto" }}>
+                    <PosterCard item={item} type="movie" />
+                  </div>
                 ))}
               </div>
             </>
@@ -97,12 +129,15 @@ export default function HomePage() {
           {/* Series */}
           {series.length > 0 && (
             <>
-              <h2 className="section-title" style={{ marginTop: "30px" }}>
-                📺 {query.trim() ? "Series" : "Top Series"}
+              <h2 className="section-title" style={sectionTitleStyle("26px")}>
+                📺 {query.trim() ? "Series" : "Trending Series"}
               </h2>
-              <div className="poster-grid">
+
+              <div style={railStyle}>
                 {series.map((item) => (
-                  <PosterCard key={`series-${item.id}`} item={item} type="series" />
+                  <div key={`series-${item.id}`} style={{ flex: "0 0 auto" }}>
+                    <PosterCard item={item} type="series" />
+                  </div>
                 ))}
               </div>
             </>
