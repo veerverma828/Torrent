@@ -14,10 +14,6 @@ export default function HomePage() {
     series,
     popularMovies,
     popularSeries,
-    recentMovies,
-    recentSeries,
-    topRatedMovies,
-    topRatedSeries,
     results,
     loading,
     selectedItem,
@@ -42,7 +38,6 @@ export default function HomePage() {
     setSeasons([]);
     setEpisodes([]);
     setSelectedSeason(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const showCatalog = !imdbMode && !selectedItem && results.length === 0;
@@ -89,37 +84,26 @@ export default function HomePage() {
 
       {showCatalog && (
         <div className="content-section">
-          {/* Continue Watching */}
           {query.trim() === "" && continueWatchingList.length > 0 && (
             <>
               <h2 className="section-title" style={sectionTitleStyle()}>
-                ⏯ Continue Watching
+                Continue Watching
               </h2>
 
               <div style={railStyle}>
                 {continueWatchingList.map((item) => (
-                  <div
-                    key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
-                    style={{ flex: "0 0 auto" }}
-                  >
-                    <ContinueWatchingCard
-                      item={item}
-                      onRemove={removeFromContinueWatching}
-                    />
+                  <div key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`} style={{ flex: "0 0 auto" }}>
+                    <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          {/* Watchlist */}
           {syncMode === "trakt" && query.trim() === "" && watchlist.length > 0 && (
             <>
-              <h2
-                className="section-title"
-                style={sectionTitleStyle(continueWatchingList.length > 0 ? "26px" : "18px")}
-              >
-                ⭐ Watchlist
+              <h2 className="section-title" style={sectionTitleStyle(continueWatchingList.length > 0 ? "26px" : "18px")}>
+                Watchlist
               </h2>
 
               <div style={railStyle}>
@@ -132,28 +116,13 @@ export default function HomePage() {
             </>
           )}
 
-          {renderRail(
-            `🎬 ${query.trim() ? "Movies" : "Trending Movies"}`,
-            movies,
-            "movie"
-          )}
+          {renderRail(query.trim() ? "Movies" : "Trending Movies", movies, "movie")}
 
-          {renderRail(
-            `📺 ${query.trim() ? "Series" : "Trending Series"}`,
-            series,
-            "series"
-          )}
+          {renderRail(query.trim() ? "Series" : "Trending Series", series, "series")}
 
-          {query.trim() === "" && (
-            <>
-              {renderRail("🔥 Popular Movies", popularMovies, "movie")}
-              {renderRail("⭐ Popular Series", popularSeries, "series")}
-              {renderRail("🆕 Recently Released Movies", recentMovies, "movie")}
-              {renderRail("📡 Recently Aired Series", recentSeries, "series")}
-              {renderRail("🏆 Top Rated Movies", topRatedMovies, "movie")}
-              {renderRail("👑 Top Rated Series", topRatedSeries, "series")}
-            </>
-          )}
+          {query.trim() === "" && renderRail("Popular Movies", popularMovies, "movie")}
+
+          {query.trim() === "" && renderRail("Popular Series", popularSeries, "series")}
         </div>
       )}
 
