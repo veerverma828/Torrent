@@ -34,24 +34,30 @@ export default function Layout() {
 
     const tryFocus = () => {
       const activeEl = document.activeElement;
+
       if (activeEl && activeEl.tagName === "INPUT" && activeEl.type === "text") {
         return;
       }
 
       let target = null;
+      let shouldScrollToTop = false;
+
       if (fileModalData) {
         target = document.querySelector(".file-item");
       } else if (results.length > 0) {
         target = document.querySelector(".result-btn");
+        shouldScrollToTop = true;
       } else if (selectedSeason && episodes.length > 0) {
         target = document.querySelector(".episode-card");
       }
 
       if (target) {
-        window.scrollTo({
-          top: 0,
-          behavior: "auto",
-        });
+        if (shouldScrollToTop) {
+          window.scrollTo({
+            top: 0,
+            behavior: "auto",
+          });
+        }
 
         requestAnimationFrame(() => {
           target.focus({ preventScroll: true });
@@ -63,6 +69,7 @@ export default function Layout() {
     };
 
     timeoutId = setTimeout(tryFocus, 50);
+
     return () => clearTimeout(timeoutId);
   }, [results, seasons, episodes, selectedSeason, fileModalData]);
 
@@ -70,6 +77,7 @@ export default function Layout() {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const modal = searchParams.get("modal");
+
     if (modal !== "file") setFileModalData(null);
     if (modal !== "stream") setStreamUrl(null);
   }, [location.search, setFileModalData, setStreamUrl]);
@@ -93,6 +101,7 @@ export default function Layout() {
             />
             {" "}Real-Debrid
           </label>
+
           <label className="radio-label">
             <input
               type="radio"
