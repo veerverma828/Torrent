@@ -48,13 +48,13 @@ export default function Layout() {
       }
 
       if (target) {
-        target.focus({ preventScroll: true });
+        window.scrollTo({
+          top: 0,
+          behavior: "auto",
+        });
 
         requestAnimationFrame(() => {
-          target.scrollIntoView({
-            behavior: "auto",
-            block: "start",
-          });
+          target.focus({ preventScroll: true });
         });
       } else if (attempts < 5) {
         attempts++;
