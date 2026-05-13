@@ -35,15 +35,24 @@ export default function SettingsModal() {
 
   const tabButtonStyle = (tab) => ({
     flex: 1,
-    padding: "12px 16px",
+    minWidth: "92px",
+    padding: "11px 14px",
     borderRadius: "12px",
     border: "none",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: "14px",
-    transition: "all 0.2s ease",
-    background: activeTab === tab ? "#007BFF" : "#2d2d2d",
+    whiteSpace: "nowrap",
+    transition: "all 0.25s ease",
+    background:
+      activeTab === tab
+        ? "linear-gradient(135deg, #007BFF 0%, #0056d6 100%)"
+        : "transparent",
     color: "#fff",
+    boxShadow:
+      activeTab === tab
+        ? "0 4px 14px rgba(0, 123, 255, 0.28)"
+        : "none",
   });
 
   return (
@@ -54,9 +63,16 @@ export default function SettingsModal() {
         <div
           style={{
             display: "flex",
-            gap: "10px",
-            marginBottom: "22px",
-            flexWrap: "wrap",
+            gap: "6px",
+            marginBottom: "18px",
+            padding: "6px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            overflowX: "auto",
+            width: "100%",
+            boxSizing: "border-box",
+            backdropFilter: "blur(12px)",
           }}
         >
           <button
