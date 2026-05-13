@@ -42,7 +42,7 @@ export default function HomePage() {
 
   const railStyle = {
     display: "flex",
-    gap: "10px",
+    gap: "8px",
     overflowX: "auto",
     overflowY: "hidden",
     paddingBottom: "10px",
