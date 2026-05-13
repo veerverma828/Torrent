@@ -48,6 +48,11 @@ export default function Layout() {
       }
 
       if (target) {
+        window.scrollTo({
+          top: 0,
+          behavior: "auto",
+        });
+
         target.focus({ preventScroll: true });
 
         requestAnimationFrame(() => {
