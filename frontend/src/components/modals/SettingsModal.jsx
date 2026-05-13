@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
+import CrossDeviceSyncIndicator from "../sync/CrossDeviceSyncIndicator.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS } from "../../utils/constants.js";
 
@@ -149,6 +150,16 @@ export default function SettingsModal() {
 
         {activeTab === "trakt" && (
           <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginBottom: "10px",
+              }}
+            >
+              <CrossDeviceSyncIndicator />
+            </div>
+
             <div className="settings-section">
               <TraktSyncToggle />
             </div>
