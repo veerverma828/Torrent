@@ -12,6 +12,12 @@ export default function HomePage() {
   const {
     movies,
     series,
+    popularMovies,
+    popularSeries,
+    recentMovies,
+    recentSeries,
+    topRatedMovies,
+    topRatedSeries,
     results,
     loading,
     selectedItem,
@@ -32,6 +38,7 @@ export default function HomePage() {
       setSelectedItem(null);
       if (!useJackett && !imdbMode) setResults([]);
     }
+
     setSeasons([]);
     setEpisodes([]);
     setSelectedSeason(null);
@@ -56,11 +63,31 @@ export default function HomePage() {
     paddingInline: "2px",
   });
 
+  const renderRail = (title, items, type) => {
+    if (!items?.length) return null;
+
+    return (
+      <>
+        <h2 className="section-title" style={sectionTitleStyle("26px")}>
+          {title}
+        </h2>
+
+        <div style={railStyle}>
+          {items.map((item) => (
+            <div key={`${title}-${item.id}`} style={{ flex: "0 0 auto" }}>
+              <PosterCard item={item} type={type} />
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
+
   return (
     <>
       {loading && <Loader />}
 
-      {showCatalog && (movies.length > 0 || series.length > 0 || continueWatchingList.length > 0) && (
+      {showCatalog && (
         <div className="content-section">
           {/* Continue Watching */}
           {query.trim() === "" && continueWatchingList.length > 0 && (
@@ -71,7 +98,10 @@ export default function HomePage() {
 
               <div style={railStyle}>
                 {continueWatchingList.map((item) => (
-                  <div key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`} style={{ flex: "0 0 auto" }}>
+                  <div
+                    key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
+                    style={{ flex: "0 0 auto" }}
+                  >
                     <ContinueWatchingCard
                       item={item}
                       onRemove={removeFromContinueWatching}
@@ -82,7 +112,7 @@ export default function HomePage() {
             </>
           )}
 
-          {/* Trakt Watchlist */}
+          {/* Watchlist */}
           {syncMode === "trakt" && query.trim() === "" && watchlist.length > 0 && (
             <>
               <h2
@@ -102,44 +132,26 @@ export default function HomePage() {
             </>
           )}
 
-          {/* Movies */}
-          {movies.length > 0 && (
-            <>
-              <h2
-                className="section-title"
-                style={sectionTitleStyle(
-                  continueWatchingList.length > 0 || (syncMode === "trakt" && watchlist.length > 0)
-                    ? "26px"
-                    : "18px"
-                )}
-              >
-                🎬 {query.trim() ? "Movies" : "Trending Movies"}
-              </h2>
-
-              <div style={railStyle}>
-                {movies.map((item) => (
-                  <div key={`movie-${item.id}`} style={{ flex: "0 0 auto" }}>
-                    <PosterCard item={item} type="movie" />
-                  </div>
-                ))}
-              </div>
-            </>
+          {renderRail(
+            `🎬 ${query.trim() ? "Movies" : "Trending Movies"}`,
+            movies,
+            "movie"
           )}
 
-          {/* Series */}
-          {series.length > 0 && (
-            <>
-              <h2 className="section-title" style={sectionTitleStyle("26px")}>
-                📺 {query.trim() ? "Series" : "Trending Series"}
-              </h2>
+          {renderRail(
+            `📺 ${query.trim() ? "Series" : "Trending Series"}`,
+            series,
+            "series"
+          )}
 
-              <div style={railStyle}>
-                {series.map((item) => (
-                  <div key={`series-${item.id}`} style={{ flex: "0 0 auto" }}>
-                    <PosterCard item={item} type="series" />
-                  </div>
-                ))}
-              </div>
+          {query.trim() === "" && (
+            <>
+              {renderRail("🔥 Popular Movies", popularMovies, "movie")}
+              {renderRail("⭐ Popular Series", popularSeries, "series")}
+              {renderRail("🆕 Recently Released Movies", recentMovies, "movie")}
+              {renderRail("📡 Recently Aired Series", recentSeries, "series")}
+              {renderRail("🏆 Top Rated Movies", topRatedMovies, "movie")}
+              {renderRail("👑 Top Rated Series", topRatedSeries, "series")}
             </>
           )}
         </div>
@@ -149,7 +161,7 @@ export default function HomePage() {
         <div className="results-container">
           {results.map((item, index) => (
             <ResultCard
-              key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`}
+              key={`${item.infoHash || item.magnet || "no-hash"}-${item.title || "no-title"}-${index}`}
               item={item}
               index={index}
             />
