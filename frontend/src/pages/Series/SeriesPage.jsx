@@ -82,14 +82,34 @@ export default function SeriesPage() {
         .then((meta) => {
           if (meta) {
             const videos = meta.videos || [];
-            const extractedSeasons = [...new Set(videos.map((v) => v.season))];
+
+            const extractedSeasons = [
+              ...new Set(
+                videos
+                  .filter((v) => v.season !== undefined && v.season !== null)
+                  .filter((v) => {
+                    if (Number(v.season) !== 0) return true;
+
+                    return videos.some(
+                      (ep) =>
+                        Number(ep.season) === 0 &&
+                        ep.episode !== undefined &&
+                        ep.episode !== null
+                    );
+                  })
+                  .map((v) => v.season)
+              ),
+            ];
+
             setSeasons(extractedSeasons);
             setEpisodes(videos);
+
             if (extractedSeasons.length > 0 && !isEpisodePath) {
               const hasSeason1 = extractedSeasons.some((s) => Number(s) === 1);
               setSelectedSeason(hasSeason1 ? 1 : extractedSeasons[0]);
             }
           }
+
           if (!isEpisodePath) setLoading(false);
         })
         .catch((e) => {
@@ -178,7 +198,7 @@ export default function SeriesPage() {
           </div>
 
           {/* EPISODES GRID */}
-          {selectedSeason && (
+          {selectedSeason !== null && selectedSeason !== undefined && (
             <div
               className="fade-in-episodes"
               key={selectedSeason}
@@ -204,7 +224,11 @@ export default function SeriesPage() {
       {(imdbMode || results.length > 0) && (
         <div className="results-container">
           {results.map((item, index) => (
-            <ResultCard key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`} item={item} index={index} />
+            <ResultCard
+              key={`${item.infoHash || item.magnet || 'no-hash'}-${item.title || 'no-title'}-${index}`}
+              item={item}
+              index={index}
+            />
           ))}
         </div>
       )}
