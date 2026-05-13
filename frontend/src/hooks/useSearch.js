@@ -11,7 +11,6 @@ import {
   searchMovies,
   searchSeries,
   fetchDefaultCatalog,
-  fetchCatalog,
 } from "../services/cinemeta.js";
 
 export function useSearch() {
@@ -33,12 +32,6 @@ export function useSearch() {
     setDefaultMovies,
     defaultSeries,
     setDefaultSeries,
-    setPopularMovies,
-    setPopularSeries,
-    setRecentMovies,
-    setRecentSeries,
-    setTopRatedMovies,
-    setTopRatedSeries,
   } = useCatalogContext();
 
   const {
@@ -184,55 +177,20 @@ export function useSearch() {
 
     hasFetchedCatalog.current = true;
 
-    const fetchCatalogs = async () => {
+    const fetchCatalog = async () => {
       try {
-        const [
-          defaultCatalog,
-          popularMovieCatalog,
-          popularSeriesCatalog,
-          recentMovieCatalog,
-          recentSeriesCatalog,
-          topRatedMovieCatalog,
-          topRatedSeriesCatalog,
-        ] = await Promise.all([
-          fetchDefaultCatalog(),
-          fetchCatalog("movie", "popular"),
-          fetchCatalog("series", "popular"),
-          fetchCatalog("movie", "top"),
-          fetchCatalog("series", "top"),
-          fetchCatalog("movie", "top"),
-          fetchCatalog("series", "top"),
-        ]);
-
-        setDefaultMovies(defaultCatalog.movies);
-        setDefaultSeries(defaultCatalog.series);
-        setMovies(defaultCatalog.movies);
-        setSeries(defaultCatalog.series);
-
-        setPopularMovies(popularMovieCatalog);
-        setPopularSeries(popularSeriesCatalog);
-        setRecentMovies(recentMovieCatalog);
-        setRecentSeries(recentSeriesCatalog);
-        setTopRatedMovies(topRatedMovieCatalog);
-        setTopRatedSeries(topRatedSeriesCatalog);
+        const data = await fetchDefaultCatalog();
+        setDefaultMovies(data.movies);
+        setDefaultSeries(data.series);
+        setMovies(data.movies);
+        setSeries(data.series);
       } catch (err) {
-        console.error("Error fetching catalog:", err);
+        console.error("Error fetching default catalog:", err);
       }
     };
 
-    fetchCatalogs();
-  }, [
-    setDefaultMovies,
-    setDefaultSeries,
-    setMovies,
-    setSeries,
-    setPopularMovies,
-    setPopularSeries,
-    setRecentMovies,
-    setRecentSeries,
-    setTopRatedMovies,
-    setTopRatedSeries,
-  ]);
+    fetchCatalog();
+  }, [setDefaultMovies, setDefaultSeries, setMovies, setSeries]);
 
   return {
     query,
