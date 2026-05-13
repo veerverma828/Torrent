@@ -42,6 +42,12 @@ export async function fetchEpisodeStreams(id, season, episode, addonApis) {
   return dataArray.flatMap((data) => formatTorrentio(data));
 }
 
+export async function fetchCatalog(type, category) {
+  const res = await fetch(`${CINEMETA_BASE}/catalog/${type}/${category}.json`);
+  const data = await res.json();
+  return data.metas || [];
+}
+
 export async function fetchDefaultCatalog() {
   const [movieRes, seriesRes] = await Promise.all([
     fetch(`${CINEMETA_BASE}/catalog/movie/top.json`).then((r) => r.json()),
