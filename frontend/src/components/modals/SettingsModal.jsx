@@ -11,6 +11,12 @@ export default function SettingsModal() {
     tempAddonApis,
     setTempAddonApis,
     setAddonApis,
+    autoSearch,
+    setAutoSearch,
+    useJackett,
+    setUseJackett,
+    imdbMode,
+    setImdbMode,
   } = useSettingsContext();
 
   const [activeTab, setActiveTab] = useState("addons");
@@ -50,6 +56,7 @@ export default function SettingsModal() {
             display: "flex",
             gap: "10px",
             marginBottom: "22px",
+            flexWrap: "wrap",
           }}
         >
           <button
@@ -64,6 +71,13 @@ export default function SettingsModal() {
             onClick={() => setActiveTab("trakt")}
           >
             Trakt Sync
+          </button>
+
+          <button
+            style={tabButtonStyle("others")}
+            onClick={() => setActiveTab("others")}
+          >
+            Others
           </button>
         </div>
 
@@ -137,6 +151,58 @@ export default function SettingsModal() {
           <>
             <div className="settings-section">
               <TraktSyncToggle />
+            </div>
+
+            <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
+              <button
+                className="settings-cancel-btn"
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+
+        {activeTab === "others" && (
+          <>
+            <div className="settings-section">
+              <h3 style={{ marginBottom: "18px" }}>Search Options</h3>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "14px",
+                }}
+              >
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autoSearch}
+                    onChange={() => setAutoSearch(!autoSearch)}
+                  />
+                  {" "}Auto Search
+                </label>
+
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={useJackett}
+                    onChange={() => setUseJackett(!useJackett)}
+                  />
+                  {" "}Jackett
+                </label>
+
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={imdbMode}
+                    onChange={() => setImdbMode(!imdbMode)}
+                  />
+                  {" "}IMDb Mode
+                </label>
+              </div>
             </div>
 
             <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
