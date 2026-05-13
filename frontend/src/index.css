@@ -112,10 +112,10 @@ code {
 
 /* Cross-device sync indicator styles */
 .cross-device-sync-icon {
-  position: fixed;
-  top: 80px;
-  left: 20px;
-  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .sync-icon-only {
@@ -123,6 +123,9 @@ code {
   cursor: pointer;
   transition: opacity 0.3s ease;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sync-icon-only.active {
