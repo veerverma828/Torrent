@@ -11,6 +11,7 @@ import {
   searchMovies,
   searchSeries,
   fetchDefaultCatalog,
+  fetchCatalog,
 } from "../services/cinemeta.js";
 
 export function useSearch() {
@@ -32,6 +33,12 @@ export function useSearch() {
     setDefaultMovies,
     defaultSeries,
     setDefaultSeries,
+    setPopularMovies,
+    setPopularSeries,
+    setRecentMovies,
+    setRecentSeries,
+    setTopRatedMovies,
+    setTopRatedSeries,
   } = useCatalogContext();
 
   const {
@@ -139,7 +146,6 @@ export function useSearch() {
     }
   }, [query, imdbMode, useJackett, navigate, setLoading, setResults]);
 
-  // Auto-search debounce
   useEffect(() => {
     if (!autoSearch) return;
 
@@ -156,11 +162,11 @@ export function useSearch() {
     return () => clearTimeout(delay);
   }, [query, autoSearch, useJackett, imdbMode, searchContent, searchTorrents]);
 
-  // Restore defaults when query is cleared
   useEffect(() => {
     if (query.trim() === "") {
       setMovies(defaultMovies);
       setSeries(defaultSeries);
+
       if (location.pathname === "/") {
         setResults([]);
         setSelectedItem(null);
@@ -171,24 +177,62 @@ export function useSearch() {
     }
   }, [query, defaultMovies, defaultSeries, location.pathname, setMovies, setSeries, setResults, setSelectedItem, setSelectedSeason, setSeasons, setEpisodes]);
 
-  // Fetch default catalog on mount (once only)
   const hasFetchedCatalog = useRef(false);
+
   useEffect(() => {
     if (hasFetchedCatalog.current) return;
+
     hasFetchedCatalog.current = true;
-    const fetchCatalog = async () => {
+
+    const fetchCatalogs = async () => {
       try {
-        const { movies: movieCatalog, series: seriesCatalog } = await fetchDefaultCatalog();
-        setDefaultMovies(movieCatalog);
-        setDefaultSeries(seriesCatalog);
-        setMovies(movieCatalog);
-        setSeries(seriesCatalog);
+        const [
+          defaultCatalog,
+          popularMovieCatalog,
+          popularSeriesCatalog,
+          recentMovieCatalog,
+          recentSeriesCatalog,
+          topRatedMovieCatalog,
+          topRatedSeriesCatalog,
+        ] = await Promise.all([
+          fetchDefaultCatalog(),
+          fetchCatalog("movie", "popular"),
+          fetchCatalog("series", "popular"),
+          fetchCatalog("movie", "top"),
+          fetchCatalog("series", "top"),
+          fetchCatalog("movie", "top"),
+          fetchCatalog("series", "top"),
+        ]);
+
+        setDefaultMovies(defaultCatalog.movies);
+        setDefaultSeries(defaultCatalog.series);
+        setMovies(defaultCatalog.movies);
+        setSeries(defaultCatalog.series);
+
+        setPopularMovies(popularMovieCatalog);
+        setPopularSeries(popularSeriesCatalog);
+        setRecentMovies(recentMovieCatalog);
+        setRecentSeries(recentSeriesCatalog);
+        setTopRatedMovies(topRatedMovieCatalog);
+        setTopRatedSeries(topRatedSeriesCatalog);
       } catch (err) {
         console.error("Error fetching catalog:", err);
       }
     };
-    fetchCatalog();
-  }, [setDefaultMovies, setDefaultSeries, setMovies, setSeries]);
+
+    fetchCatalogs();
+  }, [
+    setDefaultMovies,
+    setDefaultSeries,
+    setMovies,
+    setSeries,
+    setPopularMovies,
+    setPopularSeries,
+    setRecentMovies,
+    setRecentSeries,
+    setTopRatedMovies,
+    setTopRatedSeries,
+  ]);
 
   return {
     query,
