@@ -49,7 +49,13 @@ export default function Layout() {
 
       if (target) {
         target.focus({ preventScroll: true });
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        requestAnimationFrame(() => {
+          target.scrollIntoView({
+            behavior: "auto",
+            block: "start",
+          });
+        });
       } else if (attempts < 5) {
         attempts++;
         timeoutId = setTimeout(tryFocus, 100);
