@@ -42,11 +42,16 @@ export default function Layout() {
       let target = null;
       let shouldScrollToTop = false;
 
+      const isEpisodeRoute = /\/series\/.*\/season\/\d+\/episode\/\d+/i.test(location.pathname);
+
       if (fileModalData) {
         target = document.querySelector(".file-item");
       } else if (results.length > 0) {
         target = document.querySelector(".result-btn");
-        shouldScrollToTop = true;
+
+        // Only scroll to top for movie/general stream pages.
+        // Keep position while selecting episodes inside series.
+        shouldScrollToTop = !isEpisodeRoute;
       } else if (selectedSeason && episodes.length > 0) {
         target = document.querySelector(".episode-card");
       }
@@ -71,7 +76,7 @@ export default function Layout() {
     timeoutId = setTimeout(tryFocus, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [results, seasons, episodes, selectedSeason, fileModalData]);
+  }, [results, seasons, episodes, selectedSeason, fileModalData, location.pathname]);
 
   // Route-based modal syncing (close modals on back press)
   useEffect(() => {
