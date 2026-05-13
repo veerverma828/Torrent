@@ -13,7 +13,7 @@ body {
 }
 
 .app-container {
-  padding: 20px;
+  padding: 20px 12px;
   background-color: #141414;
   color: #fff;
   min-height: 100vh;
@@ -111,7 +111,7 @@ body {
 .section-title {
   font-size: 22px;
   font-weight: 600;
-  margin: 20px 0 10px 20px;
+  margin: 20px 0 10px 8px;
   color: #fff;
   letter-spacing: 0.5px;
 }
@@ -327,23 +327,35 @@ button:focus, input:focus {
 }
 
 @media (max-width: 768px) {
+  .app-container {
+    padding: 16px 8px;
+  }
+
+  .section-title {
+    margin-left: 4px;
+  }
+
   .button-container {
     flex-direction: column;
     align-items: center;
   }
+
   .button-container button {
     width: 100%;
     max-width: 280px;
   }
+
   .split-btn-group,
   .split-btn-group.push-right {
     margin-left: 0;
     width: 100%;
     max-width: 280px;
   }
+
   .split-btn-group .split-btn-main {
     width: 100%;
   }
+
   .split-btn-group .split-btn-arrow {
     width: auto;
   }
