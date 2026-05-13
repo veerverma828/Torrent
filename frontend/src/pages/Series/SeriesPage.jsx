@@ -159,7 +159,7 @@ export default function SeriesPage() {
                     }
                   }}
                 >
-                  Season {s}
+                  {Number(s) === 0 ? "Specials" : `Season ${s}`}
                 </div>
               ))}
             </div>
