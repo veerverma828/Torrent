@@ -3,6 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { traktAuth } from "../../services/trakt/traktAuth.js";
 import { useSyncStatus } from "../../hooks/useSyncStatus.js";
+import CrossDeviceSyncIndicator from "../sync/CrossDeviceSyncIndicator.jsx";
 
 export default function TraktSyncToggle() {
   const {
@@ -54,7 +55,7 @@ export default function TraktSyncToggle() {
       try {
         await navigator.clipboard.writeText(deviceData.user_code);
         setCopiedCode(true);
-        setTimeout(() => setCopiedCode(false), 2000); // Reset after 2 seconds
+        setTimeout(() => setCopiedCode(false), 2000);
         console.log('Code copied to clipboard');
       } catch (err) {
         console.error('Failed to copy code:', err);
@@ -95,6 +96,7 @@ export default function TraktSyncToggle() {
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: "10px",
             marginBottom: "10px",
             flexWrap: "wrap",
@@ -102,28 +104,39 @@ export default function TraktSyncToggle() {
         >
           <div
             style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "999px",
-              background: syncMode === "trakt" ? "#ed1c24" : "#007BFF",
-              boxShadow:
-                syncMode === "trakt"
-                  ? "0 0 10px rgba(237,28,36,0.7)"
-                  : "0 0 10px rgba(0,123,255,0.7)",
-            }}
-          />
-
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "20px",
-              fontWeight: 700,
-              letterSpacing: "0.2px",
-              wordBreak: "break-word",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
             }}
           >
-            Trakt Sync Mode
-          </h3>
+            <div
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "999px",
+                background: syncMode === "trakt" ? "#ed1c24" : "#007BFF",
+                boxShadow:
+                  syncMode === "trakt"
+                    ? "0 0 10px rgba(237,28,36,0.7)"
+                    : "0 0 10px rgba(0,123,255,0.7)",
+              }}
+            />
+
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "20px",
+                fontWeight: 700,
+                letterSpacing: "0.2px",
+                wordBreak: "break-word",
+              }}
+            >
+              Trakt Sync Mode
+            </h3>
+          </div>
+
+          <CrossDeviceSyncIndicator />
         </div>
 
         <p
@@ -140,7 +153,6 @@ export default function TraktSyncToggle() {
             : `Cloud sync enabled with Trakt${traktUser ? ` • @${traktUser.username}` : ""}`}
         </p>
         
-        {/* Sync Status Indicator */}
         {syncMode === "trakt" && (
           <div
             style={{
@@ -255,42 +267,12 @@ export default function TraktSyncToggle() {
       </div>
 
       {deviceData && !traktAuthenticated && (
-        <div
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "14px",
-            padding: "18px",
-            fontSize: "14px",
-            lineHeight: 1.5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "14px",
-            textAlign: "center",
-            width: "100%",
-            boxSizing: "border-box",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              opacity: 0.85,
-              maxWidth: "100%",
-            }}
-          >
+        <div style={{background: "rgba(255,255,255,0.04)",border: "1px solid rgba(255,255,255,0.08)",borderRadius: "14px",padding: "18px",fontSize: "14px",lineHeight: 1.5,display: "flex",flexDirection: "column",alignItems: "center",gap: "14px",textAlign: "center",width: "100%",boxSizing: "border-box",overflow: "hidden"}}>
+          <div style={{opacity: 0.85,maxWidth: "100%"}}>
             Scan the QR code or open the activation link manually.
           </div>
 
-          <div
-            style={{
-              background: "white",
-              padding: "12px",
-              borderRadius: "18px",
-              width: "fit-content",
-              maxWidth: "100%",
-            }}
-          >
+          <div style={{background: "white",padding: "12px",borderRadius: "18px",width: "fit-content",maxWidth: "100%"}}>
             <QRCodeSVG
               value={deviceData.verification_url}
               size={window.innerWidth < 480 ? 150 : 180}
@@ -302,63 +284,20 @@ export default function TraktSyncToggle() {
             href={deviceData.verification_url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              color: "#fff",
-              fontWeight: 600,
-              textDecoration: "underline",
-              wordBreak: "break-word",
-              overflowWrap: "break-word",
-              maxWidth: "100%",
-            }}
+            style={{color: "#fff",fontWeight: 600,textDecoration: "underline",wordBreak: "break-word",overflowWrap: "break-word",maxWidth: "100%"}}
           >
             Open Trakt Activation Page
           </a>
 
-          <div style={{ opacity: 0.75 }}>
-            Enter this code:
-          </div>
+          <div style={{ opacity: 0.75 }}>Enter this code:</div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              justifyContent: "center",
-            }}
-          >
-            <strong
-              style={{
-                fontSize: window.innerWidth < 480 ? "20px" : "24px",
-                letterSpacing: window.innerWidth < 480 ? "2px" : "4px",
-                color: "#fff",
-                wordBreak: "break-word",
-                textAlign: "center",
-              }}
-            >
+          <div style={{display: "flex",alignItems: "center",gap: "8px",justifyContent: "center"}}>
+            <strong style={{fontSize: window.innerWidth < 480 ? "20px" : "24px",letterSpacing: window.innerWidth < 480 ? "2px" : "4px",color: "#fff",wordBreak: "break-word",textAlign: "center"}}>
               {deviceData.user_code}
             </strong>
             <button
               onClick={copyUserCode}
-              style={{
-                background: copiedCode ? "rgba(40, 167, 69, 0.3)" : "rgba(255,255,255,0.1)",
-                border: copiedCode ? "1px solid rgba(40, 167, 69, 0.5)" : "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "6px",
-                padding: "4px 8px",
-                cursor: "pointer",
-                fontSize: "14px",
-                color: "#fff",
-                transition: "background 0.2s ease",
-              }}
-              onMouseOver={(e) => {
-                if (!copiedCode) {
-                  e.target.style.background = "rgba(255,255,255,0.2)";
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!copiedCode) {
-                  e.target.style.background = "rgba(255,255,255,0.1)";
-                }
-              }}
+              style={{background: copiedCode ? "rgba(40, 167, 69, 0.3)" : "rgba(255,255,255,0.1)",border: copiedCode ? "1px solid rgba(40, 167, 69, 0.5)" : "1px solid rgba(255,255,255,0.2)",borderRadius: "6px",padding: "4px 8px",cursor: "pointer",fontSize: "14px",color: "#fff",transition: "background 0.2s ease"}}
               title={copiedCode ? "Code copied!" : "Copy code to clipboard"}
             >
               {copiedCode ? "✅" : "📋"}
