@@ -19,17 +19,6 @@ const textareaStyle = {
   lineHeight: "1.5",
 };
 
-const titleInputStyle = {
-  width: "100%",
-  borderRadius: "12px",
-  padding: "12px 14px",
-  border: "1px solid rgba(255,255,255,0.1)",
-  background: "rgba(255,255,255,0.04)",
-  color: "#fff",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
 const actionButtonStyle = {
   minWidth: "190px",
   minHeight: "46px",
@@ -48,7 +37,6 @@ export default function ConvertLinkSection() {
   } = useSettingsContext();
 
   const [inputValue, setInputValue] = useState("");
-  const [customTitle, setCustomTitle] = useState("");
   const [copyProcessing, setCopyProcessing] = useState(false);
   const [streamProcessing, setStreamProcessing] = useState(false);
   const [externalProcessing, setExternalProcessing] = useState(false);
@@ -162,14 +150,6 @@ export default function ConvertLinkSection() {
             : "Convert magnet links using your selected debrid provider."}
         </p>
       </div>
-
-      <input
-        type="text"
-        value={customTitle}
-        onChange={(e) => setCustomTitle(e.target.value)}
-        placeholder="Optional title for local tracking"
-        style={titleInputStyle}
-      />
 
       <textarea
         value={inputValue}
