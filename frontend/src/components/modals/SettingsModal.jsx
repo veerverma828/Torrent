@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
+import ConvertLinkSection from "./ConvertLinkSection.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS } from "../../utils/constants.js";
 
@@ -90,6 +91,13 @@ export default function SettingsModal() {
           </button>
 
           <button
+            style={tabButtonStyle("convert")}
+            onClick={() => setActiveTab("convert")}
+          >
+            Convert Link
+          </button>
+
+          <button
             style={tabButtonStyle("others")}
             onClick={() => setActiveTab("others")}
           >
@@ -168,6 +176,21 @@ export default function SettingsModal() {
             <div className="settings-section">
               <TraktSyncToggle />
             </div>
+
+            <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
+              <button
+                className="settings-cancel-btn"
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+
+        {activeTab === "convert" && (
+          <>
+            <ConvertLinkSection />
 
             <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
               <button
