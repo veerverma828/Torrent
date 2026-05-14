@@ -134,7 +134,7 @@ export default function ConvertLinkSection() {
     >
       <div>
         <h3 style={{ marginBottom: "8px" }}>
-          {isDirectUrl ? "Direct Stream Link" : "Convert Magnet Link"}
+          Direct Steam
         </h3>
 
         <p
