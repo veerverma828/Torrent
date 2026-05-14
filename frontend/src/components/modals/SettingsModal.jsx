@@ -36,10 +36,13 @@ export default function SettingsModal() {
 
   const tabButtonStyle = (tab) => ({
     flex: 1,
-    minWidth: "92px",
-    padding: "11px 14px",
-    borderRadius: "12px",
-    border: "none",
+    minWidth: window.innerWidth < 640 ? "48%" : "92px",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border:
+      activeTab === tab
+        ? "1px solid rgba(0,123,255,0.45)"
+        : "1px solid rgba(255,255,255,0.08)",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: "14px",
@@ -47,67 +50,84 @@ export default function SettingsModal() {
     transition: "all 0.25s ease",
     background:
       activeTab === tab
-        ? "linear-gradient(135deg, #007BFF 0%, #0056d6 100%)"
-        : "transparent",
+        ? "linear-gradient(135deg, rgba(0,123,255,0.95) 0%, rgba(0,86,214,0.95) 100%)"
+        : "rgba(255,255,255,0.03)",
     color: "#fff",
     boxShadow:
       activeTab === tab
-        ? "0 4px 14px rgba(0, 123, 255, 0.28)"
-        : "none",
+        ? "0 8px 24px rgba(0, 123, 255, 0.35)"
+        : "0 2px 10px rgba(0,0,0,0.18)",
+    backdropFilter: "blur(12px)",
+    transform: activeTab === tab ? "translateY(-1px) scale(1.01)" : "scale(1)",
   });
+
+  const sectionCardStyle = {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "18px",
+    padding: "18px",
+    backdropFilter: "blur(16px)",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+  };
 
   return (
     <div className="settings-modal-overlay">
-      <div className="settings-modal-content">
+      <div
+        className="settings-modal-content"
+        style={{
+          background:
+            "radial-gradient(circle at top, rgba(0,123,255,0.12), transparent 42%), rgba(18,18,18,0.96)",
+        }}
+      >
         <h2>Settings</h2>
 
         <div
           style={{
             display: "flex",
-            gap: "6px",
+            flexWrap: "wrap",
+            gap: "8px",
             marginBottom: "18px",
-            padding: "6px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.06)",
+            padding: "8px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.08)",
-            overflowX: "auto",
             width: "100%",
             boxSizing: "border-box",
-            backdropFilter: "blur(12px)",
+            backdropFilter: "blur(14px)",
           }}
         >
           <button
             style={tabButtonStyle("addons")}
             onClick={() => setActiveTab("addons")}
           >
-            Addons
+            🧩 Addons
           </button>
 
           <button
             style={tabButtonStyle("trakt")}
             onClick={() => setActiveTab("trakt")}
           >
-            Trakt Sync
+            🔄 Trakt
           </button>
 
           <button
             style={tabButtonStyle("convert")}
             onClick={() => setActiveTab("convert")}
           >
-            Direct Steam
+            ⚡ Direct Steam
           </button>
 
           <button
             style={tabButtonStyle("others")}
             onClick={() => setActiveTab("others")}
           >
-            Others
+            ⚙ Others
           </button>
         </div>
 
         {activeTab === "addons" && (
           <>
-            <div className="settings-section">
+            <div className="settings-section" style={sectionCardStyle}>
               <h3 style={{ marginBottom: "15px" }}>Addon APIs</h3>
 
               {tempAddonApis.map((api, index) => (
@@ -173,7 +193,7 @@ export default function SettingsModal() {
 
         {activeTab === "trakt" && (
           <>
-            <div className="settings-section">
+            <div className="settings-section" style={sectionCardStyle}>
               <TraktSyncToggle />
             </div>
 
@@ -190,7 +210,9 @@ export default function SettingsModal() {
 
         {activeTab === "convert" && (
           <>
-            <ConvertLinkSection />
+            <div style={sectionCardStyle}>
+              <ConvertLinkSection />
+            </div>
 
             <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
               <button
@@ -205,7 +227,7 @@ export default function SettingsModal() {
 
         {activeTab === "others" && (
           <>
-            <div className="settings-section">
+            <div className="settings-section" style={sectionCardStyle}>
               <h3 style={{ marginBottom: "18px" }}>Search Options</h3>
 
               <div
