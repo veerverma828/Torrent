@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
+import { useSettingsContext } from "../../context/SettingsContext.jsx";
+import { getFiles, generateLink } from "../../services/torrentService.js";
 
 export default function ConvertLinkSection() {
   const { initAction } = useStreamActions();
+  const { debridService, rdAdminCode } = useSettingsContext();
 
   const [magnet, setMagnet] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  const handleAction = async (type) => {
+  const handleCopyDownloadLink = async () => {
     if (!magnet.trim()) {
       alert("Please paste a magnet link.");
       return;
@@ -15,7 +18,49 @@ export default function ConvertLinkSection() {
 
     try {
       setProcessing(true);
-      await initAction(magnet.trim(), type, true);
+
+      const fileData = await getFiles(
+        magnet.trim(),
+        debridService,
+        rdAdminCode,
+      );
+
+      if (!fileData?.files?.length) {
+        alert("No files found for this magnet link.");
+        return;
+      }
+
+      const generated = await generateLink(
+        fileData.torrentId,
+        fileData.files[0].id,
+        debridService,
+        rdAdminCode,
+      );
+
+      if (!generated?.downloadUrl) {
+        alert("Failed to generate download link.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(generated.downloadUrl);
+      alert("Download link copied successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to process magnet link.");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleExternalStream = async () => {
+    if (!magnet.trim()) {
+      alert("Please paste a magnet link.");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      await initAction(magnet.trim(), "external", true);
     } catch (error) {
       console.error(error);
       alert("Failed to process magnet link.");
@@ -57,7 +102,7 @@ export default function ConvertLinkSection() {
         <button
           className="settings-save-btn"
           disabled={processing}
-          onClick={() => handleAction("download")}
+          onClick={handleCopyDownloadLink}
         >
           {processing ? "Processing..." : "Copy Download Link"}
         </button>
@@ -65,7 +110,7 @@ export default function ConvertLinkSection() {
         <button
           className="settings-default-btn"
           disabled={processing}
-          onClick={() => handleAction("external")}
+          onClick={handleExternalStream}
         >
           Stream Externally
         </button>
