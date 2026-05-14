@@ -94,7 +94,7 @@ export default function SettingsModal() {
             style={tabButtonStyle("convert")}
             onClick={() => setActiveTab("convert")}
           >
-            Convert Link
+            Direct Steam
           </button>
 
           <button
