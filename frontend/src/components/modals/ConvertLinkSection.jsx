@@ -19,6 +19,17 @@ const textareaStyle = {
   lineHeight: "1.5",
 };
 
+const titleInputStyle = {
+  width: "100%",
+  borderRadius: "12px",
+  padding: "12px 14px",
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.04)",
+  color: "#fff",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
 const actionButtonStyle = {
   minWidth: "190px",
   minHeight: "46px",
@@ -37,6 +48,7 @@ export default function ConvertLinkSection() {
   } = useSettingsContext();
 
   const [inputValue, setInputValue] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
   const [copyProcessing, setCopyProcessing] = useState(false);
   const [streamProcessing, setStreamProcessing] = useState(false);
   const [externalProcessing, setExternalProcessing] = useState(false);
@@ -45,6 +57,27 @@ export default function ConvertLinkSection() {
     const value = inputValue.trim().toLowerCase();
     return value.startsWith("http://") || value.startsWith("https://");
   }, [inputValue]);
+
+  const saveLocalTracking = () => {
+    try {
+      const existing = JSON.parse(localStorage.getItem("convertLinkHistory") || "[]");
+
+      const entry = {
+        id: Date.now(),
+        title: customTitle.trim() || (isDirectUrl ? "Direct Stream" : "Magnet Stream"),
+        url: inputValue.trim(),
+        type: isDirectUrl ? "direct" : "magnet",
+        watchedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(
+        "convertLinkHistory",
+        JSON.stringify([entry, ...existing].slice(0, 50)),
+      );
+    } catch (error) {
+      console.error("Failed to save local tracking", error);
+    }
+  };
 
   const handleCopyDownloadLink = async () => {
     if (!inputValue.trim()) {
@@ -96,6 +129,7 @@ export default function ConvertLinkSection() {
 
     try {
       setStreamProcessing(true);
+      saveLocalTracking();
       setIsSettingsOpen(false);
       await initAction(inputValue.trim(), "stream", true);
     } catch (error) {
@@ -114,6 +148,7 @@ export default function ConvertLinkSection() {
 
     try {
       setExternalProcessing(true);
+      saveLocalTracking();
       await initAction(inputValue.trim(), "external", true);
     } catch (error) {
       console.error(error);
@@ -150,6 +185,14 @@ export default function ConvertLinkSection() {
             : "Convert magnet links using your selected debrid provider."}
         </p>
       </div>
+
+      <input
+        type="text"
+        value={customTitle}
+        onChange={(e) => setCustomTitle(e.target.value)}
+        placeholder="Optional title for local tracking"
+        style={titleInputStyle}
+      />
 
       <textarea
         value={inputValue}
