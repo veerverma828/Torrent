@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { getFiles, generateLink } from "../../services/torrentService.js";
@@ -32,12 +32,18 @@ export default function ConvertLinkSection() {
   const { initAction } = useStreamActions();
   const { debridService, rdAdminCode } = useSettingsContext();
 
-  const [magnet, setMagnet] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [copyProcessing, setCopyProcessing] = useState(false);
   const [streamProcessing, setStreamProcessing] = useState(false);
+  const [externalProcessing, setExternalProcessing] = useState(false);
+
+  const isDirectUrl = useMemo(() => {
+    const value = inputValue.trim().toLowerCase();
+    return value.startsWith("http://") || value.startsWith("https://");
+  }, [inputValue]);
 
   const handleCopyDownloadLink = async () => {
-    if (!magnet.trim()) {
+    if (!inputValue.trim()) {
       alert("Please paste a magnet link.");
       return;
     }
@@ -46,7 +52,7 @@ export default function ConvertLinkSection() {
       setCopyProcessing(true);
 
       const fileData = await getFiles(
-        magnet.trim(),
+        inputValue.trim(),
         debridService,
         rdAdminCode,
       );
@@ -78,20 +84,37 @@ export default function ConvertLinkSection() {
     }
   };
 
-  const handleExternalStream = async () => {
-    if (!magnet.trim()) {
-      alert("Please paste a magnet link.");
+  const handleInternalStream = async () => {
+    if (!inputValue.trim()) {
+      alert("Please paste a stream URL.");
       return;
     }
 
     try {
       setStreamProcessing(true);
-      await initAction(magnet.trim(), "external", true);
+      await initAction(inputValue.trim(), "stream", true);
     } catch (error) {
       console.error(error);
-      alert("Failed to process magnet link.");
+      alert("Failed to open stream.");
     } finally {
       setStreamProcessing(false);
+    }
+  };
+
+  const handleExternalStream = async () => {
+    if (!inputValue.trim()) {
+      alert(isDirectUrl ? "Please paste a stream URL." : "Please paste a magnet link.");
+      return;
+    }
+
+    try {
+      setExternalProcessing(true);
+      await initAction(inputValue.trim(), "external", true);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to process link.");
+    } finally {
+      setExternalProcessing(false);
     }
   };
 
@@ -105,7 +128,9 @@ export default function ConvertLinkSection() {
       }}
     >
       <div>
-        <h3 style={{ marginBottom: "8px" }}>Convert Magnet Link</h3>
+        <h3 style={{ marginBottom: "8px" }}>
+          {isDirectUrl ? "Direct Stream Link" : "Convert Magnet Link"}
+        </h3>
 
         <p
           style={{
@@ -115,14 +140,20 @@ export default function ConvertLinkSection() {
             lineHeight: "1.5",
           }}
         >
-          Convert magnet links using your selected debrid provider.
+          {isDirectUrl
+            ? "Stream direct media URLs instantly using the built-in player or external apps."
+            : "Convert magnet links using your selected debrid provider."}
         </p>
       </div>
 
       <textarea
-        value={magnet}
-        onChange={(e) => setMagnet(e.target.value)}
-        placeholder="Paste magnet link here..."
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        placeholder={
+          isDirectUrl
+            ? "Paste direct stream URL here..."
+            : "Paste magnet link here..."
+        }
         style={textareaStyle}
       />
 
@@ -134,23 +165,47 @@ export default function ConvertLinkSection() {
           alignItems: "stretch",
         }}
       >
-        <button
-          className="settings-save-btn"
-          disabled={copyProcessing}
-          onClick={handleCopyDownloadLink}
-          style={actionButtonStyle}
-        >
-          {copyProcessing ? "Processing Link..." : "Copy Download Link"}
-        </button>
+        {isDirectUrl ? (
+          <>
+            <button
+              className="settings-save-btn"
+              disabled={streamProcessing}
+              onClick={handleInternalStream}
+              style={actionButtonStyle}
+            >
+              {streamProcessing ? "Opening Stream..." : "Stream"}
+            </button>
 
-        <button
-          className="settings-default-btn"
-          disabled={streamProcessing}
-          onClick={handleExternalStream}
-          style={actionButtonStyle}
-        >
-          {streamProcessing ? "Opening Stream..." : "Stream Externally"}
-        </button>
+            <button
+              className="settings-default-btn"
+              disabled={externalProcessing}
+              onClick={handleExternalStream}
+              style={actionButtonStyle}
+            >
+              {externalProcessing ? "Opening External..." : "Stream Externally"}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="settings-save-btn"
+              disabled={copyProcessing}
+              onClick={handleCopyDownloadLink}
+              style={actionButtonStyle}
+            >
+              {copyProcessing ? "Processing Link..." : "Copy Download Link"}
+            </button>
+
+            <button
+              className="settings-default-btn"
+              disabled={externalProcessing}
+              onClick={handleExternalStream}
+              style={actionButtonStyle}
+            >
+              {externalProcessing ? "Opening Stream..." : "Stream Externally"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
