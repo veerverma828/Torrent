@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { getFiles, generateLink } from "../../services/torrentService.js";
+import { saveProgress } from "../../trackers/progressTracker.js";
 
 const textareaStyle = {
   width: "100%",
@@ -58,24 +59,23 @@ export default function ConvertLinkSection() {
     return value.startsWith("http://") || value.startsWith("https://");
   }, [inputValue]);
 
-  const saveLocalTracking = () => {
+  const trackInContinueWatching = () => {
     try {
-      const existing = JSON.parse(localStorage.getItem("convertLinkHistory") || "[]");
+      const trackingId = btoa(inputValue.trim()).slice(0, 24);
 
-      const entry = {
-        id: Date.now(),
-        title: customTitle.trim() || (isDirectUrl ? "Direct Stream" : "Magnet Stream"),
-        url: inputValue.trim(),
-        type: isDirectUrl ? "direct" : "magnet",
-        watchedAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem(
-        "convertLinkHistory",
-        JSON.stringify([entry, ...existing].slice(0, 50)),
+      saveProgress(
+        {
+          id: trackingId,
+          type: "movie",
+          title: customTitle.trim() || (isDirectUrl ? "Direct Stream" : "Magnet Stream"),
+          poster: "",
+          magnet: inputValue.trim(),
+        },
+        1,
+        100,
       );
     } catch (error) {
-      console.error("Failed to save local tracking", error);
+      console.error("Failed to track continue watching", error);
     }
   };
 
@@ -129,7 +129,7 @@ export default function ConvertLinkSection() {
 
     try {
       setStreamProcessing(true);
-      saveLocalTracking();
+      trackInContinueWatching();
       setIsSettingsOpen(false);
       await initAction(inputValue.trim(), "stream", true);
     } catch (error) {
@@ -148,7 +148,7 @@ export default function ConvertLinkSection() {
 
     try {
       setExternalProcessing(true);
-      saveLocalTracking();
+      trackInContinueWatching();
       await initAction(inputValue.trim(), "external", true);
     } catch (error) {
       console.error(error);
