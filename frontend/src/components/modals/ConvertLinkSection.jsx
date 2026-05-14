@@ -3,12 +3,38 @@ import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { getFiles, generateLink } from "../../services/torrentService.js";
 
+const textareaStyle = {
+  width: "100%",
+  minHeight: "120px",
+  maxHeight: "260px",
+  resize: "vertical",
+  borderRadius: "14px",
+  padding: "14px",
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.04)",
+  color: "#fff",
+  outline: "none",
+  boxSizing: "border-box",
+  overflowY: "auto",
+  lineHeight: "1.5",
+};
+
+const actionButtonStyle = {
+  minWidth: "190px",
+  minHeight: "46px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flex: 1,
+};
+
 export default function ConvertLinkSection() {
   const { initAction } = useStreamActions();
   const { debridService, rdAdminCode } = useSettingsContext();
 
   const [magnet, setMagnet] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const [copyProcessing, setCopyProcessing] = useState(false);
+  const [streamProcessing, setStreamProcessing] = useState(false);
 
   const handleCopyDownloadLink = async () => {
     if (!magnet.trim()) {
@@ -17,7 +43,7 @@ export default function ConvertLinkSection() {
     }
 
     try {
-      setProcessing(true);
+      setCopyProcessing(true);
 
       const fileData = await getFiles(
         magnet.trim(),
@@ -48,7 +74,7 @@ export default function ConvertLinkSection() {
       console.error(error);
       alert("Failed to process magnet link.");
     } finally {
-      setProcessing(false);
+      setCopyProcessing(false);
     }
   };
 
@@ -59,60 +85,71 @@ export default function ConvertLinkSection() {
     }
 
     try {
-      setProcessing(true);
+      setStreamProcessing(true);
       await initAction(magnet.trim(), "external", true);
     } catch (error) {
       console.error(error);
       alert("Failed to process magnet link.");
     } finally {
-      setProcessing(false);
+      setStreamProcessing(false);
     }
   };
 
   return (
-    <div className="settings-section">
-      <h3 style={{ marginBottom: "18px" }}>Convert Magnet Link</h3>
+    <div
+      className="settings-section"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+      }}
+    >
+      <div>
+        <h3 style={{ marginBottom: "8px" }}>Convert Magnet Link</h3>
+
+        <p
+          style={{
+            margin: 0,
+            opacity: 0.7,
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
+          Convert magnet links using your selected debrid provider.
+        </p>
+      </div>
 
       <textarea
         value={magnet}
         onChange={(e) => setMagnet(e.target.value)}
         placeholder="Paste magnet link here..."
-        style={{
-          width: "100%",
-          minHeight: "120px",
-          resize: "vertical",
-          borderRadius: "14px",
-          padding: "14px",
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.04)",
-          color: "#fff",
-          outline: "none",
-          boxSizing: "border-box",
-        }}
+        style={textareaStyle}
       />
 
       <div
         style={{
           display: "flex",
           gap: "12px",
-          marginTop: "16px",
           flexWrap: "wrap",
+          alignItems: "stretch",
         }}
       >
         <button
           className="settings-save-btn"
-          disabled={processing}
+          disabled={copyProcessing}
           onClick={handleCopyDownloadLink}
+          style={actionButtonStyle}
         >
-          {processing ? "Processing..." : "Copy Download Link"}
+          {copyProcessing ? "Processing Link..." : "Copy Download Link"}
         </button>
 
         <button
           className="settings-default-btn"
-          disabled={processing}
+          disabled={streamProcessing}
           onClick={handleExternalStream}
+          style={actionButtonStyle}
         >
-          Stream Externally
+          {streamProcessing ? "Opening Stream..." : "Stream Externally"}
         </button>
       </div>
     </div>
