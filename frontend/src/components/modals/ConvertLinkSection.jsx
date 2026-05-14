@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { getFiles, generateLink } from "../../services/torrentService.js";
-import { saveProgress } from "../../trackers/progressTracker.js";
 
 const textareaStyle = {
   width: "100%",
@@ -59,26 +58,6 @@ export default function ConvertLinkSection() {
     return value.startsWith("http://") || value.startsWith("https://");
   }, [inputValue]);
 
-  const trackInContinueWatching = () => {
-    try {
-      const trackingId = btoa(inputValue.trim()).slice(0, 24);
-
-      saveProgress(
-        {
-          id: trackingId,
-          type: "movie",
-          title: customTitle.trim() || (isDirectUrl ? "Direct Stream" : "Magnet Stream"),
-          poster: "",
-          magnet: inputValue.trim(),
-        },
-        1,
-        100,
-      );
-    } catch (error) {
-      console.error("Failed to track continue watching", error);
-    }
-  };
-
   const handleCopyDownloadLink = async () => {
     if (!inputValue.trim()) {
       alert("Please paste a magnet link.");
@@ -129,7 +108,6 @@ export default function ConvertLinkSection() {
 
     try {
       setStreamProcessing(true);
-      trackInContinueWatching();
       setIsSettingsOpen(false);
       await initAction(inputValue.trim(), "stream", true);
     } catch (error) {
@@ -148,7 +126,6 @@ export default function ConvertLinkSection() {
 
     try {
       setExternalProcessing(true);
-      trackInContinueWatching();
       await initAction(inputValue.trim(), "external", true);
     } catch (error) {
       console.error(error);
