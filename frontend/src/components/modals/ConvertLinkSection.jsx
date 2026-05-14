@@ -30,7 +30,11 @@ const actionButtonStyle = {
 
 export default function ConvertLinkSection() {
   const { initAction } = useStreamActions();
-  const { debridService, rdAdminCode } = useSettingsContext();
+  const {
+    debridService,
+    rdAdminCode,
+    setIsSettingsOpen,
+  } = useSettingsContext();
 
   const [inputValue, setInputValue] = useState("");
   const [copyProcessing, setCopyProcessing] = useState(false);
@@ -92,6 +96,7 @@ export default function ConvertLinkSection() {
 
     try {
       setStreamProcessing(true);
+      setIsSettingsOpen(false);
       await initAction(inputValue.trim(), "stream", true);
     } catch (error) {
       console.error(error);
