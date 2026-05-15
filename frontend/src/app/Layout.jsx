@@ -10,6 +10,7 @@ import Header from "../components/layout/Header.jsx";
 import SearchBar from "../components/layout/SearchBar.jsx";
 import "../styles/globals.css";
 import "../styles/animations.css";
+import "../components/modals/SettingsModal.css";
 
 const VideoPlayer = lazy(() => import("../components/player/VideoPlayer.jsx"));
 const SettingsModal = lazy(() => import("../components/modals/SettingsModal.jsx"));
