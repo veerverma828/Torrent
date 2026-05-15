@@ -1,11 +1,31 @@
 import { localProvider } from "./providers/localProvider.js";
 import { traktProvider } from "./providers/traktProvider.js";
-import { productionSyncQueue } from "../services/sync/productionSyncQueue.js";
-import { traktStateManager } from "../services/trakt/traktStateManager.js";
 import { continueWatchingAggregator } from "../services/sync/continueWatchingAggregator.js";
 
 const getSyncMode = () => {
   return localStorage.getItem("syncMode") || "local";
+};
+
+let productionSyncQueuePromise;
+
+const getProductionSyncQueue = () => {
+  if (!productionSyncQueuePromise) {
+    productionSyncQueuePromise = import("../services/sync/productionSyncQueue.js").then(
+      (module) => module.productionSyncQueue
+    );
+  }
+
+  return productionSyncQueuePromise;
+};
+
+const queueTraktSync = (callback) => {
+  if (getSyncMode() !== "trakt") return;
+
+  getProductionSyncQueue()
+    .then(callback)
+    .catch((error) => {
+      console.error("[ProgressService] Failed to load sync queue:", error);
+    });
 };
 
 const getProvider = () => {
@@ -55,7 +75,7 @@ export const progressService = {
     return localResult;
   },
 
-  async getContinueWatching(...args) {
+  async getContinueWatching() {
     return continueWatchingAggregator.getContinueWatching();
   },
 
@@ -64,13 +84,13 @@ export const progressService = {
     localProvider.startPlayback?.(metadata, percentage);
     
     // Queue Trakt sync if enabled using production queue
-    if (getSyncMode() === "trakt") {
+    queueTraktSync((productionSyncQueue) => {
       productionSyncQueue.enqueue({
         action: 'startPlayback',
         metadata,
         percentage
       });
-    }
+    });
   },
 
   stopPlayback(metadata, percentage) {
@@ -78,13 +98,13 @@ export const progressService = {
     localProvider.stopPlayback?.(metadata, percentage);
     
     // Queue Trakt sync if enabled using production queue
-    if (getSyncMode() === "trakt") {
+    queueTraktSync((productionSyncQueue) => {
       productionSyncQueue.enqueue({
         action: 'stopPlayback',
         metadata,
         percentage
       });
-    }
+    });
   },
 
   saveProgress(metadata, currentTime, duration) {
@@ -95,7 +115,7 @@ export const progressService = {
     continueWatchingAggregator.clearCache();
 
     // Queue Trakt sync if enabled using production queue with debouncing
-    if (getSyncMode() === "trakt") {
+    queueTraktSync((productionSyncQueue) => {
       const safeDuration =
         duration && !Number.isNaN(duration) && duration !== Infinity ? duration : 0;
       const percentage =
@@ -106,7 +126,7 @@ export const progressService = {
         metadata,
         percentage
       });
-    }
+    });
   },
 
   removeProgress(type, id) {
@@ -117,13 +137,13 @@ export const progressService = {
     continueWatchingAggregator.clearCache();
 
     // Queue Trakt removal if enabled using production queue
-    if (getSyncMode() === "trakt") {
+    queueTraktSync((productionSyncQueue) => {
       productionSyncQueue.enqueue({
         action: 'removeProgress',
         type,
         id
       });
-    }
+    });
   },
 
   // Helper method to build Trakt payload
@@ -187,12 +207,29 @@ export const progressService = {
   },
 
   // Get sync queue status for UI
-  getSyncStatus() {
+  async getSyncStatus() {
+    if (getSyncMode() !== "trakt") {
+      return {
+        isOnline: navigator.onLine,
+        isProcessing: false,
+        queueLength: 0,
+        activeOperations: 0,
+        lastSync: null,
+        isRateLimited: false,
+        rateLimitReset: 0,
+        hasFailedOperations: false,
+      };
+    }
+
+    const productionSyncQueue = await getProductionSyncQueue();
     return productionSyncQueue.getSyncStatus();
   },
 
   // Retry failed sync operations
-  retrySync() {
+  async retrySync() {
+    if (getSyncMode() !== "trakt") return undefined;
+
+    const productionSyncQueue = await getProductionSyncQueue();
     return productionSyncQueue.retryAll();
   },
 

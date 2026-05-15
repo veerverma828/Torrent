@@ -4,6 +4,7 @@ import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
 import ConvertLinkSection from "./ConvertLinkSection.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS } from "../../utils/constants.js";
+import "./SettingsModal.css";
 
 export default function SettingsModal() {
   const {

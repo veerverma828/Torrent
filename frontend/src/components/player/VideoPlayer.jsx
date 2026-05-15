@@ -5,7 +5,7 @@ import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
 import { API_URL } from "../../services/api.js";
 import PlaybackEventHandler from "./PlaybackEventHandler.js";
-import { crossDeviceSync } from "../../services/sync/crossDeviceSync.js";
+import "../../pages/Player/PlayerPage.css";
 
 export default function VideoPlayer() {
   const navigate = useNavigate();
@@ -13,10 +13,13 @@ export default function VideoPlayer() {
   const hasLoggedStreamError = useRef(false);
   const timeoutRef = useRef(null);
   const playbackEventHandlerRef = useRef(null);
-  const [playerError, setPlayerError] = useState(null);
+  const [playerErrorState, setPlayerErrorState] = useState({
+    streamUrl: null,
+    error: null,
+  });
 
   const { selectedItem, episodes = [], seasons = [] } = useMediaContext();
-  const { streamUrl, videoRef, currentMagnet, progressInterval } = usePlayerContext();
+  const { streamUrl, videoRef, currentMagnet } = usePlayerContext();
 
   const movieMatch = useMemo(() => matchPath("/movie/:id", location.pathname), [location.pathname]);
 
@@ -37,16 +40,25 @@ export default function VideoPlayer() {
     };
   }, [episodeMatch, episodes]);
 
+  const playerError =
+    playerErrorState.streamUrl === streamUrl ? playerErrorState.error : null;
+
+  const setCurrentPlayerError = (error) => {
+    setPlayerErrorState({ streamUrl, error });
+  };
+
   useEffect(() => {
     hasLoggedStreamError.current = false;
-    setPlayerError(null);
 
     if (!streamUrl) return undefined;
 
     timeoutRef.current = setTimeout(() => {
-      setPlayerError({
-        title: "Stream failed to start",
-        message: "The provider may be slow or this format may not be supported in your browser.",
+      setPlayerErrorState({
+        streamUrl,
+        error: {
+          title: "Stream failed to start",
+          message: "The provider may be slow or this format may not be supported in your browser.",
+        },
       });
     }, 8000);
 
@@ -64,7 +76,7 @@ export default function VideoPlayer() {
 
   const handleLoadedMetadata = async (e) => {
     clearTimeout(timeoutRef.current);
-    setPlayerError(null);
+    setCurrentPlayerError(null);
 
     // Trigger play manually so we can catch and suppress abort rejections
     e.target.play().catch(() => {});
@@ -101,19 +113,19 @@ export default function VideoPlayer() {
         onPause: (metadata, percentage) => {
           progressService.stopPlayback(metadata, percentage);
         },
-        onEnded: (metadata, percentage, totalWatchTime) => {
+        onEnded: (metadata, percentage) => {
           progressService.stopPlayback(metadata, percentage);
         },
-        onProgress: (metadata, currentTime, duration, percentage) => {
+        onProgress: (metadata, currentTime, duration) => {
           progressService.saveProgress(metadata, currentTime, duration);
         },
-        onSeek: (metadata, newTime, oldTime) => {
+        onSeek: () => {
           // Handle seek events if needed
         },
         onError: (metadata, error) => {
           console.error('Playback error:', error);
         },
-        onBeforeUnload: (metadata, currentTime, duration, percentage) => {
+        onBeforeUnload: (metadata, currentTime, duration) => {
           progressService.saveProgress(metadata, currentTime, duration);
         }
       });
@@ -150,14 +162,6 @@ export default function VideoPlayer() {
     return null;
   };
 
-  const handlePlay = () => {
-    // Play events are now handled by PlaybackEventHandler
-  };
-
-  const handleEnded = () => {
-    // End events are now handled by PlaybackEventHandler
-  };
-
   const handleClose = () => {
     const metadata = getMetadata();
     if (metadata && videoRef.current) {
@@ -176,12 +180,8 @@ export default function VideoPlayer() {
     navigate(-1);
   };
 
-  const handleTimeUpdate = (e) => {
-    // Time update events are now handled by PlaybackEventHandler
-  };
-
   const handleRetry = () => {
-    setPlayerError(null);
+    setCurrentPlayerError(null);
 
     if (videoRef.current) {
       videoRef.current.load();
@@ -192,18 +192,19 @@ export default function VideoPlayer() {
   const handleError = (e) => {
     if (!hasLoggedStreamError.current) {
       hasLoggedStreamError.current = true;
-      const errorMessage = e.target.error?.message || e.target.error || "Unknown error";
+      const mediaError = e.target.error;
+      const errorMessage = mediaError?.message || mediaError || "Unknown error";
       
       // Handle privacy fingerprinting errors specifically
       if (errorMessage.includes("Failed to decode media") || errorMessage.includes("privacy.resistFingerprinting")) {
         console.warn("Media decode blocked by privacy settings:", errorMessage);
-        setPlayerError({
+        setCurrentPlayerError({
           title: "Playback blocked by browser privacy settings",
           message: "Disable 'Resist Fingerprinting' in browser privacy settings to play this video."
         });
       } else {
         console.error("Video error:", e.target.error);
-        setPlayerError({
+        setCurrentPlayerError({
           title: "Playback failed", 
           message: "This video format might not be supported in your browser."
         });
@@ -211,13 +212,16 @@ export default function VideoPlayer() {
     }
     hasLoggedStreamError.current = true;
 
+    const mediaError = e.target.error;
+    const errorMessage = mediaError?.message || "Unknown";
+
     fetch(`${API_URL}/log-stream-error`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         url: streamUrl,
-        rawMessage: error?.message || "",
-        code: error?.code || "Unknown",
+        rawMessage: errorMessage,
+        code: mediaError?.code || "Unknown",
         networkState: e.target.networkState,
         readyState: e.target.readyState,
       }),
@@ -237,10 +241,7 @@ export default function VideoPlayer() {
         playsInline
         className="video-player"
         onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
         onError={handleError}
-        onPlay={handlePlay}
-        onEnded={handleEnded}
       />
 
       {playerError && (

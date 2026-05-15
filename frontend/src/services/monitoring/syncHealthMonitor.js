@@ -11,8 +11,13 @@ class SyncHealthMonitor {
     this.checkInterval = 30000; // 30 seconds
     this.alertHistory = [];
     this.maxAlertHistory = 100;
+    this.syncQueueStatusProvider = null;
     
     this.initializeHealthChecks();
+  }
+
+  setSyncQueueStatusProvider(provider) {
+    this.syncQueueStatusProvider = provider;
   }
 
   initializeHealthChecks() {
@@ -186,8 +191,14 @@ class SyncHealthMonitor {
   // Health check implementations
   async checkSyncQueue() {
     try {
-      const { productionSyncQueue } = await import('../sync/productionSyncQueue.js');
-      const status = productionSyncQueue.getSyncStatus();
+      if (!this.syncQueueStatusProvider) {
+        return {
+          status: 'healthy',
+          message: 'Sync queue not initialized'
+        };
+      }
+
+      const status = this.syncQueueStatusProvider();
       
       if (status.queueLength > 50) {
         return {
@@ -228,7 +239,7 @@ class SyncHealthMonitor {
       let parsedSyncMode = 'local';
       try {
         parsedSyncMode = syncMode ? JSON.parse(syncMode) : 'local';
-      } catch (error) {
+      } catch {
         // Ignore parse errors
       }
       
@@ -324,7 +335,7 @@ class SyncHealthMonitor {
       let parsedSyncMode = 'local';
       try {
         parsedSyncMode = syncMode ? JSON.parse(syncMode) : 'local';
-      } catch (error) {
+      } catch {
         // Ignore parse errors
       }
       
