@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { useAppContext } from "../context/AppContext.jsx";
 import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
@@ -8,22 +8,20 @@ import { useDebrid } from "../hooks/useDebrid.js";
 import SettingsButton from "../components/layout/SettingsButton.jsx";
 import Header from "../components/layout/Header.jsx";
 import SearchBar from "../components/layout/SearchBar.jsx";
-import VideoPlayer from "../components/player/VideoPlayer.jsx";
-import SettingsModal from "../components/modals/SettingsModal.jsx";
 import "../styles/globals.css";
 import "../styles/animations.css";
-import "../pages/Player/PlayerPage.css";
-import "../components/modals/SettingsModal.css";
+
+const VideoPlayer = lazy(() => import("../components/player/VideoPlayer.jsx"));
+const SettingsModal = lazy(() => import("../components/modals/SettingsModal.jsx"));
 
 export default function Layout() {
-  const navigate = useNavigate();
   const location = useLocation();
 
   const { results, seasons, episodes, selectedSeason } = useAppContext();
   const { streamUrl, fileModalData, setFileModalData, setStreamUrl } = usePlayerContext();
   const { isSettingsOpen } = useSettingsContext();
 
-  const { debridService, handleDebridChange, rdUnlocked } = useDebrid();
+  const { debridService, handleDebridChange } = useDebrid();
 
   useKeyboardNavigation();
 
@@ -124,9 +122,17 @@ export default function Layout() {
 
       <Outlet />
 
-      {streamUrl && <VideoPlayer />}
+      {streamUrl && (
+        <Suspense fallback={null}>
+          <VideoPlayer />
+        </Suspense>
+      )}
 
-      {isSettingsOpen && <SettingsModal />}
+      {isSettingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal />
+        </Suspense>
+      )}
     </div>
   );
 }

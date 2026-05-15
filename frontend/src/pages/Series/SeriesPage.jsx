@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -26,7 +26,6 @@ export default function SeriesPage() {
     setSelectedSeason,
     results,
     setResults,
-    loading,
     setLoading,
   } = useAppContext();
 
@@ -43,6 +42,12 @@ export default function SeriesPage() {
   // Use ref to avoid stale closure for initAction in effect
   const initActionRef = useRef(initAction);
   initActionRef.current = initAction;
+
+  const visibleEpisodes = useMemo(() => {
+    if (selectedSeason === null || selectedSeason === undefined) return [];
+
+    return episodes.filter((ep) => Number(ep.season) === Number(selectedSeason));
+  }, [episodes, selectedSeason]);
 
   // Trigger checkScroll when seasons or selectedSeason change
   useEffect(() => {
@@ -212,11 +217,10 @@ export default function SeriesPage() {
               style={{ marginTop: "20px", width: "100%" }}
             >
               <div className="episodes-grid">
-                {episodes
-                  .filter((ep) => Number(ep.season) === Number(selectedSeason))
+                {visibleEpisodes
                   .map((episode, i) => (
                     <EpisodeCard
-                      key={i}
+                      key={episode.id || `${episode.season}-${episode.episode}-${i}`}
                       episode={episode}
                       seriesId={selectedItem.id}
                       selectedItem={selectedItem}

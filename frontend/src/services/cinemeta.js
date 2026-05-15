@@ -2,56 +2,95 @@ import { CINEMETA_BASE } from "../utils/constants.js";
 import { getBaseAddonUrl } from "../utils/navigationHelpers.js";
 import { formatTorrentio } from "../utils/streamHelpers.js";
 
-export async function searchMovies(query) {
-  const res = await fetch(`${CINEMETA_BASE}/catalog/movie/top/search=${query}.json`);
+const CACHE_TTL = 5 * 60 * 1000;
+const STREAM_CACHE_TTL = 60 * 1000;
+const responseCache = new Map();
+
+async function fetchJson(url, { signal, ttl = CACHE_TTL } = {}) {
+  const now = Date.now();
+  const cached = responseCache.get(url);
+
+  if (cached && now - cached.timestamp < ttl) {
+    return cached.data;
+  }
+
+  const res = await fetch(url, { signal });
+
+  if (!res.ok) {
+    throw new Error(`Request failed with status ${res.status}`);
+  }
+
   const data = await res.json();
+  responseCache.set(url, { data, timestamp: now });
+
+  return data;
+}
+
+const encodePathPart = (value) => encodeURIComponent(String(value).trim());
+
+export async function searchMovies(query, options = {}) {
+  const encodedQuery = encodePathPart(query);
+  const data = await fetchJson(
+    `${CINEMETA_BASE}/catalog/movie/top/search=${encodedQuery}.json`,
+    options
+  );
   return data.metas || [];
 }
 
-export async function searchSeries(query) {
-  const res = await fetch(`${CINEMETA_BASE}/catalog/series/top/search=${query}.json`);
-  const data = await res.json();
+export async function searchSeries(query, options = {}) {
+  const encodedQuery = encodePathPart(query);
+  const data = await fetchJson(
+    `${CINEMETA_BASE}/catalog/series/top/search=${encodedQuery}.json`,
+    options
+  );
   return data.metas || [];
 }
 
 export async function fetchSeriesMeta(id) {
-  const res = await fetch(`${CINEMETA_BASE}/meta/series/${id}.json`);
-  const data = await res.json();
+  const data = await fetchJson(`${CINEMETA_BASE}/meta/series/${encodePathPart(id)}.json`);
   return data.meta;
+}
+
+async function fetchAddonStreams(url) {
+  try {
+    const data = await fetchJson(url, { ttl: STREAM_CACHE_TTL });
+    return formatTorrentio(data);
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchMovieStreams(id, addonApis) {
   const fetchPromises = addonApis.map((api) => {
     const baseUrl = getBaseAddonUrl(api);
-    return fetch(`${baseUrl}/stream/movie/${id}.json`)
-      .then((r) => r.json())
-      .catch(() => ({ streams: [] }));
+    return fetchAddonStreams(`${baseUrl}/stream/movie/${encodePathPart(id)}.json`);
   });
   const dataArray = await Promise.all(fetchPromises);
-  return dataArray.flatMap((data) => formatTorrentio(data));
+  return dataArray.flat();
 }
 
 export async function fetchEpisodeStreams(id, season, episode, addonApis) {
   const fetchPromises = addonApis.map((api) => {
     const baseUrl = getBaseAddonUrl(api);
-    return fetch(`${baseUrl}/stream/series/${id}:${season}:${episode}.json`)
-      .then((r) => r.json())
-      .catch(() => ({ streams: [] }));
+    return fetchAddonStreams(
+      `${baseUrl}/stream/series/${encodePathPart(id)}:${encodePathPart(season)}:${encodePathPart(episode)}.json`
+    );
   });
   const dataArray = await Promise.all(fetchPromises);
-  return dataArray.flatMap((data) => formatTorrentio(data));
+  return dataArray.flat();
 }
 
 export async function fetchCatalog(type, category) {
-  const res = await fetch(`${CINEMETA_BASE}/catalog/${type}/${category}.json`);
-  const data = await res.json();
+  const data = await fetchJson(
+    `${CINEMETA_BASE}/catalog/${encodePathPart(type)}/${encodePathPart(category)}.json`
+  );
   return data.metas || [];
 }
 
 export async function fetchDefaultCatalog() {
   const [movieRes, seriesRes] = await Promise.all([
-    fetch(`${CINEMETA_BASE}/catalog/movie/top.json`).then((r) => r.json()),
-    fetch(`${CINEMETA_BASE}/catalog/series/top.json`).then((r) => r.json()),
+    fetchJson(`${CINEMETA_BASE}/catalog/movie/top.json`),
+    fetchJson(`${CINEMETA_BASE}/catalog/series/top.json`),
   ]);
   return {
     movies: movieRes.metas || [],
@@ -60,7 +99,8 @@ export async function fetchDefaultCatalog() {
 }
 
 export async function fetchMeta(type, id) {
-  const res = await fetch(`${CINEMETA_BASE}/meta/${type}/${id}.json`);
-  const data = await res.json();
+  const data = await fetchJson(
+    `${CINEMETA_BASE}/meta/${encodePathPart(type)}/${encodePathPart(id)}.json`
+  );
   return data.meta || null;
 }

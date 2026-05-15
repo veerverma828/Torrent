@@ -108,10 +108,24 @@ body {
   margin-top: 20px;
 }
 
+.media-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.media-rail-item {
+  flex: 0 0 auto;
+}
+
 .section-title {
   font-size: 22px;
   font-weight: 600;
-  margin: 20px 0 10px 8px;
+  margin: 26px 0 14px 8px;
   color: #fff;
   letter-spacing: 0.5px;
 }

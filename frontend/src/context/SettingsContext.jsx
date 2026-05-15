@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { DEFAULT_ADDON_APIS, DEFAULT_DEBRID_SERVICE } from "../utils/constants.js";
 import { storageService } from "../services/storageService.js";
 import { traktAuth } from "../services/trakt/traktAuth.js";
@@ -31,37 +31,54 @@ export function SettingsProvider({ children }) {
     return traktAuth.getUser();
   });
 
-  const updateSyncMode = (mode) => {
+  const updateSyncMode = useCallback((mode) => {
     storageService.set("syncMode", mode);
     setSyncMode(mode);
-  };
+  }, []);
 
-  const value = {
-    isSettingsOpen,
-    setIsSettingsOpen,
-    addonApis,
-    setAddonApis,
-    tempAddonApis,
-    setTempAddonApis,
-    autoSearch,
-    setAutoSearch,
-    useJackett,
-    setUseJackett,
-    imdbMode,
-    setImdbMode,
-    debridService,
-    setDebridService,
-    rdUnlocked,
-    setRdUnlocked,
-    rdAdminCode,
-    setRdAdminCode,
-    syncMode,
-    setSyncMode: updateSyncMode,
-    traktAuthenticated,
-    setTraktAuthenticated,
-    traktUser,
-    setTraktUser,
-  };
+  const value = useMemo(
+    () => ({
+      isSettingsOpen,
+      setIsSettingsOpen,
+      addonApis,
+      setAddonApis,
+      tempAddonApis,
+      setTempAddonApis,
+      autoSearch,
+      setAutoSearch,
+      useJackett,
+      setUseJackett,
+      imdbMode,
+      setImdbMode,
+      debridService,
+      setDebridService,
+      rdUnlocked,
+      setRdUnlocked,
+      rdAdminCode,
+      setRdAdminCode,
+      syncMode,
+      setSyncMode: updateSyncMode,
+      traktAuthenticated,
+      setTraktAuthenticated,
+      traktUser,
+      setTraktUser,
+    }),
+    [
+      isSettingsOpen,
+      addonApis,
+      tempAddonApis,
+      autoSearch,
+      useJackett,
+      imdbMode,
+      debridService,
+      rdUnlocked,
+      rdAdminCode,
+      syncMode,
+      updateSyncMode,
+      traktAuthenticated,
+      traktUser,
+    ]
+  );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

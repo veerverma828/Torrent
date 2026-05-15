@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
 
 const PlayerContext = createContext(null);
 
@@ -12,19 +12,22 @@ export function PlayerProvider({ children }) {
   const currentMagnet = useRef(null);
   const progressInterval = useRef({ lastSaveTime: 0, lastTick: 0 });
 
-  const value = {
-    streamUrl,
-    setStreamUrl,
-    fileModalData,
-    setFileModalData,
-    processingMagnet,
-    setProcessingMagnet,
-    processingFile,
-    setProcessingFile,
-    videoRef,
-    currentMagnet,
-    progressInterval,
-  };
+  const value = useMemo(
+    () => ({
+      streamUrl,
+      setStreamUrl,
+      fileModalData,
+      setFileModalData,
+      processingMagnet,
+      setProcessingMagnet,
+      processingFile,
+      setProcessingFile,
+      videoRef,
+      currentMagnet,
+      progressInterval,
+    }),
+    [streamUrl, fileModalData, processingMagnet, processingFile]
+  );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

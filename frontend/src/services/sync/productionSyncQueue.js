@@ -4,6 +4,7 @@
  */
 
 import { syncHealthMonitor } from "../monitoring/syncHealthMonitor.js";
+import { syncTelemetry } from "../monitoring/syncTelemetry.js";
 
 const STORAGE_KEYS = {
   SYNC_QUEUE: 'trakt_sync_queue',
@@ -35,6 +36,8 @@ class ProductionSyncQueue {
     this.initializeEventListeners();
     this.loadPersistedState();
     
+    syncHealthMonitor.setSyncQueueStatusProvider(() => this.getSyncStatus());
+
     // Start health monitoring
     syncHealthMonitor.startMonitoring();
   }

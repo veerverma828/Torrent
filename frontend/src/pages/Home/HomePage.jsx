@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
@@ -8,12 +8,28 @@ import PosterCard from "../../components/cards/PosterCard.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
 
+const MediaRail = memo(function MediaRail({ title, items, type }) {
+  if (!items?.length) return null;
+
+  return (
+    <>
+      <h2 className="section-title">{title}</h2>
+
+      <div className="media-rail">
+        {items.map((item) => (
+          <div key={`${title}-${item.id}`} className="media-rail-item">
+            <PosterCard item={item} type={type} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+});
+
 export default function HomePage() {
   const {
     movies,
     series,
-    popularMovies,
-    popularSeries,
     results,
     loading,
     selectedItem,
@@ -27,7 +43,7 @@ export default function HomePage() {
 
   const { imdbMode, useJackett, syncMode } = useSettingsContext();
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
-  const { watchlist } = useTraktWatchlist();
+  const { watchlist } = useTraktWatchlist(syncMode === "trakt");
 
   useEffect(() => {
     if (selectedItem !== null) {
@@ -40,43 +56,8 @@ export default function HomePage() {
     setSelectedSeason(null);
   }, []);
 
+  const trimmedQuery = query.trim();
   const showCatalog = !imdbMode && !selectedItem && results.length === 0;
-
-  const railStyle = {
-    display: "flex",
-    gap: "10px",
-    overflowX: "auto",
-    overflowY: "hidden",
-    paddingBottom: "10px",
-    scrollBehavior: "smooth",
-    WebkitOverflowScrolling: "touch",
-  };
-
-  const sectionTitleStyle = (marginTop = "20px") => ({
-    marginTop,
-    marginBottom: "14px",
-    paddingInline: "2px",
-  });
-
-  const renderRail = (title, items, type) => {
-    if (!items?.length) return null;
-
-    return (
-      <>
-        <h2 className="section-title" style={sectionTitleStyle("26px")}>
-          {title}
-        </h2>
-
-        <div style={railStyle}>
-          {items.map((item) => (
-            <div key={`${title}-${item.id}`} style={{ flex: "0 0 auto" }}>
-              <PosterCard item={item} type={type} />
-            </div>
-          ))}
-        </div>
-      </>
-    );
-  };
 
   return (
     <>
@@ -84,15 +65,18 @@ export default function HomePage() {
 
       {showCatalog && (
         <div className="content-section">
-          {query.trim() === "" && continueWatchingList.length > 0 && (
+          {trimmedQuery === "" && continueWatchingList.length > 0 && (
             <>
-              <h2 className="section-title" style={sectionTitleStyle()}>
+              <h2 className="section-title">
                 Continue Watching
               </h2>
 
-              <div style={railStyle}>
+              <div className="media-rail">
                 {continueWatchingList.map((item) => (
-                  <div key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`} style={{ flex: "0 0 auto" }}>
+                  <div
+                    key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
+                    className="media-rail-item"
+                  >
                     <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
                   </div>
                 ))}
@@ -100,15 +84,15 @@ export default function HomePage() {
             </>
           )}
 
-          {syncMode === "trakt" && query.trim() === "" && watchlist.length > 0 && (
+          {syncMode === "trakt" && trimmedQuery === "" && watchlist.length > 0 && (
             <>
-              <h2 className="section-title" style={sectionTitleStyle(continueWatchingList.length > 0 ? "26px" : "18px")}>
+              <h2 className="section-title">
                 Watchlist
               </h2>
 
-              <div style={railStyle}>
+              <div className="media-rail">
                 {watchlist.map((item) => (
-                  <div key={`wl-${item.type}-${item.id}`} style={{ flex: "0 0 auto" }}>
+                  <div key={`wl-${item.type}-${item.id}`} className="media-rail-item">
                     <PosterCard item={item} type={item.type} />
                   </div>
                 ))}
@@ -116,13 +100,9 @@ export default function HomePage() {
             </>
           )}
 
-          {renderRail(query.trim() ? "Movies" : "Trending Movies", movies, "movie")}
+          <MediaRail title={trimmedQuery ? "Movies" : "Trending Movies"} items={movies} type="movie" />
 
-          {renderRail(query.trim() ? "Series" : "Trending Series", series, "series")}
-
-          {query.trim() === "" && renderRail("Popular Movies", popularMovies, "movie")}
-
-          {query.trim() === "" && renderRail("Popular Series", popularSeries, "series")}
+          <MediaRail title={trimmedQuery ? "Series" : "Trending Series"} items={series} type="series" />
         </div>
       )}
 

@@ -17,6 +17,7 @@ export function useSearch() {
   const navigate = useNavigate();
   const location = useLocation();
   const contentSearchRequestId = useRef(0);
+  const contentSearchAbortController = useRef(null);
   const torrentSearchRequestId = useRef(0);
   const torrentSearchAbortController = useRef(null);
 
@@ -35,17 +36,13 @@ export function useSearch() {
   } = useCatalogContext();
 
   const {
-    selectedItem,
     setSelectedItem,
-    seasons,
     setSeasons,
-    episodes,
     setEpisodes,
-    selectedSeason,
     setSelectedSeason,
   } = useMediaContext();
 
-  const { addonApis, autoSearch, useJackett, imdbMode } = useSettingsContext();
+  const { autoSearch, useJackett, imdbMode } = useSettingsContext();
 
   const searchContent = useCallback(async () => {
     const trimmedQuery = query.trim();
@@ -54,13 +51,18 @@ export function useSearch() {
 
     const requestId = ++contentSearchRequestId.current;
 
+    contentSearchAbortController.current?.abort();
+
+    const controller = new AbortController();
+    contentSearchAbortController.current = controller;
+
     setLoading(true);
     navigate("/");
 
     try {
       const [movieList, seriesList] = await Promise.all([
-        searchMovies(trimmedQuery),
-        searchSeries(trimmedQuery),
+        searchMovies(trimmedQuery, { signal: controller.signal }),
+        searchSeries(trimmedQuery, { signal: controller.signal }),
       ]);
 
       if (requestId !== contentSearchRequestId.current) {
@@ -76,7 +78,9 @@ export function useSearch() {
       setSelectedItem(null);
       setResults([]);
     } catch (err) {
-      console.error("Content search failed:", err);
+      if (err.name !== "AbortError") {
+        console.error("Content search failed:", err);
+      }
     } finally {
       if (requestId === contentSearchRequestId.current) {
         setLoading(false);
