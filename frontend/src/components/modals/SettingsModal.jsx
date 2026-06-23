@@ -3,13 +3,15 @@ import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
 import ConvertLinkSection from "./ConvertLinkSection.jsx";
 import { storageService } from "../../services/storageService.js";
-import { DEFAULT_ADDON_APIS } from "../../utils/constants.js";
+import { DEFAULT_ADDON_APIS, API_URL } from "../../utils/constants.js";
 import "./SettingsModal.css";
 
 export default function SettingsModal() {
   const {
     isSettingsOpen,
     setIsSettingsOpen,
+    settingsTab,
+    setSettingsTab,
     tempAddonApis,
     setTempAddonApis,
     setAddonApis,
@@ -19,9 +21,45 @@ export default function SettingsModal() {
     setUseJackett,
     imdbMode,
     setImdbMode,
+    debridService,
+    setDebridService,
+    rdUnlocked,
+    setRdUnlocked,
+    rdAdminCode,
+    setRdAdminCode,
   } = useSettingsContext();
 
-  const [activeTab, setActiveTab] = useState("addons");
+  const [tempCode, setTempCode] = useState(rdAdminCode);
+  const [verifyingRD, setVerifyingRD] = useState(false);
+
+  const handleVerifyRD = async () => {
+    if (!tempCode) return;
+    setVerifyingRD(true);
+    try {
+      const res = await fetch(`${API_URL}/verify-rd`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: tempCode }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setRdUnlocked(true);
+        setRdAdminCode(tempCode);
+        setDebridService("real-debrid");
+        alert("✅ Real-Debrid Admin access verified and unlocked!");
+      } else {
+        alert("❌ Verification failed: Only admin can access Real-Debrid");
+        setDebridService("torbox");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error verifying access code");
+    } finally {
+      setVerifyingRD(false);
+    }
+  };
 
   if (!isSettingsOpen) return null;
 
@@ -37,29 +75,29 @@ export default function SettingsModal() {
 
   const tabButtonStyle = (tab) => ({
     flex: 1,
-    minWidth: window.innerWidth < 640 ? "48%" : "92px",
-    padding: "12px 14px",
+    minWidth: "max-content",
+    padding: "12px 10px",
     borderRadius: "14px",
     border:
-      activeTab === tab
+      settingsTab === tab
         ? "1px solid rgba(0,123,255,0.45)"
         : "1px solid rgba(255,255,255,0.08)",
     cursor: "pointer",
     fontWeight: 600,
-    fontSize: "14px",
+    fontSize: "13px",
     whiteSpace: "nowrap",
     transition: "all 0.25s ease",
     background:
-      activeTab === tab
+      settingsTab === tab
         ? "linear-gradient(135deg, rgba(0,123,255,0.95) 0%, rgba(0,86,214,0.95) 100%)"
         : "rgba(255,255,255,0.03)",
     color: "#fff",
     boxShadow:
-      activeTab === tab
+      settingsTab === tab
         ? "0 8px 24px rgba(0, 123, 255, 0.35)"
         : "0 2px 10px rgba(0,0,0,0.18)",
     backdropFilter: "blur(12px)",
-    transform: activeTab === tab ? "translateY(-1px) scale(1.01)" : "scale(1)",
+    transform: settingsTab === tab ? "translateY(-1px) scale(1.01)" : "scale(1)",
   });
 
   const sectionCardStyle = {
@@ -99,34 +137,41 @@ export default function SettingsModal() {
         >
           <button
             style={tabButtonStyle("addons")}
-            onClick={() => setActiveTab("addons")}
+            onClick={() => setSettingsTab("addons")}
           >
             🧩 Addons
           </button>
 
           <button
+            style={tabButtonStyle("debrid")}
+            onClick={() => setSettingsTab("debrid")}
+          >
+            🔌 Debrid
+          </button>
+
+          <button
             style={tabButtonStyle("trakt")}
-            onClick={() => setActiveTab("trakt")}
+            onClick={() => setSettingsTab("trakt")}
           >
             🔄 Trakt
           </button>
 
           <button
             style={tabButtonStyle("convert")}
-            onClick={() => setActiveTab("convert")}
+            onClick={() => setSettingsTab("convert")}
           >
-            ⚡ Direct Steam
+            ⚡ Direct Stream
           </button>
 
           <button
             style={tabButtonStyle("others")}
-            onClick={() => setActiveTab("others")}
+            onClick={() => setSettingsTab("others")}
           >
             ⚙ Others
           </button>
         </div>
 
-        {activeTab === "addons" && (
+        {settingsTab === "addons" && (
           <>
             <div className="settings-section" style={sectionCardStyle}>
               <h3 style={{ marginBottom: "15px" }}>Addon APIs</h3>
@@ -192,7 +237,86 @@ export default function SettingsModal() {
           </>
         )}
 
-        {activeTab === "trakt" && (
+        {settingsTab === "debrid" && (
+          <>
+            <div className="settings-section" style={sectionCardStyle}>
+              <h3 style={{ marginBottom: "15px" }}>Debrid Integration</h3>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
+                    Active Service:
+                  </label>
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                      <input
+                        type="radio"
+                        name="modal-debrid"
+                        value="torbox"
+                        checked={debridService === "torbox"}
+                        onChange={() => setDebridService("torbox")}
+                      />
+                      Torbox
+                    </label>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                      <input
+                        type="radio"
+                        name="modal-debrid"
+                        value="real-debrid"
+                        checked={debridService === "real-debrid"}
+                        onChange={() => {
+                          if (rdUnlocked) {
+                            setDebridService("real-debrid");
+                          } else {
+                            alert("Please enter and verify your Real-Debrid admin access code below first.");
+                          }
+                        }}
+                      />
+                      Real-Debrid
+                    </label>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "12px" }}>
+                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
+                    Real-Debrid Admin Access Code:
+                  </label>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <input
+                      type="password"
+                      className="addon-input"
+                      value={tempCode}
+                      onChange={(e) => setTempCode(e.target.value)}
+                      placeholder="Enter admin code"
+                    />
+                    <button
+                      className="addon-add-btn"
+                      style={{ margin: 0, whiteSpace: "nowrap" }}
+                      onClick={handleVerifyRD}
+                      disabled={verifyingRD}
+                    >
+                      {verifyingRD ? "Verifying..." : "Verify & Save"}
+                    </button>
+                  </div>
+                  <div style={{ marginTop: "8px", fontSize: "12px", color: rdUnlocked ? "#28a745" : "#ff4d4d", fontWeight: "bold" }}>
+                    Status: {rdUnlocked ? "✅ Unlocked (Admin Authorized)" : "🔒 Locked (Torbox only)"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
+              <button
+                className="settings-cancel-btn"
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        )}
+
+        {settingsTab === "trakt" && (
           <>
             <div className="settings-section" style={sectionCardStyle}>
               <TraktSyncToggle />
@@ -209,7 +333,7 @@ export default function SettingsModal() {
           </>
         )}
 
-        {activeTab === "convert" && (
+        {settingsTab === "convert" && (
           <>
             <div style={sectionCardStyle}>
               <ConvertLinkSection />
@@ -226,7 +350,7 @@ export default function SettingsModal() {
           </>
         )}
 
-        {activeTab === "others" && (
+        {settingsTab === "others" && (
           <>
             <div className="settings-section" style={sectionCardStyle}>
               <h3 style={{ marginBottom: "18px" }}>Search Options</h3>
