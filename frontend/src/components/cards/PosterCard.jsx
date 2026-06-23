@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -6,6 +6,7 @@ import { useSettingsContext } from "../../context/SettingsContext.jsx";
 function PosterCard({ item, type = "movie" }) {
   const navigate = useNavigate();
   const { syncMode } = useSettingsContext();
+  const [imageError, setImageError] = useState(false);
   const progress = type === "movie" ? getMovieProgress(item.id) : null;
 
   // Determine progress bar color based on sync mode
@@ -30,13 +31,21 @@ function PosterCard({ item, type = "movie" }) {
       }}
     >
       <div className="poster-img-container">
-        <img
-          src={item.poster}
-          alt={item.name}
-          loading="lazy"
-          decoding="async"
-          draggable="false"
-        />
+        {(!item.poster || imageError) ? (
+          <div className="poster-placeholder">
+            <span>🎬</span>
+            <div className="poster-placeholder-text">{item.name}</div>
+          </div>
+        ) : (
+          <img
+            src={item.poster}
+            alt={item.name}
+            onError={() => setImageError(true)}
+            loading="lazy"
+            decoding="async"
+            draggable="false"
+          />
+        )}
         {progress && progress.progress > 0 && (
           <div className="progress-bar-container">
             <div

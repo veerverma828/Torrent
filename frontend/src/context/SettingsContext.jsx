@@ -7,6 +7,7 @@ const SettingsContext = createContext(null);
 
 export function SettingsProvider({ children }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("addons");
   const [addonApis, setAddonApis] = useState(() => {
     return storageService.get("addonApis") || [...DEFAULT_ADDON_APIS];
   });
@@ -15,9 +16,30 @@ export function SettingsProvider({ children }) {
   const [useJackett, setUseJackett] = useState(false);
   const [imdbMode, setImdbMode] = useState(false);
 
-  const [debridService, setDebridService] = useState(DEFAULT_DEBRID_SERVICE);
-  const [rdUnlocked, setRdUnlocked] = useState(false);
-  const [rdAdminCode, setRdAdminCode] = useState("");
+  const [debridService, setDebridServiceState] = useState(() => {
+    return storageService.get("debridService") || DEFAULT_DEBRID_SERVICE;
+  });
+  const [rdUnlocked, setRdUnlockedState] = useState(() => {
+    return storageService.get("rdUnlocked") || false;
+  });
+  const [rdAdminCode, setRdAdminCodeState] = useState(() => {
+    return storageService.get("rdAdminCode") || "";
+  });
+
+  const setDebridService = useCallback((service) => {
+    storageService.set("debridService", service);
+    setDebridServiceState(service);
+  }, []);
+
+  const setRdUnlocked = useCallback((val) => {
+    storageService.set("rdUnlocked", val);
+    setRdUnlockedState(val);
+  }, []);
+
+  const setRdAdminCode = useCallback((code) => {
+    storageService.set("rdAdminCode", code);
+    setRdAdminCodeState(code);
+  }, []);
 
   const [syncMode, setSyncMode] = useState(() => {
     return storageService.get("syncMode") || "local";
@@ -40,6 +62,8 @@ export function SettingsProvider({ children }) {
     () => ({
       isSettingsOpen,
       setIsSettingsOpen,
+      settingsTab,
+      setSettingsTab,
       addonApis,
       setAddonApis,
       tempAddonApis,
@@ -65,6 +89,7 @@ export function SettingsProvider({ children }) {
     }),
     [
       isSettingsOpen,
+      settingsTab,
       addonApis,
       tempAddonApis,
       autoSearch,

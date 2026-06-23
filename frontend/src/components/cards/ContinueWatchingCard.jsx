@@ -11,6 +11,7 @@ export default function ContinueWatchingCard({ item, onRemove }) {
     title: item.type === "movie" ? item.title : item.seriesTitle,
     poster: item.type === "movie" ? item.poster : item.seriesPoster,
   });
+  const [imageError, setImageError] = useState(false);
   const hasHydrated = useRef(false);
 
   // Determine progress bar color based on sync mode (not item.source)
@@ -107,20 +108,12 @@ export default function ContinueWatchingCard({ item, onRemove }) {
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-        {meta.poster ? (
-          <img src={meta.poster} alt={meta.title} />
+        {(meta.poster && !imageError) ? (
+          <img src={meta.poster} alt={meta.title} onError={() => setImageError(true)} />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "2/3",
-              backgroundColor: "#222",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span className="loader-small" style={{ margin: 0 }}></span>
+          <div className="poster-placeholder">
+            <span>🎬</span>
+            <div className="poster-placeholder-text">{meta.title || "Loading..."}</div>
           </div>
         )}
         <div className="progress-bar-container">

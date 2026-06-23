@@ -1,1 +1,8 @@
-{}
+{
+  "name": "torrent-app",
+  "version": "1.0.0",
+  "description": "Torrent Search + Debrid Streaming App",
+  "scripts": {
+    "dev": "trap 'kill $PID_FRONT $PID_BACK' INT; npm run dev --prefix frontend & PID_FRONT=$!; npm start --prefix backend & PID_BACK=$!; wait $PID_FRONT $PID_BACK"
+  }
+}
