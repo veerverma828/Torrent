@@ -4,8 +4,71 @@ import { motion } from "framer-motion";
 import { WifiOff, RefreshCw, CheckCircle2, Copy, Check } from "lucide-react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { traktAuth } from "../../services/trakt/traktAuth.js";
+import { traktReconciliation } from "../../services/trakt/traktReconciliation.js";
+import { traktSyncQueue } from "../../services/trakt/traktSyncQueue.js";
+import { getStorage } from "../../trackers/progressTracker.js";
 import { useSyncStatus } from "../../hooks/useSyncStatus.js";
 import CrossDeviceSyncIndicator from "../sync/CrossDeviceSyncIndicator.jsx";
+
+// Pull Trakt's existing state down first, then push whatever local-only
+// progress/history exists so nothing already on this device is silently
+// dropped when switching into Trakt mode.
+async function performInitialTraktSync() {
+  await traktReconciliation.reconcileNow({ trigger: "connect" });
+
+  const { movies, series } = getStorage();
+  const historyMovies = [];
+  const historyEpisodes = [];
+
+  for (const [id, movie] of Object.entries(movies)) {
+    if (!movie.progress || movie.progress <= 0) continue;
+
+    if (movie.completed) {
+      historyMovies.push({ imdbId: id });
+    } else {
+      traktSyncQueue.enqueue({
+        action: "syncProgress",
+        metadata: { type: "movie", id, imdbId: id, title: movie.title },
+        percentage: movie.percentage,
+      });
+    }
+  }
+
+  for (const [seriesId, seriesData] of Object.entries(series)) {
+    for (const [season, seasonData] of Object.entries(seriesData.seasons || {})) {
+      for (const [episode, ep] of Object.entries(seasonData.episodes || {})) {
+        if (!ep.progress || ep.progress <= 0) continue;
+
+        if (ep.completed) {
+          historyEpisodes.push({ imdbId: seriesId, season, episode });
+        } else {
+          traktSyncQueue.enqueue({
+            action: "syncProgress",
+            metadata: {
+              type: "series",
+              id: seriesId,
+              imdbId: seriesId,
+              season,
+              episode,
+              title: seriesData.title,
+            },
+            percentage: ep.percentage,
+          });
+        }
+      }
+    }
+  }
+
+  if (historyMovies.length > 0 || historyEpisodes.length > 0) {
+    traktSyncQueue.enqueue({
+      action: "addToHistory",
+      movies: historyMovies,
+      episodes: historyEpisodes,
+    });
+  }
+
+  traktReconciliation.startAutoReconcile();
+}
 
 export default function TraktSyncToggle() {
   const {
@@ -36,6 +99,8 @@ export default function TraktSyncToggle() {
       setTraktAuthenticated(true);
       setTraktUser(traktAuth.getUser());
       setSyncMode("trakt");
+
+      await performInitialTraktSync();
     } catch (error) {
       console.error("Trakt connection failed", error);
       alert(error?.message || "Failed to connect Trakt account");
@@ -45,6 +110,7 @@ export default function TraktSyncToggle() {
   };
 
   const handleLogout = () => {
+    traktReconciliation.stopAutoReconcile();
     traktAuth.logout();
     setTraktAuthenticated(false);
     setTraktUser(null);
@@ -251,7 +317,10 @@ export default function TraktSyncToggle() {
           className="action-button"
           onClick={() => {
             if (traktAuthenticated) {
-              setSyncMode("trakt");
+              if (syncMode !== "trakt") {
+                setSyncMode("trakt");
+                performInitialTraktSync();
+              }
             } else {
               handleConnect();
             }

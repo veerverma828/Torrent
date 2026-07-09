@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
+import { RESUME_SKIP_THRESHOLD } from "../../utils/constants.js";
 import { API_URL } from "../../services/api.js";
 import PlaybackEventHandler from "./PlaybackEventHandler.js";
 import "../../pages/Player/PlayerPage.css";
@@ -98,7 +99,7 @@ export default function VideoPlayer() {
       if ((!resumeTime || resumeTime <= 0) && savedProgress.percentage > 0 && e.target.duration > 0) {
         resumeTime = (savedProgress.percentage / 100) * e.target.duration;
       }
-      if (resumeTime > 0 && savedProgress.percentage < 95) {
+      if (resumeTime > 0 && savedProgress.percentage < RESUME_SKIP_THRESHOLD) {
         e.target.currentTime = resumeTime;
       }
     }
@@ -111,10 +112,21 @@ export default function VideoPlayer() {
           progressService.startPlayback(metadata, percentage);
         },
         onPause: (metadata, percentage) => {
+          // Force a final flush with the true position before stopping —
+          // the periodic onProgress tick is throttled to ~5s and can be
+          // stale by the time playback actually pauses.
+          if (videoRef.current) {
+            progressService.saveProgress(metadata, videoRef.current.currentTime, videoRef.current.duration);
+          }
           progressService.stopPlayback(metadata, percentage);
         },
-        onEnded: (metadata, percentage) => {
-          progressService.stopPlayback(metadata, percentage);
+        onEnded: (metadata) => {
+          // Force the local record to exactly 100% rather than trusting
+          // whatever the last throttled tick happened to land on.
+          if (videoRef.current) {
+            progressService.saveProgress(metadata, videoRef.current.duration, videoRef.current.duration);
+          }
+          progressService.stopPlayback(metadata, 100);
         },
         onProgress: (metadata, currentTime, duration) => {
           progressService.saveProgress(metadata, currentTime, duration);
@@ -165,9 +177,12 @@ export default function VideoPlayer() {
   const handleClose = () => {
     const metadata = getMetadata();
     if (metadata && videoRef.current) {
-      const percentage = videoRef.current.duration > 0 
-        ? (videoRef.current.currentTime / videoRef.current.duration) * 100 
+      const percentage = videoRef.current.duration > 0
+        ? (videoRef.current.currentTime / videoRef.current.duration) * 100
         : 0;
+      // Force a final flush of the true close-time position — otherwise up
+      // to ~5s of progress since the last throttled tick is lost.
+      progressService.saveProgress(metadata, videoRef.current.currentTime, videoRef.current.duration);
       progressService.stopPlayback(metadata, percentage);
     }
     

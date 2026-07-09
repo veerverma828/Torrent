@@ -10,7 +10,6 @@ export function PlayerProvider({ children }) {
 
   const videoRef = useRef(null);
   const currentMagnet = useRef(null);
-  const progressInterval = useRef({ lastSaveTime: 0, lastTick: 0 });
 
   const value = useMemo(
     () => ({
@@ -24,7 +23,6 @@ export function PlayerProvider({ children }) {
       setProcessingFile,
       videoRef,
       currentMagnet,
-      progressInterval,
     }),
     [streamUrl, fileModalData, processingMagnet, processingFile]
   );

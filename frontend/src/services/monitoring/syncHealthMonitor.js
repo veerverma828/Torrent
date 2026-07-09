@@ -2,6 +2,7 @@
  * Production-Grade Sync Health Monitor
  * Real-time monitoring and alerting for sync system health
  */
+import { getSyncMode } from "../../utils/syncMode.js";
 
 class SyncHealthMonitor {
   constructor() {
@@ -233,17 +234,9 @@ class SyncHealthMonitor {
   async checkTraktApi() {
     try {
       // Only check Trakt API if sync mode is enabled and authenticated
-      const syncMode = localStorage.getItem('syncMode');
       const accessToken = localStorage.getItem('trakt_access_token');
-      
-      let parsedSyncMode = 'local';
-      try {
-        parsedSyncMode = syncMode ? JSON.parse(syncMode) : 'local';
-      } catch {
-        // Ignore parse errors
-      }
-      
-      if (parsedSyncMode !== 'trakt' || !accessToken) {
+
+      if (getSyncMode() !== 'trakt' || !accessToken) {
         return {
           status: 'healthy',
           message: 'Trakt sync not enabled'
@@ -329,17 +322,9 @@ class SyncHealthMonitor {
     try {
       const token = localStorage.getItem('trakt_access_token');
       const expiresAt = localStorage.getItem('trakt_token_expires_at');
-      const syncMode = localStorage.getItem('syncMode');
-      
+
       // Only check authentication if Trakt sync mode is enabled
-      let parsedSyncMode = 'local';
-      try {
-        parsedSyncMode = syncMode ? JSON.parse(syncMode) : 'local';
-      } catch {
-        // Ignore parse errors
-      }
-      
-      if (parsedSyncMode !== 'trakt') {
+      if (getSyncMode() !== 'trakt') {
         return {
           status: 'healthy',
           message: 'Trakt sync not enabled'

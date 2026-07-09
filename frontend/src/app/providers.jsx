@@ -2,13 +2,24 @@ import React from "react";
 import { AppProvider } from "../context/AppContext.jsx";
 import { SettingsProvider } from "../context/SettingsContext.jsx";
 import { PlayerProvider } from "../context/PlayerContext.jsx";
-import { syncQueueService } from "../services/syncQueueService.js";
+import { traktSyncQueue } from "../services/trakt/traktSyncQueue.js";
+import { traktReconciliation } from "../services/trakt/traktReconciliation.js";
+import { isTraktSyncEnabled } from "../utils/syncMode.js";
 
 export default function Providers({ children }) {
-  // Initialize sync queue processing on app startup
   React.useEffect(() => {
-    // Process any queued operations when app starts
-    syncQueueService.processQueue();
+    // Flush any operations left queued from a previous session.
+    traktSyncQueue.processQueue();
+
+    // Pull Trakt's current state down and keep it in sync going forward.
+    if (isTraktSyncEnabled()) {
+      traktReconciliation.reconcileNow({ trigger: "load" });
+      traktReconciliation.startAutoReconcile();
+    }
+
+    return () => {
+      traktReconciliation.stopAutoReconcile();
+    };
   }, []);
 
   return (
