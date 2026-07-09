@@ -1,8 +1,10 @@
 /**
- * Production-Grade Sync Queue with Advanced Retry Logic
- * Handles Trakt operations with exponential backoff, rate limiting, and conflict resolution
+ * Trakt Sync Queue — the sole durable push queue from local progress to
+ * Trakt. Handles operations with exponential backoff, rate limiting, and
+ * conflict resolution.
  */
 
+import { traktProvider } from "../../trackers/providers/traktProvider.js";
 import { syncHealthMonitor } from "../monitoring/syncHealthMonitor.js";
 import { syncTelemetry } from "../monitoring/syncTelemetry.js";
 
@@ -22,7 +24,7 @@ const SYNC_DEBOUNCE_TIME = 8000; // 8 seconds
 const RATE_LIMIT_DELAY = 60000; // 1 minute for 429 errors
 const CONCURRENT_OPERATIONS = 3; // Max concurrent sync operations
 
-class ProductionSyncQueue {
+class TraktSyncQueue {
   constructor() {
     this.isOnline = navigator.onLine;
     this.isProcessing = false;
@@ -32,6 +34,9 @@ class ProductionSyncQueue {
     this.rateLimitReset = 0;
     this.operationQueue = [];
     this.conflictResolver = new ConflictResolver();
+    // Prevents double-firing /scrobble/start for the same session within a
+    // single processing pass (e.g. rapid play/pause toggling).
+    this.pendingStarts = new Set();
     
     this.initializeEventListeners();
     this.loadPersistedState();
@@ -207,6 +212,49 @@ class ProductionSyncQueue {
   }
 
   /**
+   * Dispatches a queued operation to the actual Trakt API call it represents.
+   */
+  async executeOperation(operation) {
+    const { action, metadata } = operation;
+    const sessionKey = metadata ? this.getOperationKey(operation) : null;
+
+    switch (action) {
+      case 'startPlayback': {
+        if (sessionKey && this.pendingStarts.has(sessionKey)) return;
+        if (sessionKey) this.pendingStarts.add(sessionKey);
+        await traktProvider.startPlayback(metadata, operation.percentage);
+        return;
+      }
+      case 'stopPlayback': {
+        if (sessionKey) this.pendingStarts.delete(sessionKey);
+        await traktProvider.stopPlayback(metadata, operation.percentage);
+        return;
+      }
+      case 'syncProgress': {
+        if (metadata.type === 'movie') {
+          await traktProvider.syncMovieProgress(metadata, null, operation.percentage);
+        } else {
+          await traktProvider.syncEpisodeProgress(metadata, operation.percentage);
+        }
+        return;
+      }
+      case 'removeProgress': {
+        await traktProvider.removeProgress(operation.type, operation.id);
+        return;
+      }
+      case 'addToHistory': {
+        await traktProvider.addToHistory({
+          movies: operation.movies || [],
+          episodes: operation.episodes || [],
+        });
+        return;
+      }
+      default:
+        throw new Error(`Unknown sync operation action: ${action}`);
+    }
+  }
+
+  /**
    * Advanced failure handling with exponential backoff
    */
   async handleFailedOperation(operation, error) {
@@ -268,7 +316,8 @@ class ProductionSyncQueue {
       'startPlayback': 100,
       'stopPlayback': 90,
       'syncProgress': 50,
-      'removeProgress': 30
+      'removeProgress': 30,
+      'addToHistory': 20
     };
     return priorities[operation.action] || 10;
   }
@@ -404,4 +453,4 @@ class ConflictResolver {
   }
 }
 
-export const productionSyncQueue = new ProductionSyncQueue();
+export const traktSyncQueue = new TraktSyncQueue();

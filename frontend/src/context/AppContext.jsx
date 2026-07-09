@@ -20,7 +20,6 @@ export function AppProvider({ children }) {
   const [seasons, setSeasons] = useState([]);
   const [episodes, setEpisodes] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(null);
-  const [cwTrigger, setCwTrigger] = useState(0);
 
   const searchValue = useMemo(
     () => ({
@@ -62,10 +61,8 @@ export function AppProvider({ children }) {
       setEpisodes,
       selectedSeason,
       setSelectedSeason,
-      cwTrigger,
-      setCwTrigger,
     }),
-    [selectedItem, seasons, episodes, selectedSeason, cwTrigger]
+    [selectedItem, seasons, episodes, selectedSeason]
   );
 
   return (

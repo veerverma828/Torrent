@@ -22,8 +22,22 @@ class PlaybackEventHandler {
     this.PROGRESS_UPDATE_INTERVAL = 5000; // 5 seconds
     this.SEEK_THRESHOLD = 2; // seconds
     this.MIN_WATCH_TIME = 30000; // 30 seconds before tracking
-    this.COMPLETION_THRESHOLD = 0.9; // 90%
-    
+
+    // Bind each handler exactly once and keep the reference, so destroy()
+    // can remove the *same* function it added — removeEventListener only
+    // matches identical references, and re-binding inline at removal time
+    // (the old bug here) silently no-ops every call.
+    this.handlePlay = this.handlePlay.bind(this);
+    this.handlePause = this.handlePause.bind(this);
+    this.handleEnded = this.handleEnded.bind(this);
+    this.handleSeeking = this.handleSeeking.bind(this);
+    this.handleSeeked = this.handleSeeked.bind(this);
+    this.handleTimeUpdate = this.handleTimeUpdate.bind(this);
+    this.handleLoadedMetadata = this.handleLoadedMetadata.bind(this);
+    this.handleError = this.handleError.bind(this);
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
+
     this.initializeEventListeners();
   }
 
@@ -33,28 +47,32 @@ class PlaybackEventHandler {
 
   initializeEventListeners() {
     // Playback events
-    this.video.addEventListener('play', this.handlePlay.bind(this));
-    this.video.addEventListener('pause', this.handlePause.bind(this));
-    this.video.addEventListener('ended', this.handleEnded.bind(this));
-    this.video.addEventListener('seeking', this.handleSeeking.bind(this));
-    this.video.addEventListener('seeked', this.handleSeeked.bind(this));
-    this.video.addEventListener('timeupdate', this.handleTimeUpdate.bind(this));
-    this.video.addEventListener('loadedmetadata', this.handleLoadedMetadata.bind(this));
-    this.video.addEventListener('error', this.handleError.bind(this));
-    
+    this.video.addEventListener('play', this.handlePlay);
+    this.video.addEventListener('pause', this.handlePause);
+    this.video.addEventListener('ended', this.handleEnded);
+    this.video.addEventListener('seeking', this.handleSeeking);
+    this.video.addEventListener('seeked', this.handleSeeked);
+    this.video.addEventListener('timeupdate', this.handleTimeUpdate);
+    this.video.addEventListener('loadedmetadata', this.handleLoadedMetadata);
+    this.video.addEventListener('error', this.handleError);
+
     // Page visibility events
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+
     // Before unload
-    window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
   }
 
   handlePlay(event) {
     if (this.isPlaying) return; // Prevent duplicate play events
-    
+
     this.isPlaying = true;
     this.playbackStartTime = Date.now();
-    
+    // Baseline lastProgressUpdate here — otherwise the first accumulation
+    // in handleTimeUpdate computes `now - 0`, inflating totalWatchTime by
+    // the entire Unix timestamp on the very first tick.
+    this.lastProgressUpdate = Date.now();
+
     const percentage = this.calculateProgress();
     
     console.log(`[PlaybackEvent] Play started: ${this.metadata.title} (${percentage.toFixed(1)}%)`);
@@ -120,7 +138,13 @@ class PlaybackEventHandler {
     if (now - this.lastProgressUpdate < this.PROGRESS_UPDATE_INTERVAL) {
       return;
     }
-    
+
+    // Don't start writing continue-watching/Trakt data for a trivial,
+    // barely-started session.
+    if (!this.shouldTrackProgress()) {
+      return;
+    }
+
     // Check for significant time jump (seek)
     const timeDiff = Math.abs(currentTime - this.lastTime);
     if (timeDiff > this.SEEK_THRESHOLD) {
@@ -215,23 +239,19 @@ class PlaybackEventHandler {
     return this.totalWatchTime >= this.MIN_WATCH_TIME;
   }
 
-  isCompleted() {
-    return this.calculateProgress() >= this.COMPLETION_THRESHOLD * 100;
-  }
-
   destroy() {
-    // Clean up event listeners
-    this.video.removeEventListener('play', this.handlePlay.bind(this));
-    this.video.removeEventListener('pause', this.handlePause.bind(this));
-    this.video.removeEventListener('ended', this.handleEnded.bind(this));
-    this.video.removeEventListener('seeking', this.handleSeeking.bind(this));
-    this.video.removeEventListener('seeked', this.handleSeeked.bind(this));
-    this.video.removeEventListener('timeupdate', this.handleTimeUpdate.bind(this));
-    this.video.removeEventListener('loadedmetadata', this.handleLoadedMetadata.bind(this));
-    this.video.removeEventListener('error', this.handleError.bind(this));
-    
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    window.removeEventListener('beforeunload', this.handleBeforeUnload.bind(this));
+    // Clean up event listeners (same bound references used in initializeEventListeners)
+    this.video.removeEventListener('play', this.handlePlay);
+    this.video.removeEventListener('pause', this.handlePause);
+    this.video.removeEventListener('ended', this.handleEnded);
+    this.video.removeEventListener('seeking', this.handleSeeking);
+    this.video.removeEventListener('seeked', this.handleSeeked);
+    this.video.removeEventListener('timeupdate', this.handleTimeUpdate);
+    this.video.removeEventListener('loadedmetadata', this.handleLoadedMetadata);
+    this.video.removeEventListener('error', this.handleError);
+
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('beforeunload', this.handleBeforeUnload);
   }
 }
 

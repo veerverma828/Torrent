@@ -16,7 +16,14 @@ export const traktAuth = {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to start Trakt device flow");
+      let message = "Failed to start Trakt device flow";
+      try {
+        const body = await response.json();
+        if (body?.message) message = body.message;
+      } catch {
+        // Response wasn't JSON — fall back to the generic message.
+      }
+      throw new Error(message);
     }
 
     return response.json();
@@ -134,13 +141,12 @@ export const traktAuth = {
 
     const expiresAt = Number(localStorage.getItem(STORAGE_KEYS.EXPIRES_AT) || 0);
 
-    if (!expiresAt) {
-      return true;
-    }
-
+    // Missing/corrupt expiry is NOT "still valid" — treat it the same as
+    // "past the refresh window" so a stale/incomplete token gets refreshed
+    // rather than used indefinitely.
     const refreshWindow = 5 * 60 * 1000;
 
-    if (Date.now() + refreshWindow >= expiresAt) {
+    if (!expiresAt || Date.now() + refreshWindow >= expiresAt) {
       await this.refreshAccessToken();
     }
 

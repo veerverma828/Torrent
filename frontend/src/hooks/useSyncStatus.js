@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { syncQueueService } from '../services/syncQueueService.js';
+import { traktSyncQueue } from '../services/trakt/traktSyncQueue.js';
 
 export function useSyncStatus() {
-  const [syncStatus, setSyncStatus] = useState(() => syncQueueService.getSyncStatus());
+  const [syncStatus, setSyncStatus] = useState(() => traktSyncQueue.getSyncStatus());
 
   useEffect(() => {
     const updateStatus = () => {
-      setSyncStatus(syncQueueService.getSyncStatus());
+      setSyncStatus(traktSyncQueue.getSyncStatus());
     };
 
     // Update status every 5 seconds
@@ -27,7 +27,7 @@ export function useSyncStatus() {
   }, []);
 
   const retrySync = () => {
-    return syncQueueService.retryAll();
+    return traktSyncQueue.retryAll();
   };
 
   return {
