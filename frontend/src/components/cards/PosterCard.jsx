@@ -1,5 +1,7 @@
 import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Film } from "lucide-react";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
@@ -11,14 +13,16 @@ function PosterCard({ item, type = "movie" }) {
 
   // Determine progress bar color based on sync mode
   const getProgressColor = (percentage) => {
-    if (percentage > 90) return "#28a745"; // Green for completed
-    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+    if (percentage > 90) return "#1db954"; // Green for completed
+    return syncMode === "trakt" ? "#e50914" : "#007BFF"; // Red for Trakt, Blue for local
   };
 
   return (
-    <div
+    <motion.div
       className="poster-card"
       tabIndex="0"
+      whileHover={{ scale: 1.05 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.click();
       }}
@@ -33,7 +37,7 @@ function PosterCard({ item, type = "movie" }) {
       <div className="poster-img-container">
         {(!item.poster || imageError) ? (
           <div className="poster-placeholder">
-            <span>🎬</span>
+            <Film size={32} className="text-text-muted" />
             <div className="poster-placeholder-text">{item.name}</div>
           </div>
         ) : (
@@ -60,7 +64,7 @@ function PosterCard({ item, type = "movie" }) {
       </div>
       <p>{item.name}</p>
       <small>{item.type}</small>
-    </div>
+    </motion.div>
   );
 }
 

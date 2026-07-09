@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Star, Film, Cable } from "lucide-react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
@@ -70,11 +72,16 @@ export default function MoviePage() {
         <div
           className="media-hero-section"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(20, 20, 20, 0.95) 30%, rgba(20, 20, 20, 0.4) 100%), url(${meta.background || ""})`,
+            backgroundImage: `linear-gradient(to right, rgba(10, 10, 10, 0.95) 30%, rgba(10, 10, 10, 0.4) 100%), url(${meta.background || ""})`,
           }}
         >
           <div className="media-hero-content">
-            <div className="media-hero-poster">
+            <motion.div
+              className="media-hero-poster"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
               {meta.poster && !imageError ? (
                 <img
                   src={meta.poster}
@@ -82,16 +89,20 @@ export default function MoviePage() {
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <div className="poster-placeholder-large">🎬</div>
+                <div className="poster-placeholder-large">
+                  <Film size={48} />
+                </div>
               )}
-            </div>
+            </motion.div>
             <div className="media-hero-info">
               <h1>{meta.name}</h1>
               <div className="media-meta-badges">
                 {meta.year && <span className="meta-badge">{meta.year}</span>}
                 {meta.runtime && <span className="meta-badge">{meta.runtime}</span>}
                 {meta.imdbRating && (
-                  <span className="meta-badge rating">⭐ {meta.imdbRating}</span>
+                  <span className="meta-badge rating">
+                    <Star size={12} fill="currentColor" /> {meta.imdbRating}
+                  </span>
                 )}
                 {meta.genres &&
                   meta.genres.map((g) => (
@@ -109,7 +120,9 @@ export default function MoviePage() {
       )}
 
       <div className="streams-section">
-        <h3 className="streams-title">🔗 Available Streams</h3>
+        <h3 className="streams-title">
+          <Cable size={18} className="inline -mt-1 mr-1" /> Available Streams
+        </h3>
         {results.length > 0 ? (
           <div className="results-container">
             {results.map((item, index) => (

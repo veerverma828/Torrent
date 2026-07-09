@@ -21,10 +21,10 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-          <div className="max-w-lg rounded-2xl bg-neutral-900 p-8 text-center">
+        <div className="flex min-h-screen items-center justify-center bg-bg-base p-6 text-white font-sans">
+          <div className="max-w-lg rounded-2xl bg-bg-surface p-8 text-center">
             <h1 className="mb-4 text-2xl font-bold">Something went wrong</h1>
-            <p className="mb-6 text-neutral-300">
+            <p className="mb-6 text-text-secondary">
               The app encountered an unexpected error.
             </p>
             <button

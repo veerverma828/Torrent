@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Film } from "lucide-react";
 import { fetchMeta } from "../../services/cinemeta.js";
 import { updateTrackingMetadata } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -16,8 +18,8 @@ export default function ContinueWatchingCard({ item, onRemove }) {
 
   // Determine progress bar color based on sync mode (not item.source)
   const getProgressColor = () => {
-    if (item.percentage > 90) return "#28a745"; // Green for completed
-    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+    if (item.percentage > 90) return "#1db954"; // Green for completed
+    return syncMode === "trakt" ? "#e50914" : "#007BFF"; // Red for Trakt, Blue for local
   };
 
   useEffect(() => {
@@ -70,9 +72,11 @@ export default function ContinueWatchingCard({ item, onRemove }) {
   };
 
   return (
-    <div
+    <motion.div
       className="poster-card"
       tabIndex="0"
+      whileHover={{ scale: 1.05 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.click();
       }}
@@ -112,7 +116,7 @@ export default function ContinueWatchingCard({ item, onRemove }) {
           <img src={meta.poster} alt={meta.title} onError={() => setImageError(true)} />
         ) : (
           <div className="poster-placeholder">
-            <span>🎬</span>
+            <Film size={32} className="text-text-muted" />
             <div className="poster-placeholder-text">{meta.title || "Loading..."}</div>
           </div>
         )}
@@ -130,6 +134,6 @@ export default function ContinueWatchingCard({ item, onRemove }) {
       <small>
         {item.type === "movie" ? "Movie" : `S${item.season} E${item.episode}`}
       </small>
-    </div>
+    </motion.div>
   );
 }

@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background layers */
+  --color-bg-base: #0a0a0a;
+  --color-bg-elevated: #141414;
+  --color-bg-surface: #1a1a1a;
+  --color-bg-surface-hover: #232323;
+  --color-bg-input: #2a2a2a;
+
+  /* Borders */
+  --color-border-subtle: #262626;
+  --color-border-default: #333333;
+  --color-border-strong: #444444;
+
+  /* Text hierarchy */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b3b3b3;
+  --color-text-muted: #737373;
+  --color-text-disabled: #525252;
+
+  /* Primary brand accent (Netflix red) */
+  --color-accent-primary: #e50914;
+  --color-accent-primary-hover: #f6121d;
+  --color-accent-primary-active: #b20710;
+
+  /* Semantic action colors */
+  --color-action-direct: #007bff;
+  --color-action-direct-hover: #0d6efd;
+  --color-action-stream: #1db954;
+  --color-action-stream-hover: #1ed760;
+  --color-action-external: #8b5cf6;
+  --color-action-external-hover: #a78bfa;
+  --color-action-copy: #3f3f46;
+  --color-action-copy-hover: #52525b;
+
+  /* Semantic status colors */
+  --color-warning: #f5c518;
+  --color-success: #1db954;
+  --color-danger: #e50914;
+  --color-info: #2196f3;
+
+  /* Typography */
+  --font-sans: 'InterVariable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Radii/shadows */
+  --radius-card: 0.5rem;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
