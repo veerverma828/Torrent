@@ -268,17 +268,17 @@ export default function VideoPlayer() {
           />
 
           {playerError && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/90 backdrop-blur-sm p-6 text-white">
-              <div className="max-w-md rounded-2xl bg-bg-surface p-6 text-center">
-                <h2 className="mb-3 text-xl font-semibold">{playerError.title}</h2>
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/90 backdrop-blur-sm p-4 sm:p-6 text-white">
+              <div className="w-full max-w-md rounded-2xl bg-bg-surface p-5 sm:p-6 text-center">
+                <h2 className="mb-3 text-lg sm:text-xl font-semibold">{playerError.title}</h2>
                 <p className="mb-5 text-sm text-neutral-300">{playerError.message}</p>
 
-                <div className="flex justify-center gap-3">
+                <div className="flex flex-wrap justify-center gap-3">
                   <button onClick={handleRetry} className="rounded-lg bg-white px-4 py-2 font-medium text-black">
                     Retry Playback
                   </button>
 
-                  <button onClick={handleClose} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white inline-flex items-center gap-1.5">
+                  <button onClick={handleClose} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white inline-flex items-center justify-center gap-1.5">
                     <X size={14} /> Close Player
                   </button>
                 </div>
