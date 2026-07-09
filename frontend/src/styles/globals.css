@@ -1,7 +1,13 @@
 /* Hide the horizontal scrollbar caused by 100vw pushing past the vertical scrollbar */
+html {
+  background-color: var(--color-bg-base, #0a0a0a);
+}
+
 body {
   overflow-x: hidden;
   margin: 0;
+  min-height: 100%;
+  background-color: var(--color-bg-base, #0a0a0a);
 }
 
 /* Custom Global Scrollbar */
