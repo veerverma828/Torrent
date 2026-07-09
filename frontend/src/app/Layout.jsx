@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "../context/AppContext.jsx";
 import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
@@ -25,6 +26,19 @@ export default function Layout() {
   const { debridService, handleDebridChange } = useDebrid();
 
   useKeyboardNavigation();
+
+  // Keep the lazy modal/player mounted once first triggered so their internal
+  // AnimatePresence can play an exit animation instead of being hard-unmounted.
+  const [playerEverOpened, setPlayerEverOpened] = useState(false);
+  const [settingsEverOpened, setSettingsEverOpened] = useState(false);
+
+  useEffect(() => {
+    if (streamUrl) setPlayerEverOpened(true);
+  }, [streamUrl]);
+
+  useEffect(() => {
+    if (isSettingsOpen) setSettingsEverOpened(true);
+  }, [isSettingsOpen]);
 
   // Auto-focus newly loaded content for seamless keyboard navigation
   useEffect(() => {
@@ -87,49 +101,63 @@ export default function Layout() {
   }, [location.search, setFileModalData, setStreamUrl]);
 
   return (
-    <div className="app-container">
+    <div className="app-container min-h-screen bg-bg-base text-text-primary font-sans">
       <SettingsButton />
 
       <Header />
 
       {/* Debrid Service Selector */}
       <div className="options-container">
-        <div className="debrid-selector">
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="debrid"
-              value="real-debrid"
-              checked={debridService === "real-debrid"}
-              onChange={() => handleDebridChange("real-debrid")}
-            />
-            {" "}Real-Debrid
-          </label>
-
-          <label className="radio-label">
-            <input
-              type="radio"
-              name="debrid"
-              value="torbox"
-              checked={debridService === "torbox"}
-              onChange={() => handleDebridChange("torbox")}
-            />
-            {" "}Torbox
-          </label>
+        <div className="inline-flex rounded-full bg-bg-surface p-1 gap-0 text-xs">
+          {[
+            { value: "real-debrid", label: "Real-Debrid" },
+            { value: "torbox", label: "Torbox" },
+          ].map((opt) => {
+            const isActive = debridService === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleDebridChange(opt.value)}
+                className={`relative px-4 py-1.5 rounded-full font-medium transition-colors ${
+                  isActive ? "text-white" : "text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-accent-primary -z-10"
+                    layoutId="debrid-pill"
+                    transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+                  />
+                )}
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <SearchBar />
 
-      <Outlet />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Outlet />
+        </motion.div>
+      </AnimatePresence>
 
-      {streamUrl && (
+      {playerEverOpened && (
         <Suspense fallback={null}>
           <VideoPlayer />
         </Suspense>
       )}
 
-      {isSettingsOpen && (
+      {settingsEverOpened && (
         <Suspense fallback={null}>
           <SettingsModal />
         </Suspense>

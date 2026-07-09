@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { X } from "lucide-react";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import "./FileSelectorModal.css";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
@@ -10,7 +12,12 @@ export default function FileSelectorModal({ files, actionType }) {
   const { selectFileAndExecute } = useStreamActions();
 
   return (
-    <div className="file-dropdown">
+    <motion.div
+      className="file-dropdown"
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+    >
       <div className="file-dropdown-header">
         <span>
           Select a file to{" "}
@@ -20,7 +27,7 @@ export default function FileSelectorModal({ files, actionType }) {
           :
         </span>
         <button onClick={() => navigate(-1)} title="Close">
-          ✖
+          <X size={16} />
         </button>
       </div>
       <div className="file-list">
@@ -46,6 +53,6 @@ export default function FileSelectorModal({ files, actionType }) {
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }

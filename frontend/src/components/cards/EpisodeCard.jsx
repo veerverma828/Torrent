@@ -1,5 +1,7 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Play } from "lucide-react";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
@@ -13,8 +15,8 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
 
   // Determine progress bar color based on sync mode
   const getProgressColor = (percentage) => {
-    if (percentage > 90) return "#28a745"; // Green for completed
-    return syncMode === "trakt" ? "#ED1C24" : "#007BFF"; // Red for Trakt, Blue for local
+    if (percentage > 90) return "#1db954"; // Green for completed
+    return syncMode === "trakt" ? "#e50914" : "#007BFF"; // Red for Trakt, Blue for local
   };
 
   return (
@@ -31,7 +33,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
         );
       }}
     >
-      <div className="episode-thumbnail">
+      <motion.div className="episode-thumbnail" whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
         <img
           src={episode.thumbnail || selectedItem.poster}
           alt={episode.name || episode.title || `Episode ${episode.episode}`}
@@ -40,7 +42,9 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
           draggable="false"
         />
         <div className="episode-number">Ep {episode.episode}</div>
-        <div className="episode-play-icon">▶</div>
+        <div className="episode-play-icon">
+          <Play size={20} fill="currentColor" />
+        </div>
         {progress && progress.progress > 0 && (
           <div className="progress-bar-container">
             <div
@@ -52,7 +56,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
             ></div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <div className="episode-info">
         <h4>

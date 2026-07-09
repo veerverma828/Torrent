@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { motion } from "framer-motion";
+import { WifiOff, RefreshCw, CheckCircle2, Copy, Check } from "lucide-react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { traktAuth } from "../../services/trakt/traktAuth.js";
 import { useSyncStatus } from "../../hooks/useSyncStatus.js";
@@ -115,10 +117,10 @@ export default function TraktSyncToggle() {
                 width: "10px",
                 height: "10px",
                 borderRadius: "999px",
-                background: syncMode === "trakt" ? "#ed1c24" : "#007BFF",
+                background: syncMode === "trakt" ? "#e50914" : "#007BFF",
                 boxShadow:
                   syncMode === "trakt"
-                    ? "0 0 10px rgba(237,28,36,0.7)"
+                    ? "0 0 10px rgba(229,9,20,0.7)"
                     : "0 0 10px rgba(0,123,255,0.7)",
               }}
             />
@@ -161,22 +163,22 @@ export default function TraktSyncToggle() {
               borderRadius: "8px",
               fontSize: "12px",
               fontWeight: "500",
-              background: hasIssues 
-                ? "rgba(237, 28, 36, 0.1)" 
-                : isSyncing 
-                  ? "rgba(0, 123, 255, 0.1)" 
-                  : "rgba(40, 167, 69, 0.1)",
-              color: hasIssues 
-                ? "#ED1C24" 
-                : isSyncing 
-                  ? "#007BFF" 
-                  : "#28a745",
+              background: hasIssues
+                ? "rgba(229, 9, 20, 0.1)"
+                : isSyncing
+                  ? "rgba(0, 123, 255, 0.1)"
+                  : "rgba(29, 185, 84, 0.1)",
+              color: hasIssues
+                ? "#e50914"
+                : isSyncing
+                  ? "#007BFF"
+                  : "#1db954",
               border: `1px solid ${
-                hasIssues 
-                  ? "rgba(237, 28, 36, 0.3)" 
-                  : isSyncing 
-                    ? "rgba(0, 123, 255, 0.3)" 
-                    : "rgba(40, 167, 69, 0.3)"
+                hasIssues
+                  ? "rgba(229, 9, 20, 0.3)"
+                  : isSyncing
+                    ? "rgba(0, 123, 255, 0.3)"
+                    : "rgba(29, 185, 84, 0.3)"
               }`,
               display: "flex",
               alignItems: "center",
@@ -184,12 +186,27 @@ export default function TraktSyncToggle() {
               gap: "8px"
             }}
           >
-            <span>
-              {!isOnline 
-                ? "🔴 Offline" 
-                : isSyncing 
-                  ? `🔄 Syncing (${queueLength} items)` 
-                  : "✅ Synced"}
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {!isOnline ? (
+                <>
+                  <WifiOff size={13} /> Offline
+                </>
+              ) : isSyncing ? (
+                <>
+                  <motion.span
+                    style={{ display: "flex" }}
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  >
+                    <RefreshCw size={13} />
+                  </motion.span>
+                  Syncing ({queueLength} items)
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={13} /> Synced
+                </>
+              )}
             </span>
             {hasIssues && (
               <button
@@ -197,7 +214,7 @@ export default function TraktSyncToggle() {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#ED1C24",
+                  color: "#e50914",
                   cursor: "pointer",
                   fontSize: "11px",
                   textDecoration: "underline",
@@ -242,7 +259,7 @@ export default function TraktSyncToggle() {
           disabled={isConnecting}
           style={{
             ...buttonBaseStyle,
-            background: syncMode === "trakt" ? "#ed1c24" : "#3f3f46",
+            background: syncMode === "trakt" ? "#e50914" : "#3f3f46",
           }}
         >
           {isConnecting
@@ -297,10 +314,10 @@ export default function TraktSyncToggle() {
             </strong>
             <button
               onClick={copyUserCode}
-              style={{background: copiedCode ? "rgba(40, 167, 69, 0.3)" : "rgba(255,255,255,0.1)",border: copiedCode ? "1px solid rgba(40, 167, 69, 0.5)" : "1px solid rgba(255,255,255,0.2)",borderRadius: "6px",padding: "4px 8px",cursor: "pointer",fontSize: "14px",color: "#fff",transition: "background 0.2s ease"}}
+              style={{background: copiedCode ? "rgba(29, 185, 84, 0.3)" : "rgba(255,255,255,0.1)",border: copiedCode ? "1px solid rgba(29, 185, 84, 0.5)" : "1px solid rgba(255,255,255,0.2)",borderRadius: "6px",padding: "4px 8px",cursor: "pointer",display: "flex",alignItems: "center",color: "#fff",transition: "background 0.2s ease"}}
               title={copiedCode ? "Code copied!" : "Copy code to clipboard"}
             >
-              {copiedCode ? "✅" : "📋"}
+              {copiedCode ? <Check size={14} /> : <Copy size={14} />}
             </button>
           </div>
         </div>

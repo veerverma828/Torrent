@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { HardDrive, Users, Server, Play, ChevronDown } from "lucide-react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
-import { formatBytes } from "../../utils/formatBytes.js";
 import FileSelectorModal from "../modals/FileSelectorModal.jsx";
 
 function ResultCard({ item, index }) {
@@ -17,16 +17,26 @@ function ResultCard({ item, index }) {
   const isFileModalOpen = fileModalData && fileModalData.magnet === item.magnet && !isDirect;
 
   return (
-    <div className="result-item">
-      <h3 className="result-title">{item.title}</h3>
-      <p>Source: {item.provider}</p>
+    <div className="rounded-lg bg-bg-surface border border-border-subtle p-4 mt-2.5 hover:border-border-strong transition-colors">
+      <h3 className="result-title text-text-primary font-semibold text-base mb-1 break-words">
+        {item.title}
+      </h3>
 
-      {useJackett && (
-        <>
-          <p>Size: {Math.round(item.size / 1000000)} MB</p>
-          <p>Seeders: {item.seeders}</p>
-        </>
-      )}
+      <div className="flex flex-wrap gap-3 mb-2 text-xs text-text-secondary">
+        <span className="inline-flex items-center gap-1">
+          <Server size={13} /> {item.provider}
+        </span>
+        {useJackett && (
+          <>
+            <span className="inline-flex items-center gap-1">
+              <HardDrive size={13} /> {Math.round(item.size / 1000000)} MB
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Users size={13} /> {item.seeders}
+            </span>
+          </>
+        )}
+      </div>
 
       <div className="button-container">
         <button
@@ -34,7 +44,7 @@ function ResultCard({ item, index }) {
           onClick={() => initAction(item.magnet, "download")}
           disabled={isProcessing}
           style={{
-            background: isProcessing ? "#6c757d" : "#007BFF",
+            background: isProcessing ? "#3f3f46" : "#007BFF",
             cursor: isProcessing ? "not-allowed" : "pointer",
           }}
         >
@@ -53,7 +63,7 @@ function ResultCard({ item, index }) {
           className="action-button"
           onClick={() => copyMagnet(item.magnet)}
           style={{
-            background: "#6c757d",
+            background: "#3f3f46",
             cursor: "pointer",
           }}
         >
@@ -63,11 +73,11 @@ function ResultCard({ item, index }) {
         {/* Stream Button Group */}
         <div className="split-btn-group push-right">
           <button
-            className={`result-btn action-button ${!isDirect ? "split-btn-main" : ""}`}
+            className={`result-btn action-button ${!isDirect ? "split-btn-main" : ""} inline-flex items-center justify-center gap-1.5`}
             onClick={() => initAction(item.magnet, "stream", true)}
             disabled={isProcessing}
             style={{
-              background: isProcessing ? "#6c757d" : "#1e7e34",
+              background: isProcessing ? "#3f3f46" : "#1db954",
               cursor: isProcessing ? "not-allowed" : "pointer",
             }}
             title={isDirect ? "Instantly stream video" : "Instantly stream the main video file"}
@@ -77,21 +87,23 @@ function ResultCard({ item, index }) {
                 <span className="loader-small"></span> Loading...
               </>
             ) : (
-              "▶ Stream"
+              <>
+                <Play size={14} fill="currentColor" /> Stream
+              </>
             )}
           </button>
           {!isDirect && (
             <button
-              className="action-button split-btn-arrow"
+              className="action-button split-btn-arrow flex items-center justify-center"
               onClick={() => initAction(item.magnet, "stream", false)}
               disabled={isProcessing}
               style={{
-                background: isProcessing ? "#6c757d" : "#1e7e34",
+                background: isProcessing ? "#3f3f46" : "#1db954",
                 cursor: isProcessing ? "not-allowed" : "pointer",
               }}
               title="Choose a specific file to stream"
             >
-              ▼
+              <ChevronDown size={16} />
             </button>
           )}
         </div>
@@ -99,11 +111,11 @@ function ResultCard({ item, index }) {
         {/* External Stream Button */}
         <div className="split-btn-group">
           <button
-            className={`result-btn action-button ${!isDirect ? "split-btn-main" : ""}`}
+            className={`result-btn action-button ${!isDirect ? "split-btn-main" : ""} inline-flex items-center justify-center gap-1.5`}
             onClick={() => initAction(item.magnet, "external", true)}
             disabled={isProcessing}
             style={{
-              background: isProcessing ? "#6c757d" : "#6f42c1",
+              background: isProcessing ? "#3f3f46" : "#8b5cf6",
               cursor: isProcessing ? "not-allowed" : "pointer",
             }}
             title={
@@ -117,21 +129,23 @@ function ResultCard({ item, index }) {
                 <span className="loader-small"></span> Loading...
               </>
             ) : (
-              "▶ External"
+              <>
+                <Play size={14} fill="currentColor" /> External
+              </>
             )}
           </button>
           {!isDirect && (
             <button
-              className="action-button split-btn-arrow"
+              className="action-button split-btn-arrow flex items-center justify-center"
               onClick={() => initAction(item.magnet, "external", false)}
               disabled={isProcessing}
               style={{
-                background: isProcessing ? "#6c757d" : "#6f42c1",
+                background: isProcessing ? "#3f3f46" : "#8b5cf6",
                 cursor: isProcessing ? "not-allowed" : "pointer",
               }}
               title="Choose a specific file to play externally"
             >
-              ▼
+              <ChevronDown size={16} />
             </button>
           )}
         </div>

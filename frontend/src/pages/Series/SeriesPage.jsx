@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Star, Film, Cable, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
@@ -9,6 +11,16 @@ import Loader from "../../components/common/Loader.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
 import EpisodeCard from "../../components/cards/EpisodeCard.jsx";
 import "./SeriesPage.css";
+
+const gridVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.03 } },
+};
+
+const gridItemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function SeriesPage() {
   const { id, season: seasonParam, episode: episodeParam } = useParams();
@@ -64,7 +76,7 @@ export default function SeriesPage() {
       .then((data) => {
         if (data) {
           setMeta(data);
-          
+
           // Hydrate seasons and episodes if not already done
           if (episodes.length === 0) {
             const videos = data.videos || [];
@@ -138,7 +150,7 @@ export default function SeriesPage() {
         .then((streams) => {
           setResults(streams);
           setLoading(false);
-          
+
           // Scroll smoothly to the episode streams list
           setTimeout(() => {
             const el = document.querySelector(".selected-episode-streams");
@@ -167,11 +179,16 @@ export default function SeriesPage() {
         <div
           className="media-hero-section"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(20, 20, 20, 0.95) 30%, rgba(20, 20, 20, 0.4) 100%), url(${meta.background || ""})`,
+            backgroundImage: `linear-gradient(to right, rgba(10, 10, 10, 0.95) 30%, rgba(10, 10, 10, 0.4) 100%), url(${meta.background || ""})`,
           }}
         >
           <div className="media-hero-content">
-            <div className="media-hero-poster">
+            <motion.div
+              className="media-hero-poster"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
               {meta.poster && !imageError ? (
                 <img
                   src={meta.poster}
@@ -179,13 +196,20 @@ export default function SeriesPage() {
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <div className="poster-placeholder-large">🎬</div>
+                <div className="poster-placeholder-large">
+                  <Film size={48} />
+                </div>
               )}
-            </div>
+            </motion.div>
             <div className="media-hero-info">
               <h1>{meta.name}</h1>
               <div className="media-meta-badges">
                 {meta.year && <span className="meta-badge">{meta.year}</span>}
+                {meta.imdbRating && (
+                  <span className="meta-badge rating">
+                    <Star size={12} fill="currentColor" /> {meta.imdbRating}
+                  </span>
+                )}
                 {meta.genres &&
                   meta.genres.map((g) => (
                     <span key={g} className="meta-badge genre">
@@ -205,7 +229,7 @@ export default function SeriesPage() {
       {isEpisodePath && results.length > 0 && (
         <div className="selected-episode-streams">
           <h3>
-            🔌 Available Streams for Season {seasonParam} Episode {episodeParam}
+            <Cable size={16} className="inline -mt-1 mr-1" /> Available Streams for Season {seasonParam} Episode {episodeParam}
           </h3>
           <div className="results-container">
             {results.map((item, index) => (
@@ -231,35 +255,47 @@ export default function SeriesPage() {
                   tabIndex="-1"
                   onClick={() => scrollSeasons("left")}
                 >
-                  &#10094;
+                  <ChevronLeft size={20} />
                 </button>
               </>
             )}
 
             <div className="season-bar" ref={seasonBarRef} onScroll={checkScroll}>
-              {seasons.map((s) => (
-                <div
-                  key={s}
-                  className={`season-tab ${Number(selectedSeason) === Number(s) ? "active" : ""}`}
-                  onMouseEnter={() => {
-                    setSelectedSeason(s);
-                    setResults([]);
-                  }}
-                  onClick={() => {
-                    setSelectedSeason(s);
-                    setResults([]);
-                  }}
-                  tabIndex="0"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+              {seasons.map((s) => {
+                const isActive = Number(selectedSeason) === Number(s);
+                return (
+                  <div
+                    key={s}
+                    className={`season-tab ${isActive ? "active" : ""}`}
+                    onMouseEnter={() => {
                       setSelectedSeason(s);
                       setResults([]);
-                    }
-                  }}
-                >
-                  {Number(s) === 0 ? "Specials" : `Season ${s}`}
-                </div>
-              ))}
+                    }}
+                    onClick={() => {
+                      setSelectedSeason(s);
+                      setResults([]);
+                    }}
+                    tabIndex="0"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setSelectedSeason(s);
+                        setResults([]);
+                      }
+                    }}
+                  >
+                    {isActive && (
+                      <motion.div
+                        className="season-tab-bg"
+                        layoutId="active-season-pill"
+                        transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+                      />
+                    )}
+                    <span className="season-tab-label">
+                      {Number(s) === 0 ? "Specials" : `Season ${s}`}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {canScrollRight && (
@@ -270,7 +306,7 @@ export default function SeriesPage() {
                   tabIndex="-1"
                   onClick={() => scrollSeasons("right")}
                 >
-                  &#10095;
+                  <ChevronRight size={20} />
                 </button>
               </>
             )}
@@ -278,22 +314,30 @@ export default function SeriesPage() {
 
           {/* EPISODES GRID */}
           {selectedSeason !== null && selectedSeason !== undefined && (
-            <div
-              className="fade-in-episodes"
-              key={selectedSeason}
-              style={{ marginTop: "20px", width: "100%" }}
-            >
-              <div className="episodes-grid">
+            <AnimatePresence mode="wait">
+              <motion.div
+                className="episodes-grid"
+                key={selectedSeason}
+                style={{ marginTop: "20px", width: "100%" }}
+                variants={gridVariants}
+                initial="hidden"
+                animate="visible"
+              >
                 {visibleEpisodes.map((episode, i) => (
-                  <EpisodeCard
+                  <motion.div
                     key={episode.id || `${episode.season}-${episode.episode}-${i}`}
-                    episode={episode}
-                    seriesId={id}
-                    selectedItem={meta || selectedItem}
-                  />
+                    variants={gridItemVariants}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <EpisodeCard
+                      episode={episode}
+                      seriesId={id}
+                      selectedItem={meta || selectedItem}
+                    />
+                  </motion.div>
                 ))}
-              </div>
-            </div>
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       )}

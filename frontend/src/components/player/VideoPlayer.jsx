@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import { useMediaContext } from "../../context/AppContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
@@ -71,8 +73,6 @@ export default function VideoPlayer() {
       }
     };
   }, [streamUrl]);
-
-  if (!streamUrl) return null;
 
   const handleLoadedMetadata = async (e) => {
     clearTimeout(timeoutRef.current);
@@ -229,39 +229,49 @@ export default function VideoPlayer() {
   };
 
   return (
-    <div className="video-modal">
-      <button onClick={handleClose} className="video-close-btn">
-        ✖ Close
-      </button>
+    <AnimatePresence>
+      {streamUrl && (
+        <motion.div
+          className="video-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <button onClick={handleClose} className="video-close-btn inline-flex items-center gap-1.5">
+            <X size={16} /> Close
+          </button>
 
-      <video
-        ref={videoRef}
-        src={streamUrl}
-        controls
-        playsInline
-        className="video-player"
-        onLoadedMetadata={handleLoadedMetadata}
-        onError={handleError}
-      />
+          <video
+            ref={videoRef}
+            src={streamUrl}
+            controls
+            playsInline
+            className="video-player"
+            onLoadedMetadata={handleLoadedMetadata}
+            onError={handleError}
+          />
 
-      {playerError && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 text-white">
-          <div className="max-w-md rounded-2xl bg-neutral-900 p-6 text-center">
-            <h2 className="mb-3 text-xl font-semibold">{playerError.title}</h2>
-            <p className="mb-5 text-sm text-neutral-300">{playerError.message}</p>
+          {playerError && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/90 backdrop-blur-sm p-6 text-white">
+              <div className="max-w-md rounded-2xl bg-bg-surface p-6 text-center">
+                <h2 className="mb-3 text-xl font-semibold">{playerError.title}</h2>
+                <p className="mb-5 text-sm text-neutral-300">{playerError.message}</p>
 
-            <div className="flex justify-center gap-3">
-              <button onClick={handleRetry} className="rounded-lg bg-white px-4 py-2 font-medium text-black">
-                Retry Playback
-              </button>
+                <div className="flex justify-center gap-3">
+                  <button onClick={handleRetry} className="rounded-lg bg-white px-4 py-2 font-medium text-black">
+                    Retry Playback
+                  </button>
 
-              <button onClick={handleClose} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white">
-                Close Player
-              </button>
+                  <button onClick={handleClose} className="rounded-lg border border-white/20 px-4 py-2 font-medium text-white inline-flex items-center gap-1.5">
+                    <X size={14} /> Close Player
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }

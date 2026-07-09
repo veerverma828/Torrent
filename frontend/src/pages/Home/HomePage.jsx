@@ -1,4 +1,5 @@
 import { memo, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
@@ -8,6 +9,16 @@ import PosterCard from "../../components/cards/PosterCard.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
 
+const railVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+
+const railItemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
+
 const MediaRail = memo(function MediaRail({ title, items, type }) {
   if (!items?.length) return null;
 
@@ -15,13 +26,23 @@ const MediaRail = memo(function MediaRail({ title, items, type }) {
     <>
       <h2 className="section-title">{title}</h2>
 
-      <div className="media-rail">
+      <motion.div
+        className="media-rail"
+        variants={railVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {items.map((item) => (
-          <div key={`${title}-${item.id}`} className="media-rail-item">
+          <motion.div
+            key={`${title}-${item.id}`}
+            className="media-rail-item"
+            variants={railItemVariants}
+            transition={{ duration: 0.25 }}
+          >
             <PosterCard item={item} type={type} />
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </>
   );
 });
@@ -71,32 +92,47 @@ export default function HomePage() {
                 Continue Watching
               </h2>
 
-              <div className="media-rail">
+              <motion.div
+                className="media-rail"
+                variants={railVariants}
+                initial="hidden"
+                animate="visible"
+              >
                 {continueWatchingList.map((item) => (
-                  <div
+                  <motion.div
                     key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
                     className="media-rail-item"
+                    variants={railItemVariants}
+                    transition={{ duration: 0.25 }}
                   >
                     <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </>
           )}
 
           {syncMode === "trakt" && trimmedQuery === "" && watchlist.length > 0 && (
             <>
-              <h2 className="section-title">
-                Watchlist
-              </h2>
+              <h2 className="section-title">Watchlist</h2>
 
-              <div className="media-rail">
+              <motion.div
+                className="media-rail"
+                variants={railVariants}
+                initial="hidden"
+                animate="visible"
+              >
                 {watchlist.map((item) => (
-                  <div key={`wl-${item.type}-${item.id}`} className="media-rail-item">
+                  <motion.div
+                    key={`wl-${item.type}-${item.id}`}
+                    className="media-rail-item"
+                    variants={railItemVariants}
+                    transition={{ duration: 0.25 }}
+                  >
                     <PosterCard item={item} type={item.type} />
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </>
           )}
 

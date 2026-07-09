@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import './styles/tailwind.css'
+import '@fontsource-variable/inter/wght.css'
+import './styles/animations.css'
 import App from './app/App.jsx'
 import ErrorBoundary from './components/system/ErrorBoundary.jsx'
 

@@ -19,9 +19,12 @@
 }
 
 .episode-card:hover, .episode-card:focus {
-  transform: scale(1.05);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
-  border-color: #007BFF;
+  border-color: #e50914;
+}
+
+.episode-card:focus {
+  transform: scale(1.03);
 }
 
 .episode-thumbnail {
@@ -61,7 +64,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.8);
-  background: rgba(0, 123, 255, 0.9);
+  background: rgba(229, 9, 20, 0.9);
   color: white;
   width: 46px;
   height: 46px;
@@ -69,10 +72,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   opacity: 0;
   transition: all 0.2s ease-in-out;
-  padding-left: 4px; /* Centers the triangle optically */
+  padding-left: 2px; /* Centers the triangle optically */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
@@ -161,6 +163,7 @@
 }
 
 .season-tab {
+  position: relative;
   padding: 10px 20px;
   font-size: 16px;
   font-weight: bold;
@@ -168,7 +171,7 @@
   cursor: pointer;
   white-space: nowrap;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: color 0.3s ease, background 0.3s ease;
   outline: none;
 }
 
@@ -179,8 +182,24 @@
 
 .season-tab.active {
   color: #fff;
-  background: #007BFF;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+}
+
+.season-tab.active:hover {
+  background: transparent;
+}
+
+.season-tab-label {
+  position: relative;
+  z-index: 1;
+}
+
+.season-tab-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: #e50914;
+  box-shadow: 0 4px 10px rgba(229, 9, 20, 0.4);
+  z-index: 0;
 }
 
 /* Season Bar Fades & Arrows */
@@ -195,12 +214,12 @@
 
 .fade-left {
   left: 0;
-  background: linear-gradient(to right, #141414 20%, transparent);
+  background: linear-gradient(to right, #0a0a0a 20%, transparent);
 }
 
 .fade-right {
   right: 0;
-  background: linear-gradient(to left, #141414 20%, transparent);
+  background: linear-gradient(to left, #0a0a0a 20%, transparent);
 }
 
 .scroll-arrow {
@@ -208,10 +227,9 @@
   top: 0;
   bottom: 12px;
   width: 40px;
-  background: rgba(20, 20, 20, 0.6);
+  background: rgba(10, 10, 10, 0.6);
   border: none;
   color: #fff;
-  font-size: 24px;
   cursor: pointer;
   z-index: 2;
   display: flex;
@@ -226,8 +244,8 @@
 }
 
 .scroll-arrow:hover {
-  background: rgba(20, 20, 20, 0.9);
-  color: #007BFF;
+  background: rgba(10, 10, 10, 0.9);
+  color: #e50914;
 }
 
 .scroll-arrow.left { left: 0; }

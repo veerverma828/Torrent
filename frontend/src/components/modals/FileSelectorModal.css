@@ -22,7 +22,8 @@
   border: none;
   color: #fff;
   cursor: pointer;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
   padding: 0;
 }
 
@@ -52,8 +53,8 @@
 }
 
 .file-item:hover, .file-item:focus {
-  background-color: #007BFF;
-  border-color: #007BFF;
+  background-color: #e50914;
+  border-color: #e50914;
   outline: none;
 }
 
