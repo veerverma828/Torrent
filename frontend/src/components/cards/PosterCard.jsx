@@ -58,7 +58,7 @@ function PosterCard({ item, type }) {
             {item.imdbRating}
           </div>
         )}
-        {progress && (progress.progress > 0 || progress.percentage > 0) && (
+        {progress && progress.percentage > 0 && (
           <div className="progress-bar-container">
             <div
               className="progress-bar"

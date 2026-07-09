@@ -43,19 +43,18 @@ export const progressService = {
   },
 
   saveProgress(metadata, currentTime, duration) {
-    // Always the local write — this is the source of truth regardless of mode.
-    progressTracker.saveProgress(metadata, currentTime, duration);
+    // Always the local write — this is the source of truth regardless of
+    // mode. It also computes the one percentage value everything else
+    // (including the Trakt push below) reuses, rather than each caller
+    // recomputing it from raw seconds independently.
+    const saved = progressTracker.saveProgress(metadata, currentTime, duration);
 
-    if (!isTraktSyncEnabled()) return;
-
-    const safeDuration =
-      duration && !Number.isNaN(duration) && duration !== Infinity ? duration : 0;
-    const percentage = safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
+    if (!saved || !isTraktSyncEnabled()) return;
 
     traktSyncQueue.debouncedSync({
       action: "syncProgress",
       metadata,
-      percentage,
+      percentage: saved.percentage,
     });
   },
 

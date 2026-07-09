@@ -94,14 +94,12 @@ export default function VideoPlayer() {
       );
     }
 
-    if (savedProgress) {
-      let resumeTime = savedProgress.progress;
-      if ((!resumeTime || resumeTime <= 0) && savedProgress.percentage > 0 && e.target.duration > 0) {
-        resumeTime = (savedProgress.percentage / 100) * e.target.duration;
-      }
-      if (resumeTime > 0 && savedProgress.percentage < RESUME_SKIP_THRESHOLD) {
-        e.target.currentTime = resumeTime;
-      }
+    // Progress is stored purely as a percentage — resuming always derives a
+    // seconds offset from the currently-loaded video's actual duration,
+    // which is also more accurate than trusting a stale stored duration if
+    // this playback session is a different file/quality than last time.
+    if (savedProgress?.percentage > 0 && savedProgress.percentage < RESUME_SKIP_THRESHOLD && e.target.duration > 0) {
+      e.target.currentTime = (savedProgress.percentage / 100) * e.target.duration;
     }
 
     // Initialize playback event handler

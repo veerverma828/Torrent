@@ -82,8 +82,7 @@ export const getContinueWatching = (limit = 50) => {
 
   // Movies
   for (const [id, movie] of Object.entries(data.movies)) {
-    const hasStarted = movie.progress > 0 || movie.percentage > 0;
-    if (hasStarted && !movie.completed) {
+    if (movie.percentage > 0 && !movie.completed) {
       list.push({ ...movie, id, type: 'movie' });
     }
   }
@@ -95,8 +94,7 @@ export const getContinueWatching = (limit = 50) => {
 
     for (const [seasonNum, season] of Object.entries(series.seasons || {})) {
       for (const [epNum, ep] of Object.entries(season.episodes || {})) {
-        const hasStarted = ep.progress > 0 || ep.percentage > 0;
-        if (!ep.completed && hasStarted) {
+        if (!ep.completed && ep.percentage > 0) {
           // Capture latest incomplete episode per series
           if (!latestEpisode || ep.lastUpdated > latestEpisode.lastUpdated) {
             latestEpisode = { ...ep, seriesId, season: seasonNum, episode: epNum, seriesTitle: series.title || "Unknown Series", seriesPoster: series.poster };
@@ -141,12 +139,17 @@ export const removeProgress = (type, id) => {
   }
 };
 
+// currentTime/duration are seconds — the only form the <video> element ever
+// gives us — but that's purely an input boundary. Everything downstream of
+// this function, including storage, only ever deals in percentage.
 export const saveProgress = (metadata, currentTime, duration) => {
-  if (!currentTime || currentTime <= 0) return; // Prevent saving blank 0-second starts
+  if (!currentTime || currentTime <= 0) return null; // Prevent saving blank 0-second starts
 
   // Handle live/remote streams where duration returns as NaN or Infinity
   const safeDuration = (duration && !isNaN(duration) && duration !== Infinity) ? duration : 0;
-  const percentage = safeDuration > 0 ? (currentTime / safeDuration) * 100 : 0;
+  if (safeDuration <= 0) return null; // Can't derive a percentage without a known duration
+
+  const percentage = Math.min((currentTime / safeDuration) * 100, 100);
   const isCompleted = percentage > WATCH_COMPLETED_PERCENTAGE;
 
   let data = getStorage();
@@ -154,9 +157,7 @@ export const saveProgress = (metadata, currentTime, duration) => {
   if (metadata.type === 'movie') {
     data.movies[metadata.id] = {
       ...(data.movies[metadata.id] || {}), // Preserve historical data if missing
-      progress: currentTime,
-      duration: safeDuration,
-      percentage: Math.min(percentage, 100),
+      percentage,
       completed: isCompleted,
       lastUpdated: Date.now(),
       title: metadata.title || data.movies[metadata.id]?.title || "Unknown Movie",
@@ -175,9 +176,7 @@ export const saveProgress = (metadata, currentTime, duration) => {
 
     data.series[id].seasons[season].episodes[episode] = {
       ...(data.series[id].seasons[season].episodes[episode] || {}),
-      progress: currentTime,
-      duration: safeDuration,
-      percentage: Math.min(percentage, 100),
+      percentage,
       completed: isCompleted,
       lastUpdated: Date.now(),
       episodeTitle: episodeTitle || data.series[id].seasons[season].episodes[episode]?.episodeTitle || "",
@@ -192,6 +191,10 @@ export const saveProgress = (metadata, currentTime, duration) => {
   }
 
   setStorage(data);
+
+  // Callers that also need to push this to Trakt (progressService) reuse
+  // this exact value instead of recomputing percentage themselves.
+  return { percentage, completed: isCompleted };
 };
 
 // Remote (Trakt) progress reconciliation — writes through only if the
@@ -204,14 +207,10 @@ export const mergeRemoteMovieProgress = (id, remote) => {
 
   if (existing && existing.lastUpdated >= remote.lastUpdated) return;
 
-  const duration = existing?.duration || 0;
-  const percentage = Math.min(remote.percentage ?? 0, 100);
-  const progress = duration > 0 ? (percentage / 100) * duration : existing?.progress || 0;
+  const percentage = Math.min(Math.max(remote.percentage ?? 0, 0), 100);
 
   data.movies[id] = {
     ...(existing || {}),
-    progress,
-    duration,
     percentage,
     completed: Boolean(remote.completed) || percentage > WATCH_COMPLETED_PERCENTAGE,
     lastUpdated: remote.lastUpdated,
@@ -236,14 +235,10 @@ export const mergeRemoteEpisodeProgress = (seriesId, season, episode, remote, se
 
   if (existing && existing.lastUpdated >= remote.lastUpdated) return;
 
-  const duration = existing?.duration || 0;
-  const percentage = Math.min(remote.percentage ?? 0, 100);
-  const progress = duration > 0 ? (percentage / 100) * duration : existing?.progress || 0;
+  const percentage = Math.min(Math.max(remote.percentage ?? 0, 0), 100);
 
   seriesEntry.seasons[season].episodes[episode] = {
     ...(existing || {}),
-    progress,
-    duration,
     percentage,
     completed: Boolean(remote.completed) || percentage > WATCH_COMPLETED_PERCENTAGE,
     lastUpdated: remote.lastUpdated,
