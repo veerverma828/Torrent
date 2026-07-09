@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
-import { useWatchHistory } from "../../hooks/useWatchHistory.js";
 import { groupByGenre } from "../../utils/mediaGrouping.js";
 import Loader from "../../components/common/Loader.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
@@ -30,7 +29,6 @@ export default function HomePage() {
 
   const { imdbMode, useJackett } = useSettingsContext();
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
-  const { historyList, removeFromHistory } = useWatchHistory();
 
   useEffect(() => {
     if (selectedItem !== null) {
@@ -67,17 +65,6 @@ export default function HomePage() {
               keyPrefix="cw"
               renderItem={(item) => (
                 <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
-              )}
-            />
-          )}
-
-          {trimmedQuery === "" && historyList.length > 0 && (
-            <MediaRail
-              title="History"
-              items={historyList}
-              keyPrefix="history"
-              renderItem={(item) => (
-                <ContinueWatchingCard item={item} onRemove={removeFromHistory} />
               )}
             />
           )}

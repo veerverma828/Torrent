@@ -111,42 +111,6 @@ export const getContinueWatching = (limit = 50) => {
   return list.sort((a, b) => b.lastUpdated - a.lastUpdated).slice(0, limit);
 };
 
-// Completed watches — the counterpart to getContinueWatching, showing what
-// you've already finished (including items pulled from Trakt history via
-// reconciliation) rather than what's in progress.
-export const getHistory = (limit = 50) => {
-  const data = getStorage();
-  const list = [];
-
-  // Movies
-  for (const [id, movie] of Object.entries(data.movies)) {
-    if (movie.completed) {
-      list.push({ ...movie, id, type: 'movie' });
-    }
-  }
-
-  // Series — most recently completed episode per series
-  for (const [seriesId, series] of Object.entries(data.series)) {
-    let latestEpisode = null;
-
-    for (const [seasonNum, season] of Object.entries(series.seasons || {})) {
-      for (const [epNum, ep] of Object.entries(season.episodes || {})) {
-        if (ep.completed) {
-          if (!latestEpisode || ep.lastUpdated > latestEpisode.lastUpdated) {
-            latestEpisode = { ...ep, seriesId, season: seasonNum, episode: epNum, seriesTitle: series.title || "Unknown Series", seriesPoster: series.poster };
-          }
-        }
-      }
-    }
-
-    if (latestEpisode) {
-      list.push({ ...latestEpisode, type: 'series' });
-    }
-  }
-
-  return list.sort((a, b) => b.lastUpdated - a.lastUpdated).slice(0, limit);
-};
-
 export const updateTrackingMetadata = (type, id, title, poster) => {
   let data = getStorage();
   let updated = false;
