@@ -21,7 +21,7 @@ async function performInitialTraktSync() {
   const historyEpisodes = [];
 
   for (const [id, movie] of Object.entries(movies)) {
-    if (!movie.progress || movie.progress <= 0) continue;
+    if (!movie.percentage || movie.percentage <= 0) continue;
 
     if (movie.completed) {
       historyMovies.push({ imdbId: id });
@@ -37,7 +37,7 @@ async function performInitialTraktSync() {
   for (const [seriesId, seriesData] of Object.entries(series)) {
     for (const [season, seasonData] of Object.entries(seriesData.seasons || {})) {
       for (const [episode, ep] of Object.entries(seasonData.episodes || {})) {
-        if (!ep.progress || ep.progress <= 0) continue;
+        if (!ep.percentage || ep.percentage <= 0) continue;
 
         if (ep.completed) {
           historyEpisodes.push({ imdbId: seriesId, season, episode });

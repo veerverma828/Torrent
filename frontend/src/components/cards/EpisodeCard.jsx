@@ -45,7 +45,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
         <div className="episode-play-icon">
           <Play size={20} fill="currentColor" />
         </div>
-        {progress && (progress.progress > 0 || progress.percentage > 0) && (
+        {progress && progress.percentage > 0 && (
           <div className="progress-bar-container">
             <div
               className="progress-bar"
@@ -78,7 +78,7 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
             })}
           </span>
         )}
-        {progress && (progress.progress > 0 || progress.percentage > 0) && (
+        {progress && progress.percentage > 0 && (
           <span
             style={{
               fontSize: "11px",
