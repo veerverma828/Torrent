@@ -4,7 +4,30 @@ import { formatTorrentio } from "../utils/streamHelpers.js";
 
 const CACHE_TTL = 5 * 60 * 1000;
 const STREAM_CACHE_TTL = 60 * 1000;
+const CATALOG_STORAGE_TTL = 15 * 60 * 1000;
 const responseCache = new Map();
+
+function readCatalogStorage(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+
+    const { data, timestamp } = JSON.parse(raw);
+    if (Date.now() - timestamp > CATALOG_STORAGE_TTL) return null;
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCatalogStorage(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {
+    // storage full or unavailable — skip caching silently
+  }
+}
 
 async function fetchJson(url, { signal, ttl = CACHE_TTL } = {}) {
   const now = Date.now();
@@ -87,15 +110,26 @@ export async function fetchCatalog(type, category) {
   return data.metas || [];
 }
 
-export async function fetchDefaultCatalog() {
-  const [movieRes, seriesRes] = await Promise.all([
-    fetchJson(`${CINEMETA_BASE}/catalog/movie/top.json`),
-    fetchJson(`${CINEMETA_BASE}/catalog/series/top.json`),
-  ]);
-  return {
-    movies: movieRes.metas || [],
-    series: seriesRes.metas || [],
-  };
+export async function fetchDefaultMovies() {
+  const storageKey = "cinemeta:movies:top";
+  const cached = readCatalogStorage(storageKey);
+  if (cached) return cached;
+
+  const data = await fetchJson(`${CINEMETA_BASE}/catalog/movie/top.json`);
+  const metas = data.metas || [];
+  writeCatalogStorage(storageKey, metas);
+  return metas;
+}
+
+export async function fetchDefaultSeries() {
+  const storageKey = "cinemeta:series:top";
+  const cached = readCatalogStorage(storageKey);
+  if (cached) return cached;
+
+  const data = await fetchJson(`${CINEMETA_BASE}/catalog/series/top.json`);
+  const metas = data.metas || [];
+  writeCatalogStorage(storageKey, metas);
+  return metas;
 }
 
 export async function fetchMeta(type, id) {

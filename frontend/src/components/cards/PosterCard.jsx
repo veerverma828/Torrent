@@ -1,15 +1,17 @@
 import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Film } from "lucide-react";
+import { Film, Star } from "lucide-react";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
-function PosterCard({ item, type = "movie" }) {
+function PosterCard({ item, type }) {
   const navigate = useNavigate();
   const { syncMode } = useSettingsContext();
   const [imageError, setImageError] = useState(false);
-  const progress = type === "movie" ? getMovieProgress(item.id) : null;
+  const mediaType = type || item.type || "movie";
+  const progress = mediaType === "movie" ? getMovieProgress(item.id) : null;
+  const year = item.releaseInfo || item.year;
 
   // Determine progress bar color based on sync mode
   const getProgressColor = (percentage) => {
@@ -27,7 +29,7 @@ function PosterCard({ item, type = "movie" }) {
         if (e.key === "Enter") e.currentTarget.click();
       }}
       onClick={() => {
-        if (type === "movie") {
+        if (mediaType === "movie") {
           navigate(`/movie/${item.id}`, { state: { item } });
         } else {
           navigate(`/series/${item.id}`, { state: { item } });
@@ -50,6 +52,12 @@ function PosterCard({ item, type = "movie" }) {
             draggable="false"
           />
         )}
+        {item.imdbRating && (
+          <div className="poster-rating-badge">
+            <Star size={11} fill="currentColor" />
+            {item.imdbRating}
+          </div>
+        )}
         {progress && progress.progress > 0 && (
           <div className="progress-bar-container">
             <div
@@ -63,7 +71,7 @@ function PosterCard({ item, type = "movie" }) {
         )}
       </div>
       <p>{item.name}</p>
-      <small>{item.type}</small>
+      <small>{[item.type, year].filter(Boolean).join(" · ")}</small>
     </motion.div>
   );
 }

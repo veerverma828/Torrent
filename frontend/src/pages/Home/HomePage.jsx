@@ -1,51 +1,15 @@
-import { memo, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
 import { useTraktWatchlist } from "../../hooks/useTraktWatchlist.js";
+import { groupByGenre } from "../../utils/mediaGrouping.js";
 import Loader from "../../components/common/Loader.jsx";
-import PosterCard from "../../components/cards/PosterCard.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
-
-const railVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.04 } },
-};
-
-const railItemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const MediaRail = memo(function MediaRail({ title, items, type }) {
-  if (!items?.length) return null;
-
-  return (
-    <>
-      <h2 className="section-title">{title}</h2>
-
-      <motion.div
-        className="media-rail"
-        variants={railVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {items.map((item) => (
-          <motion.div
-            key={`${title}-${item.id}`}
-            className="media-rail-item"
-            variants={railItemVariants}
-            transition={{ duration: 0.25 }}
-          >
-            <PosterCard item={item} type={type} />
-          </motion.div>
-        ))}
-      </motion.div>
-    </>
-  );
-});
+import HeroBanner from "../../components/home/HeroBanner.jsx";
+import MediaRail from "../../components/home/MediaRail.jsx";
+import SkeletonRail from "../../components/home/SkeletonRail.jsx";
 
 export default function HomePage() {
   const {
@@ -53,6 +17,8 @@ export default function HomePage() {
     series,
     results,
     loading,
+    moviesLoading,
+    seriesLoading,
     selectedItem,
     setSelectedItem,
     setSeasons,
@@ -79,66 +45,61 @@ export default function HomePage() {
 
   const trimmedQuery = query.trim();
   const showCatalog = !imdbMode && !selectedItem && results.length === 0;
+  const isBrowsing = trimmedQuery === "";
+
+  const genreRails = useMemo(() => {
+    if (!isBrowsing) return [];
+    return groupByGenre([...movies, ...series]);
+  }, [isBrowsing, movies, series]);
 
   return (
     <>
       {loading && <Loader />}
 
+      {showCatalog && isBrowsing && <HeroBanner />}
+
       {showCatalog && (
         <div className="content-section">
           {trimmedQuery === "" && continueWatchingList.length > 0 && (
-            <>
-              <h2 className="section-title">
-                Continue Watching
-              </h2>
-
-              <motion.div
-                className="media-rail"
-                variants={railVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {continueWatchingList.map((item) => (
-                  <motion.div
-                    key={`cw-${item.type}-${item.type === "movie" ? item.id : item.seriesId}`}
-                    className="media-rail-item"
-                    variants={railItemVariants}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
-                  </motion.div>
-                ))}
-              </motion.div>
-            </>
+            <MediaRail
+              title="Continue Watching"
+              items={continueWatchingList}
+              keyPrefix="cw"
+              renderItem={(item) => (
+                <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
+              )}
+            />
           )}
 
           {syncMode === "trakt" && trimmedQuery === "" && watchlist.length > 0 && (
-            <>
-              <h2 className="section-title">Watchlist</h2>
-
-              <motion.div
-                className="media-rail"
-                variants={railVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {watchlist.map((item) => (
-                  <motion.div
-                    key={`wl-${item.type}-${item.id}`}
-                    className="media-rail-item"
-                    variants={railItemVariants}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <PosterCard item={item} type={item.type} />
-                  </motion.div>
-                ))}
-              </motion.div>
-            </>
+            <MediaRail title="Watchlist" items={watchlist} keyPrefix="wl" />
           )}
 
-          <MediaRail title={trimmedQuery ? "Movies" : "Trending Movies"} items={movies} type="movie" />
+          {moviesLoading ? (
+            <SkeletonRail title={trimmedQuery ? "Movies" : "Trending Movies"} />
+          ) : (
+            <MediaRail
+              title={trimmedQuery ? "Movies" : "Trending Movies"}
+              items={movies}
+              type="movie"
+              keyPrefix="movies"
+            />
+          )}
 
-          <MediaRail title={trimmedQuery ? "Series" : "Trending Series"} items={series} type="series" />
+          {seriesLoading ? (
+            <SkeletonRail title={trimmedQuery ? "Series" : "Trending Series"} />
+          ) : (
+            <MediaRail
+              title={trimmedQuery ? "Series" : "Trending Series"}
+              items={series}
+              type="series"
+              keyPrefix="series"
+            />
+          )}
+
+          {genreRails.map(({ genre, items }) => (
+            <MediaRail key={genre} title={genre} items={items} keyPrefix={`genre-${genre}`} />
+          ))}
         </div>
       )}
 

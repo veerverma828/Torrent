@@ -699,3 +699,233 @@ button:focus-visible, input:focus-visible {
 .notification-close:hover {
   opacity: 1;
 }
+
+/* ============================= */
+/* Home Hero Banner              */
+/* ============================= */
+
+.hero-banner {
+  position: relative;
+  width: 100%;
+  min-height: 62vh;
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 30px;
+  background-size: cover;
+  background-position: center 15%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+}
+
+.hero-banner-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--color-bg-surface, #1a1a1a) 30%,
+    var(--color-bg-surface-hover, #232323) 50%,
+    var(--color-bg-surface, #1a1a1a) 70%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.hero-banner-overlay {
+  width: 100%;
+  padding: 60px 50px;
+  background: linear-gradient(
+      to top,
+      rgba(10, 10, 10, 0.98) 5%,
+      rgba(10, 10, 10, 0.65) 45%,
+      rgba(10, 10, 10, 0.1) 100%
+    ),
+    linear-gradient(to right, rgba(10, 10, 10, 0.85) 0%, rgba(10, 10, 10, 0) 65%);
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.hero-banner-content {
+  max-width: 640px;
+}
+
+.hero-banner-title {
+  font-size: 44px;
+  font-weight: 800;
+  margin: 0 0 14px 0;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.hero-banner-description {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #ddd;
+  margin: 0 0 24px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-banner-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+.hero-btn:hover {
+  transform: translateY(-1px);
+}
+
+.hero-btn-play {
+  background: #fff;
+  color: #141414;
+}
+
+.hero-btn-play:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.hero-btn-info {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hero-btn-info:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+  .hero-banner {
+    min-height: 46vh;
+    border-radius: 14px;
+  }
+
+  .hero-banner-overlay {
+    padding: 28px 20px;
+  }
+
+  .hero-banner-title {
+    font-size: 28px;
+  }
+
+  .hero-banner-description {
+    font-size: 14px;
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* ============================= */
+/* Poster rating badge           */
+/* ============================= */
+
+.poster-rating-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-warning, #f5c518);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================= */
+/* Media rail sections + scroll  */
+/* ============================= */
+
+.media-rail-section {
+  position: relative;
+}
+
+.media-rail-wrapper {
+  position: relative;
+}
+
+.rail-scroll-btn {
+  position: absolute;
+  top: 0;
+  bottom: 10px;
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.85), rgba(10, 10, 10, 0));
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.media-rail-wrapper:hover .rail-scroll-btn {
+  opacity: 1;
+}
+
+.rail-scroll-btn-left {
+  left: 0;
+}
+
+.rail-scroll-btn-right {
+  right: 0;
+  background: linear-gradient(270deg, rgba(10, 10, 10, 0.85), rgba(10, 10, 10, 0));
+  justify-content: flex-end;
+}
+
+@media (hover: none) {
+  .rail-scroll-btn {
+    display: none;
+  }
+}
+
+/* ============================= */
+/* Poster skeleton loading       */
+/* ============================= */
+
+.poster-card-skeleton {
+  flex: 0 0 auto;
+  width: 150px;
+  height: 268px;
+  border-radius: 10px;
+  background: linear-gradient(
+    100deg,
+    var(--color-bg-surface, #1a1a1a) 30%,
+    var(--color-bg-surface-hover, #232323) 50%,
+    var(--color-bg-surface, #1a1a1a) 70%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

@@ -7,7 +7,7 @@ export default function SettingsButton() {
 
   return (
     <button
-      className="fixed top-4 right-4 z-50 flex items-center justify-center w-10 h-10 rounded-full bg-bg-surface/80 backdrop-blur border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover transition-colors"
+      className="fixed bottom-4 right-4 md:top-4 md:bottom-auto z-50 flex items-center justify-center w-10 h-10 rounded-full bg-bg-surface/80 backdrop-blur border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover transition-colors"
       onClick={() => {
         setTempAddonApis([...addonApis]);
         setIsSettingsOpen(true);
