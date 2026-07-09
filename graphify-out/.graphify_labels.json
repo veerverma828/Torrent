@@ -1,1 +1,27 @@
-{"0": "ContinueWatchingAggregator", "1": "useStreamActions.js", "2": "useSettingsContext", "3": "cinemeta.js", "4": "SyncTelemetry", "5": "dependencies", "6": "CrossDeviceSync", "7": "ProductionSyncQueue", "8": "devDependencies", "9": "SyncQueueService", "10": "SettingsContext.jsx", "11": "PlaybackEventHandler", "12": "SyncHealthMonitor", "13": "progressTracker.js", "14": "package.json", "15": "index.js", "16": "run.js", "17": "package.json", "18": "Button.jsx", "19": "EmptyState.jsx", "20": "vercel.json", "21": "run.sh script", "22": "eslint.config.js", "23": "vite.config.js"}
+{
+  "0": "ContinueWatchingAggregator",
+  "1": "useStreamActions.js",
+  "2": "useSettingsContext",
+  "3": "cinemeta.js",
+  "4": "SyncTelemetry",
+  "5": "dependencies",
+  "6": "CrossDeviceSync",
+  "7": "ProductionSyncQueue",
+  "8": "devDependencies",
+  "9": "SyncQueueService",
+  "10": "SettingsContext.jsx",
+  "11": "PlaybackEventHandler",
+  "12": "SyncHealthMonitor",
+  "13": "progressTracker.js",
+  "14": "package.json",
+  "15": "index.js",
+  "16": "run.js",
+  "17": "package.json",
+  "18": "Button.jsx",
+  "19": "EmptyState.jsx",
+  "20": "vercel.json",
+  "21": "run.sh script",
+  "22": "eslint.config.js",
+  "23": "vite.config.js",
+  "24": "graphify.md"
+}
