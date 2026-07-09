@@ -10,7 +10,8 @@ import { API_URL } from "../services/api.js";
 import {
   searchMovies,
   searchSeries,
-  fetchDefaultCatalog,
+  fetchDefaultMovies,
+  fetchDefaultSeries,
 } from "../services/cinemeta.js";
 
 export function useSearch() {
@@ -33,6 +34,8 @@ export function useSearch() {
     setDefaultMovies,
     defaultSeries,
     setDefaultSeries,
+    setMoviesLoading,
+    setSeriesLoading,
   } = useCatalogContext();
 
   const {
@@ -181,20 +184,22 @@ export function useSearch() {
 
     hasFetchedCatalog.current = true;
 
-    const fetchCatalog = async () => {
-      try {
-        const data = await fetchDefaultCatalog();
-        setDefaultMovies(data.movies);
-        setDefaultSeries(data.series);
-        setMovies(data.movies);
-        setSeries(data.series);
-      } catch (err) {
-        console.error("Error fetching default catalog:", err);
-      }
-    };
+    fetchDefaultMovies()
+      .then((data) => {
+        setDefaultMovies(data);
+        setMovies(data);
+      })
+      .catch((err) => console.error("Error fetching default movie catalog:", err))
+      .finally(() => setMoviesLoading(false));
 
-    fetchCatalog();
-  }, [setDefaultMovies, setDefaultSeries, setMovies, setSeries]);
+    fetchDefaultSeries()
+      .then((data) => {
+        setDefaultSeries(data);
+        setSeries(data);
+      })
+      .catch((err) => console.error("Error fetching default series catalog:", err))
+      .finally(() => setSeriesLoading(false));
+  }, [setDefaultMovies, setDefaultSeries, setMovies, setSeries, setMoviesLoading, setSeriesLoading]);
 
   return {
     query,

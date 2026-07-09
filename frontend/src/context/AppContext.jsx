@@ -13,6 +13,8 @@ export function AppProvider({ children }) {
   const [series, setSeries] = useState([]);
   const [defaultMovies, setDefaultMovies] = useState([]);
   const [defaultSeries, setDefaultSeries] = useState([]);
+  const [moviesLoading, setMoviesLoading] = useState(true);
+  const [seriesLoading, setSeriesLoading] = useState(true);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [seasons, setSeasons] = useState([]);
@@ -42,8 +44,12 @@ export function AppProvider({ children }) {
       setDefaultMovies,
       defaultSeries,
       setDefaultSeries,
+      moviesLoading,
+      setMoviesLoading,
+      seriesLoading,
+      setSeriesLoading,
     }),
-    [movies, series, defaultMovies, defaultSeries]
+    [movies, series, defaultMovies, defaultSeries, moviesLoading, seriesLoading]
   );
 
   const mediaValue = useMemo(
