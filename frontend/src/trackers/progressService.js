@@ -22,6 +22,10 @@ export const progressService = {
     return progressTracker.getContinueWatching(limit);
   },
 
+  async getHistory(limit) {
+    return progressTracker.getHistory(limit);
+  },
+
   startPlayback(metadata, percentage) {
     if (!isTraktSyncEnabled()) return;
 
