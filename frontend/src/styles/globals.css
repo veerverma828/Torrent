@@ -718,7 +718,8 @@ button:focus-visible, input:focus-visible {
 .hero-banner {
   position: relative;
   width: 100%;
-  min-height: 62vh;
+  aspect-ratio: 16 / 8;
+  max-height: 46vh;
   border-radius: 20px;
   overflow: hidden;
   margin-bottom: 30px;
@@ -904,21 +905,24 @@ button:focus-visible, input:focus-visible {
 
 @media (max-width: 768px) {
   .hero-banner {
-    min-height: 46vh;
+    aspect-ratio: 4 / 3;
+    max-height: 34vh;
     border-radius: 14px;
   }
 
   .hero-banner-overlay {
-    padding: 28px 20px;
+    padding: 20px 16px;
   }
 
   .hero-banner-title {
-    font-size: 28px;
+    font-size: 24px;
+    margin-bottom: 8px;
   }
 
   .hero-banner-description {
-    font-size: 14px;
-    -webkit-line-clamp: 3;
+    font-size: 13px;
+    -webkit-line-clamp: 2;
+    margin-bottom: 14px;
   }
 }
 
