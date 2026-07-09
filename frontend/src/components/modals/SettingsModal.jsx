@@ -122,14 +122,17 @@ export default function SettingsModal() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-4.5 p-2 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div
+              className="grid gap-2 mb-4.5 p-2 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))" }}
+            >
               {TABS.map(({ key, label, icon: Icon }) => {
                 const isActive = settingsTab === key;
                 return (
                   <button
                     key={key}
                     onClick={() => setSettingsTab(key)}
-                    className={`relative flex-1 min-w-max inline-flex items-center justify-center gap-1.5 px-2.5 py-3 rounded-[14px] font-semibold text-[13px] whitespace-nowrap transition-colors ${
+                    className={`relative inline-flex items-center justify-center gap-1.5 px-2.5 py-3 rounded-[14px] font-semibold text-[13px] whitespace-nowrap transition-colors ${
                       isActive ? "text-white" : "text-text-secondary hover:text-text-primary"
                     }`}
                   >
