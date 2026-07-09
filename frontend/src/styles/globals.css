@@ -704,6 +704,10 @@ button:focus-visible, input:focus-visible {
 /* Home Hero Banner              */
 /* ============================= */
 
+.hero-banner-viewport {
+  position: relative;
+}
+
 .hero-banner {
   position: relative;
   width: 100%;
@@ -716,6 +720,86 @@ button:focus-visible, input:focus-visible {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: flex-end;
+  cursor: grab;
+}
+
+.hero-banner:active {
+  cursor: grabbing;
+}
+
+.hero-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.hero-banner-viewport:hover .hero-nav-btn {
+  opacity: 1;
+}
+
+.hero-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.hero-nav-btn-left {
+  left: 16px;
+}
+
+.hero-nav-btn-right {
+  right: 16px;
+}
+
+@media (hover: none) {
+  .hero-nav-btn {
+    display: none;
+  }
+}
+
+.hero-dots {
+  position: absolute;
+  bottom: 20px;
+  right: 30px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease, width 0.2s ease;
+}
+
+.hero-dot.active {
+  background: var(--color-accent-primary, #e50914);
+  width: 22px;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .hero-dots {
+    right: 16px;
+    bottom: 12px;
+  }
 }
 
 .hero-banner-skeleton {
