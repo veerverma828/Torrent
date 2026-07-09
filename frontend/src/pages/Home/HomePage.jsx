@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
-import { useTraktWatchlist } from "../../hooks/useTraktWatchlist.js";
 import { groupByGenre } from "../../utils/mediaGrouping.js";
 import Loader from "../../components/common/Loader.jsx";
 import ContinueWatchingCard from "../../components/cards/ContinueWatchingCard.jsx";
@@ -28,9 +27,8 @@ export default function HomePage() {
     query,
   } = useAppContext();
 
-  const { imdbMode, useJackett, syncMode } = useSettingsContext();
+  const { imdbMode, useJackett } = useSettingsContext();
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
-  const { watchlist } = useTraktWatchlist(syncMode === "trakt");
 
   useEffect(() => {
     if (selectedItem !== null) {
@@ -69,10 +67,6 @@ export default function HomePage() {
                 <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
               )}
             />
-          )}
-
-          {syncMode === "trakt" && trimmedQuery === "" && watchlist.length > 0 && (
-            <MediaRail title="Watchlist" items={watchlist} keyPrefix="wl" />
           )}
 
           {moviesLoading ? (
