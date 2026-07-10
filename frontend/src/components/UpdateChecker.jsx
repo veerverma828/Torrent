@@ -1,6 +1,6 @@
 import { Download, X, Loader2 } from 'lucide-react'
 import { openInstallPermissionSettings } from '../lib/apkUpdater'
-import { useAppUpdate } from '../hooks/useAppUpdate'
+import { useUpdate } from '../context/UpdateContext.jsx'
 
 export default function UpdateChecker() {
   const {
@@ -13,7 +13,7 @@ export default function UpdateChecker() {
     attemptInstall,
     cancelDownload,
     dismiss,
-  } = useAppUpdate()
+  } = useUpdate()
 
   if (!update || dismissed) return null
 

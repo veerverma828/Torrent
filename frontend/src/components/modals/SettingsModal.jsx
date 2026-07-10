@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Puzzle, Cable, RefreshCw, Zap, Settings as SettingsIcon, X } from "lucide-react";
+import { Puzzle, Cable, RefreshCw, Zap, Settings as SettingsIcon, Download, X } from "lucide-react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
+import { useUpdate } from "../../context/UpdateContext.jsx";
 import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
 import ConvertLinkSection from "./ConvertLinkSection.jsx";
+import UpdateSection from "./UpdateSection.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS, API_URL } from "../../utils/constants.js";
 import "./SettingsModal.css";
@@ -14,6 +16,7 @@ const TABS = [
   { key: "trakt", label: "Trakt", icon: RefreshCw },
   { key: "convert", label: "Direct Stream", icon: Zap },
   { key: "others", label: "Others", icon: SettingsIcon },
+  { key: "update", label: "Update", icon: Download },
 ];
 
 export default function SettingsModal() {
@@ -38,6 +41,8 @@ export default function SettingsModal() {
     rdAdminCode,
     setRdAdminCode,
   } = useSettingsContext();
+
+  const { update } = useUpdate();
 
   const [tempCode, setTempCode] = useState(rdAdminCode);
   const [verifyingRD, setVerifyingRD] = useState(false);
@@ -145,6 +150,9 @@ export default function SettingsModal() {
                     )}
                     <Icon size={14} />
                     {label}
+                    {key === "update" && update && (
+                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-accent-primary border border-bg-base" />
+                    )}
                   </button>
                 );
               })}
@@ -369,6 +377,21 @@ export default function SettingsModal() {
                     </label>
                   </div>
                 </div>
+
+                <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
+                  <button
+                    className="settings-cancel-btn"
+                    onClick={() => setIsSettingsOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+
+            {settingsTab === "update" && (
+              <>
+                <UpdateSection />
 
                 <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
                   <button

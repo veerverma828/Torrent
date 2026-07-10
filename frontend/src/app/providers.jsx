@@ -2,6 +2,7 @@ import React from "react";
 import { AppProvider } from "../context/AppContext.jsx";
 import { SettingsProvider } from "../context/SettingsContext.jsx";
 import { PlayerProvider } from "../context/PlayerContext.jsx";
+import { UpdateProvider } from "../context/UpdateContext.jsx";
 import { traktSyncQueue } from "../services/trakt/traktSyncQueue.js";
 import { traktReconciliation } from "../services/trakt/traktReconciliation.js";
 import { isTraktSyncEnabled } from "../utils/syncMode.js";
@@ -25,7 +26,9 @@ export default function Providers({ children }) {
   return (
     <AppProvider>
       <SettingsProvider>
-        <PlayerProvider>{children}</PlayerProvider>
+        <PlayerProvider>
+          <UpdateProvider>{children}</UpdateProvider>
+        </PlayerProvider>
       </SettingsProvider>
     </AppProvider>
   );
