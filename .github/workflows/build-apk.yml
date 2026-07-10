@@ -1,0 +1,91 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install web deps and build
+        env:
+          # baked into the app so it can compare itself against the latest
+          # GitHub release and offer an in-app update (see useAppUpdate.js)
+          VITE_APP_BUILD: ${{ github.run_number }}
+          # public backend URL (set as a repo variable, Settings > Variables)
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      # Release build signed with a persistent keystore (repo secrets below).
+      # Same signature every build -> Android replaces the installed app in
+      # place, no "package conflicts with an existing package" on install.
+      - name: Decode keystore
+        working-directory: frontend/android
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.jks
+
+      - name: Build release APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/release.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Rename APK with run number
+        working-directory: frontend/android
+        run: |
+          mkdir -p ../../dist-apk
+          cp app/build/outputs/apk/release/app-release.apk \
+             ../../dist-apk/torrent-${{ github.run_number }}.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: torrent-apk
+          path: dist-apk/*.apk
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Torrent Debrid APK build ${{ github.run_number }}
+          files: dist-apk/*.apk
+          body: |
+            Automated APK build from commit ${{ github.sha }}.
+
+            Install: download the .apk below, transfer to your Android phone,
+            and tap to install (allow "install from unknown sources" if
+            prompted). Installed apps auto-detect this release and offer an
+            in-app update.

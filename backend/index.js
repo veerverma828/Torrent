@@ -27,7 +27,10 @@ const getTraktHeaders = () => {
 const allowedOrigins = [
   "https://torrent-gamma.vercel.app",
   "http://localhost:5173",
-  "http://localhost:3000"
+  "http://localhost:3000",
+  // Capacitor Android WebView origins (packaged APK)
+  "https://localhost",
+  "capacitor://localhost"
 ];
 
 app.use(cors({
