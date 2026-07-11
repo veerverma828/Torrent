@@ -85,6 +85,13 @@ public class NativePlayerPlugin extends Plugin {
         final String metadataJson = call.getString("metadataJson", "{}");
         final boolean hasNext = call.getBoolean("hasNext", false);
 
+        // Immediate feedback: resolving a magnet (DHT/tracker lookup) can take
+        // up to a minute, and there's no PlayerActivity on screen yet to show
+        // a spinner — without this the UI looks like the tap did nothing.
+        JSObject resolving = new JSObject();
+        resolving.put("phase", "resolving");
+        emit("torrentStatus", resolving);
+
         // Resolve the magnet to a local stream URL on a background thread, then
         // launch the same PlayerActivity as debrid playback.
         stopTorrent(); // tear down any previous torrent first

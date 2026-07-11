@@ -100,6 +100,7 @@ export function useStreamActions() {
         showToast("P2P streaming works only in the Android app — add a debrid key to stream here.");
         return;
       }
+      showToast("Connecting to peers… this can take up to a minute", "success");
       navigate(`${location.pathname}?modal=stream`, { state: location.state });
       setStreamUrl(magnetOrUrl); // a magnet: URL — VideoPlayer torrent-streams it
       return;

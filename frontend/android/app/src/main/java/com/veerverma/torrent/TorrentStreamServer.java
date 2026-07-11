@@ -102,7 +102,12 @@ public class TorrentStreamServer {
         // download() only takes a TorrentInfo, not a magnet URI).
         byte[] data = session.fetchMagnet(magnet, 60, saveDir);
         if (stopped) throw new IOException("stopped");
-        if (data == null) throw new IOException("Timed out fetching torrent metadata");
+        if (data == null) {
+            throw new IOException(
+                    "No peers found for this torrent within 60s. It may have no seeders, " +
+                    "or your network may be blocking P2P traffic (DHT/tracker UDP) — try a " +
+                    "different network or use a debrid key instead.");
+        }
 
         torrentInfo = TorrentInfo.bdecode(data);
         session.download(torrentInfo, saveDir);

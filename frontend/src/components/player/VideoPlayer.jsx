@@ -6,6 +6,7 @@ import { useMediaContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { progressService } from "../../trackers/progressService.js";
+import { showToast } from "../common/Toast.jsx";
 import { RESUME_SKIP_THRESHOLD } from "../../utils/constants.js";
 import { API_URL } from "../../services/api.js";
 import { fetchEpisodeStreams } from "../../services/cinemeta.js";
@@ -295,7 +296,17 @@ export default function VideoPlayer() {
       setStreamUrl(null);
       navigate(-1);
     }));
-    unsubs.push(onNativePlayerEvent("error", ({ message }) => console.error("Native player error:", message)));
+    unsubs.push(onNativePlayerEvent("error", ({ message }) => {
+      console.error("Native player error:", message);
+      // If this fires before PlayerActivity ever opened (e.g. P2P metadata
+      // resolution failed/timed out), the modal state must be cleared too —
+      // otherwise the UI looks stuck on a stream that silently died.
+      showToast(message || "Playback failed to start");
+      if (!disposed) {
+        disposed = true;
+        setStreamUrl(null);
+      }
+    }));
 
     (async () => {
       const metadata = getMetadata();
