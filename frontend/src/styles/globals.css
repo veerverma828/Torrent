@@ -128,7 +128,9 @@ html {
   width: 150px;
   position: relative;
   z-index: 1;
-  will-change: transform;
+  /* No will-change here: promoting every poster to its own GPU layer made
+     Android WebView run out of compositing memory on scroll and paint black
+     tiles over the page. Layers are only worth it while actually animating. */
   transform-origin: center center;
 }
 
@@ -1000,8 +1002,9 @@ textarea:focus-visible,
   align-items: center;
   gap: 3px;
   padding: 3px 7px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  /* No backdrop-filter: a live blur surface on every poster is a large GPU
+     cost while scrolling (contributes to WebView black-tile artifacts). */
+  background: rgba(0, 0, 0, 0.8);
   border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
