@@ -5,17 +5,16 @@ import { Play, Star } from "lucide-react";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
-function EpisodeCard({ episode, seriesId, selectedItem }) {
+function EpisodeCard({ episode, seriesId, selectedItem, rating: ratingProp }) {
   const navigate = useNavigate();
   const { syncMode } = useSettingsContext();
   const isUnreleased = episode.released
     ? new Date(episode.released) > new Date()
     : false;
   const progress = getEpisodeProgress(seriesId, episode.season, episode.episode);
-  // Cinemeta provides per-episode ratings for many series (rating /
-  // imdbRating) but often as the string "0" when unrated — parse and only
-  // show a real, non-zero score.
-  const parsedRating = parseFloat(episode.rating ?? episode.imdbRating);
+  // Rating comes from TVMaze via SeriesPage (Cinemeta only sends "0");
+  // fall back to any real value in the episode object itself.
+  const parsedRating = parseFloat(ratingProp ?? episode.rating ?? episode.imdbRating);
   const rating = Number.isFinite(parsedRating) && parsedRating > 0 ? parsedRating : null;
 
   // Determine progress bar color based on sync mode

@@ -42,7 +42,11 @@ import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.ui.AspectRatioFrameLayout;
+import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
+import androidx.media3.ui.SubtitleView;
+
+import android.graphics.Color;
 
 import com.getcapacitor.JSObject;
 
@@ -159,6 +163,27 @@ public class PlayerActivity extends AppCompatActivity {
                 .build();
         playerView.setPlayer(player);
         playerView.setControllerShowTimeoutMs(3500);
+        // Our gesture layer owns all touch handling (tap toggle, swipes,
+        // pinch); PlayerView's built-in tap-to-toggle would double-handle.
+        playerView.setControllerHideOnTouch(false);
+        playerView.setControllerAutoShow(false);
+
+        // Stremio-style subtitles: clean white text with a black outline, no
+        // background box, and ignore ugly styling embedded in subtitle files.
+        SubtitleView subtitleView = playerView.getSubtitleView();
+        if (subtitleView != null) {
+            subtitleView.setStyle(new CaptionStyleCompat(
+                    Color.WHITE,
+                    Color.TRANSPARENT,          // no background box
+                    Color.TRANSPARENT,          // no window color
+                    CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                    Color.BLACK,
+                    null));                     // default typeface
+            subtitleView.setApplyEmbeddedStyles(false);
+            subtitleView.setApplyEmbeddedFontSizes(false);
+            subtitleView.setFractionalTextSize(0.05f);
+            subtitleView.setBottomPaddingFraction(0.06f);
+        }
 
         player.addListener(playerListener);
 
@@ -498,7 +523,10 @@ public class PlayerActivity extends AppCompatActivity {
     // ===================== gestures =====================
 
     private void setupGestures() {
-        View root = findViewById(R.id.root);
+        // Attach to the PlayerView itself: it's the topmost touch target, so a
+        // listener on the activity root never fires (the PlayerView consumes
+        // every event first) — that's why swipes were dead on phones.
+        View root = playerView;
 
         GestureDetector tapDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
@@ -604,11 +632,13 @@ public class PlayerActivity extends AppCompatActivity {
                         }
                         if (isVertical || isHorizontal) {
                             hideGestureSoon();
-                            return true;
                         }
                         break;
                 }
-                return false;
+                // Consume everything: taps are handled by our GestureDetector
+                // above, and letting PlayerView's own onTouchEvent run would
+                // re-toggle the controller and fight the swipe gestures.
+                return true;
             }
         });
     }

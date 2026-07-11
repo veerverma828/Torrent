@@ -7,6 +7,7 @@ import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
 import { useSeasonScroll } from "../../hooks/useSeasonScroll.js";
 import { fetchSeriesMeta, fetchEpisodeStreams } from "../../services/cinemeta.js";
+import { fetchEpisodeRatings } from "../../services/episodeRatings.js";
 import Loader from "../../components/common/Loader.jsx";
 import ResultCard from "../../components/cards/ResultCard.jsx";
 import EpisodeCard from "../../components/cards/EpisodeCard.jsx";
@@ -54,6 +55,18 @@ export default function SeriesPage() {
 
   const [meta, setMeta] = useState(null);
   const [imageError, setImageError] = useState(false);
+  const [episodeRatings, setEpisodeRatings] = useState({});
+
+  // Real per-episode ratings (TVMaze) — Cinemeta only ever sends "0".
+  useEffect(() => {
+    let cancelled = false;
+    fetchEpisodeRatings(id).then((map) => {
+      if (!cancelled) setEpisodeRatings(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // Use ref to avoid stale closure for initAction in effect
   const initActionRef = useRef(initAction);
@@ -333,6 +346,7 @@ export default function SeriesPage() {
                       episode={episode}
                       seriesId={id}
                       selectedItem={meta || selectedItem}
+                      rating={episodeRatings[`${Number(episode.season)}:${Number(episode.episode)}`]}
                     />
                   </motion.div>
                 ))}
