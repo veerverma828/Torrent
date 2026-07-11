@@ -2,9 +2,31 @@ import { useEffect } from "react";
 
 export function useKeyboardNavigation() {
   useEffect(() => {
+    // Track the last meaningfully-focused element so that when focus is lost
+    // (e.g. the focused node was unmounted by a re-render) the next arrow key
+    // resumes from where the user was, instead of teleporting elsewhere.
+    let lastFocused = null;
+    const rememberFocus = (e) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && t !== document.body) lastFocused = t;
+    };
+    document.addEventListener("focusin", rememberFocus);
+
+    const isVisible = (el) =>
+      (el.offsetWidth > 0 || el.offsetHeight > 0) &&
+      !el.disabled &&
+      el.getAttribute("aria-hidden") !== "true" &&
+      getComputedStyle(el).visibility !== "hidden";
+
     const handleKeyDown = (e) => {
       if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) {
-        const activeEl = document.activeElement;
+        let activeEl = document.activeElement;
+
+        // Focus fell back to <body> (element unmounted): restore it first.
+        if ((!activeEl || activeEl === document.body) && lastFocused && document.contains(lastFocused) && isVisible(lastFocused)) {
+          lastFocused.focus({ preventScroll: true });
+          activeEl = lastFocused;
+        }
 
         // Smart Input Navigation
         if (activeEl && activeEl.tagName === "INPUT") {
@@ -22,7 +44,7 @@ export function useKeyboardNavigation() {
         // Find all visible, focusable elements on the screen
         const focusable = Array.from(
           document.querySelectorAll('button, input, [tabindex="0"]')
-        ).filter((el) => !el.disabled && (el.offsetWidth > 0 || el.offsetHeight > 0));
+        ).filter(isVisible);
 
         const currentIndex = focusable.indexOf(activeEl);
 
@@ -96,6 +118,9 @@ export function useKeyboardNavigation() {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", rememberFocus);
+    };
   }, []);
 }

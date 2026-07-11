@@ -120,15 +120,20 @@ export default function ContinueWatchingCard({ item, onRemove }) {
             <div className="poster-placeholder-text">{meta.title || "Loading..."}</div>
           </div>
         )}
-        <div className="progress-bar-container">
-          <div
-            className="progress-bar"
-            style={{
-              width: `${Math.max(item.percentage || 0, 3)}%`,
-              backgroundColor: getProgressColor(),
-            }}
-          ></div>
-        </div>
+        {item.isNext && (
+          <div className="next-ep-badge">Next Episode ▶</div>
+        )}
+        {!item.isNext && (
+          <div className="progress-bar-container">
+            <div
+              className="progress-bar"
+              style={{
+                width: `${Math.max(item.percentage || 0, 3)}%`,
+                backgroundColor: getProgressColor(),
+              }}
+            ></div>
+          </div>
+        )}
       </div>
       <p>{meta.title || "Loading..."}</p>
       <small>

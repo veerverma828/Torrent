@@ -8,6 +8,8 @@ import ConvertLinkSection from "./ConvertLinkSection.jsx";
 import UpdateSection from "./UpdateSection.jsx";
 import { storageService } from "../../services/storageService.js";
 import { DEFAULT_ADDON_APIS, API_URL } from "../../utils/constants.js";
+import { fetchAddonManifest, storeManifest, pruneManifests, getStoredManifests } from "../../services/addonCatalogs.js";
+import { showToast } from "../common/Toast.jsx";
 import "./SettingsModal.css";
 
 const TABS = [
@@ -46,6 +48,8 @@ export default function SettingsModal() {
 
   const [tempCode, setTempCode] = useState(rdAdminCode);
   const [verifyingRD, setVerifyingRD] = useState(false);
+  const [savingAddons, setSavingAddons] = useState(false);
+  const storedManifests = getStoredManifests();
 
   const handleVerifyRD = async () => {
     if (!tempCode) return;
@@ -76,13 +80,47 @@ export default function SettingsModal() {
     }
   };
 
-  const handleSave = () => {
-    const finalApis = tempAddonApis
-      .filter((api) => api.trim() !== "")
-      .map((api) => api.trim());
+  const handleSave = async () => {
+    const entered = [...new Set(
+      tempAddonApis.map((api) => api.trim()).filter((api) => api !== "")
+    )];
+
+    // Validate every non-default addon by fetching its manifest. Known-good
+    // (already stored) manifests are skipped so saving stays instant.
+    setSavingAddons(true);
+    const finalApis = [];
+    const known = getStoredManifests();
+    try {
+      for (const api of entered) {
+        if (DEFAULT_ADDON_APIS.includes(api)) {
+          finalApis.push(api);
+          continue;
+        }
+        const manifestUrl = /manifest\.json$/i.test(api)
+          ? api
+          : `${api.replace(/\/$/, "")}/manifest.json`;
+        if (known[manifestUrl]) {
+          finalApis.push(manifestUrl);
+          continue;
+        }
+        try {
+          const info = await fetchAddonManifest(api);
+          storeManifest(info);
+          finalApis.push(info.url);
+          showToast(`Addon installed: ${info.name}`, "success");
+        } catch (err) {
+          showToast(`"${api.slice(0, 40)}…": ${err.message}`);
+          setSavingAddons(false);
+          return; // keep the modal open so the user can fix the URL
+        }
+      }
+    } finally {
+      setSavingAddons(false);
+    }
 
     setAddonApis(finalApis);
     storageService.set("addonApis", finalApis);
+    pruneManifests(finalApis);
     setIsSettingsOpen(false);
   };
 
@@ -163,32 +201,43 @@ export default function SettingsModal() {
                 <div className="settings-section" style={sectionCardStyle}>
                   <h3 style={{ marginBottom: "15px" }}>Addon APIs</h3>
 
-                  {tempAddonApis.map((api, index) => (
-                    <div key={index} className="addon-input-group">
-                      <input
-                        type="text"
-                        className="addon-input"
-                        value={api}
-                        onChange={(e) => {
-                          const newApis = [...tempAddonApis];
-                          newApis[index] = e.target.value;
-                          setTempAddonApis(newApis);
-                        }}
-                        placeholder="https://example.addon.com/manifest.json"
-                      />
+                  {tempAddonApis.map((api, index) => {
+                    const info = storedManifests[api.trim()];
+                    return (
+                      <div key={index}>
+                        <div className="addon-input-group">
+                          <input
+                            type="text"
+                            className="addon-input"
+                            value={api}
+                            onChange={(e) => {
+                              const newApis = [...tempAddonApis];
+                              newApis[index] = e.target.value;
+                              setTempAddonApis(newApis);
+                            }}
+                            placeholder="https://example.addon.com/manifest.json"
+                          />
 
-                      <button
-                        className="addon-remove-btn"
-                        onClick={() => {
-                          const newApis = tempAddonApis.filter((_, i) => i !== index);
-                          setTempAddonApis(newApis);
-                        }}
-                        title="Remove API"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
+                          <button
+                            className="addon-remove-btn"
+                            onClick={() => {
+                              const newApis = tempAddonApis.filter((_, i) => i !== index);
+                              setTempAddonApis(newApis);
+                            }}
+                            title="Remove API"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        {info && (
+                          <div style={{ fontSize: 12, color: "#1db954", margin: "-6px 0 10px 4px" }}>
+                            ✓ {info.name}
+                            {info.catalogs?.length > 0 && ` · ${info.catalogs.length} catalog${info.catalogs.length > 1 ? "s" : ""}`}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   <button
                     className="addon-add-btn"
@@ -209,8 +258,8 @@ export default function SettingsModal() {
                   </button>
 
                   <div className="settings-actions-right">
-                    <button className="settings-save-btn" onClick={handleSave}>
-                      Save
+                    <button className="settings-save-btn" onClick={handleSave} disabled={savingAddons}>
+                      {savingAddons ? "Validating…" : "Save"}
                     </button>
 
                     <button

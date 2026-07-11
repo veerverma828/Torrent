@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { Play, Star } from "lucide-react";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
@@ -12,6 +12,8 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
     ? new Date(episode.released) > new Date()
     : false;
   const progress = getEpisodeProgress(seriesId, episode.season, episode.episode);
+  // Cinemeta provides per-episode ratings for many series (rating / imdbRating)
+  const rating = episode.rating || episode.imdbRating || null;
 
   // Determine progress bar color based on sync mode
   const getProgressColor = (percentage) => {
@@ -42,6 +44,11 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
           draggable="false"
         />
         <div className="episode-number">Ep {episode.episode}</div>
+        {rating && (
+          <div className="episode-rating">
+            <Star size={10} fill="currentColor" /> {Number(rating).toFixed(1)}
+          </div>
+        )}
         <div className="episode-play-icon">
           <Play size={20} fill="currentColor" />
         </div>

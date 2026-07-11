@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchAddonCatalogRails } from "../../services/addonCatalogs.js";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useContinueWatching } from "../../hooks/useContinueWatching.js";
@@ -27,8 +28,22 @@ export default function HomePage() {
     query,
   } = useAppContext();
 
-  const { imdbMode, useJackett } = useSettingsContext();
+  const { imdbMode, useJackett, addonApis } = useSettingsContext();
   const { continueWatchingList, removeFromContinueWatching } = useContinueWatching();
+  const [addonRails, setAddonRails] = useState([]);
+
+  // Extra Home rails from installed Stremio addons that expose catalogs.
+  useEffect(() => {
+    let cancelled = false;
+    fetchAddonCatalogRails(addonApis)
+      .then((rails) => {
+        if (!cancelled) setAddonRails(rails);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [addonApis]);
 
   useEffect(() => {
     if (selectedItem !== null) {
@@ -90,6 +105,16 @@ export default function HomePage() {
               keyPrefix="series"
             />
           )}
+
+          {addonRails.map((rail) => (
+            <MediaRail
+              key={rail.key}
+              title={rail.title}
+              items={rail.metas}
+              type={rail.type}
+              keyPrefix={rail.key}
+            />
+          ))}
 
           {genreRails.map(({ genre, items }) => (
             <MediaRail key={genre} title={genre} items={items} keyPrefix={`genre-${genre}`} />

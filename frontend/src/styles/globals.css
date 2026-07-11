@@ -76,7 +76,14 @@ html {
   gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 10px;
+  /* Breathing room inside the scroller so the focus ring + glow of the
+     first/last/top/bottom edges never gets clipped by overflow. The negative
+     margins cancel the layout shift. */
+  padding: 10px;
+  margin: -10px;
+  padding-bottom: 14px;
+  margin-bottom: -4px;
+  scroll-padding-inline: 10px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
@@ -207,17 +214,21 @@ html {
 /* Premium Focus Styles for Keyboard Nav */
 .poster-card:focus, .episode-card:focus {
   outline: 3px solid #e50914 !important;
-  outline-offset: 4px;
+  outline-offset: 3px;
   border-radius: 10px;
 }
 
 .poster-card:focus {
-  transform: scale(1.03);
+  transform: scale(1.05);
   z-index: 10;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .poster-card:focus .poster-img-container {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(229, 9, 20, 0.35),
+    0 6px 20px rgba(229, 9, 20, 0.28),
+    0 14px 28px rgba(0, 0, 0, 0.85);
 }
 
 .poster-card:focus .remove-cw-btn, .remove-cw-btn:focus {
@@ -264,6 +275,21 @@ textarea:focus-visible,
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* "Next Episode" ribbon on Continue Watching posters */
+.next-ep-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(229, 9, 20, 0.95), rgba(229, 9, 20, 0.75));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 0;
+  letter-spacing: 0.3px;
 }
 
 /* Progress Bar */

@@ -91,9 +91,13 @@ export const getContinueWatching = (limit = 50) => {
   for (const [seriesId, series] of Object.entries(data.series)) {
     if (series.completed) continue;
     let latestEpisode = null;
+    let latestWatched = null; // most recent episode regardless of completion
 
     for (const [seasonNum, season] of Object.entries(series.seasons || {})) {
       for (const [epNum, ep] of Object.entries(season.episodes || {})) {
+        if (ep.percentage > 0 && (!latestWatched || ep.lastUpdated > latestWatched.lastUpdated)) {
+          latestWatched = { ...ep, seasonNum: Number(seasonNum), epNum: Number(epNum), episodesInSeason: season.episodesInSeason };
+        }
         if (!ep.completed && ep.percentage > 0) {
           // Capture latest incomplete episode per series
           if (!latestEpisode || ep.lastUpdated > latestEpisode.lastUpdated) {
@@ -105,10 +109,42 @@ export const getContinueWatching = (limit = 50) => {
 
     if (latestEpisode) {
       list.push({ ...latestEpisode, type: 'series' });
+    } else if (latestWatched?.completed) {
+      // Everything watched so far is finished — surface the NEXT episode so
+      // the series doesn't vanish from Continue Watching mid-season.
+      const next = nextEpisodeAfter(latestWatched, series);
+      if (next) {
+        list.push({
+          type: 'series',
+          isNext: true,
+          percentage: 0,
+          completed: false,
+          lastUpdated: latestWatched.lastUpdated,
+          seriesId,
+          season: String(next.season),
+          episode: String(next.episode),
+          seriesTitle: series.title || "Unknown Series",
+          seriesPoster: series.poster,
+          magnet: "",
+        });
+      }
     }
   }
 
   return list.sort((a, b) => b.lastUpdated - a.lastUpdated).slice(0, limit);
+};
+
+// Next episode after `latest` ({seasonNum, epNum, episodesInSeason}) using the
+// persisted season shape. Falls back to "next number in same season" when the
+// season's episode count was never recorded (older progress entries).
+const nextEpisodeAfter = (latest, series) => {
+  const { seasonNum, epNum, episodesInSeason } = latest;
+  if (!episodesInSeason || epNum < episodesInSeason) {
+    return { season: seasonNum, episode: epNum + 1 };
+  }
+  const totalSeasons = series.totalSeasons;
+  if (totalSeasons && seasonNum >= totalSeasons) return null; // series over
+  return { season: seasonNum + 1, episode: 1 };
 };
 
 export const updateTrackingMetadata = (type, id, title, poster) => {
@@ -183,6 +219,11 @@ export const saveProgress = (metadata, currentTime, duration) => {
       thumbnail: thumbnail || data.series[id].seasons[season].episodes[episode]?.thumbnail || "",
       magnet: magnet || data.series[id].seasons[season].episodes[episode]?.magnet || ""
     };
+
+    // Persist season shape so Continue Watching can compute "next episode"
+    // after this one is finished (see getContinueWatching).
+    if (episodesInSeason) data.series[id].seasons[season].episodesInSeason = Number(episodesInSeason);
+    if (totalSeasons) data.series[id].totalSeasons = Number(totalSeasons);
 
     // Evaluate Series Completion Logic
     if (isCompleted && totalSeasons && episodesInSeason) {

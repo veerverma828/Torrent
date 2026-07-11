@@ -5,6 +5,7 @@ import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { getFiles, generateLink } from "../services/torrentService.js";
 import { openExternalPlayer, openDirectDownload } from "../services/streamService.js";
 import { copyMagnet as copyMagnetUtil } from "../utils/streamHelpers.js";
+import { showToast } from "../components/common/Toast.jsx";
 
 export function useStreamActions() {
   const navigate = useNavigate();
@@ -49,10 +50,10 @@ export function useStreamActions() {
           openExternalPlayer(data.downloadUrl);
         }
       } else {
-        alert(data.message || "❌ Failed to generate link. Torrent may not be fully cached yet.");
+        showToast(data.message || "Failed to generate link — torrent may not be fully cached yet.");
       }
     } catch (err) {
-      alert("Error generating link.");
+      showToast("Error generating link. Please try again.");
       console.error(err);
     }
     setProcessingFile(null);
@@ -93,10 +94,10 @@ export function useStreamActions() {
           });
         }
       } else {
-        alert(data.message || "❌ No files found or timeout.");
+        showToast(data.message || "No files found — the torrent may still be caching.");
       }
     } catch (err) {
-      alert("Error fetching files. Check console.");
+      showToast("Couldn't reach the server. It may be waking up — try again in ~30s.");
       console.error(err);
     }
     setProcessingMagnet(null);

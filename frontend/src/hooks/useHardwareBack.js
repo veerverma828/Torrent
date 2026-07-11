@@ -29,7 +29,14 @@ export function useHardwareBack() {
     if (!Capacitor.isNativePlatform()) return undefined;
 
     let handle;
+    let lastBack = 0;
     App.addListener("backButton", () => {
+      // Debounce: some TV remotes deliver the event twice in quick
+      // succession, which would pop two history entries at once.
+      const now = Date.now();
+      if (now - lastBack < 400) return;
+      lastBack = now;
+
       const { location: loc, isSettingsOpen: settings, streamUrl: stream, fileModalData: files } = state.current;
 
       if (settings) {

@@ -11,6 +11,7 @@ import SettingsButton from "../components/layout/SettingsButton.jsx";
 import Header from "../components/layout/Header.jsx";
 import SearchBar from "../components/layout/SearchBar.jsx";
 import UpdateChecker from "../components/UpdateChecker.jsx";
+import Toast from "../components/common/Toast.jsx";
 import "../styles/globals.css";
 import "../styles/animations.css";
 import "../components/modals/SettingsModal.css";
@@ -167,6 +168,7 @@ export default function Layout() {
       )}
 
       <UpdateChecker />
+      <Toast />
     </div>
   );
 }
