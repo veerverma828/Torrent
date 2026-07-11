@@ -37,6 +37,7 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
@@ -132,7 +133,20 @@ public class PlayerActivity extends AppCompatActivity {
         DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this)
                 .setEnableDecoderFallback(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+        // Faster start, deeper steady-state buffer: begin playback after just
+        // ~1.5s is buffered (default 2.5s), resume after a stall at ~3s, and
+        // keep buffering up to 3 minutes ahead so one slow debrid patch
+        // doesn't cause repeated rebuffering mid-episode.
+        DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                        /* minBufferMs= */ 30000,
+                        /* maxBufferMs= */ 180000,
+                        /* bufferForPlaybackMs= */ 1500,
+                        /* bufferForPlaybackAfterRebufferMs= */ 3000)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build();
         player = new ExoPlayer.Builder(this, renderersFactory)
+                .setLoadControl(loadControl)
                 .setTrackSelector(trackSelector)
                 .setAudioAttributes(
                         new AudioAttributes.Builder()

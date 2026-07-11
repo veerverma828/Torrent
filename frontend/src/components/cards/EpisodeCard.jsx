@@ -12,8 +12,11 @@ function EpisodeCard({ episode, seriesId, selectedItem }) {
     ? new Date(episode.released) > new Date()
     : false;
   const progress = getEpisodeProgress(seriesId, episode.season, episode.episode);
-  // Cinemeta provides per-episode ratings for many series (rating / imdbRating)
-  const rating = episode.rating || episode.imdbRating || null;
+  // Cinemeta provides per-episode ratings for many series (rating /
+  // imdbRating) but often as the string "0" when unrated — parse and only
+  // show a real, non-zero score.
+  const parsedRating = parseFloat(episode.rating ?? episode.imdbRating);
+  const rating = Number.isFinite(parsedRating) && parsedRating > 0 ? parsedRating : null;
 
   // Determine progress bar color based on sync mode
   const getProgressColor = (percentage) => {

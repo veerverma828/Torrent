@@ -44,6 +44,11 @@ dependencies {
     implementation "androidx.media3:media3-ui:$media3Version"
     implementation "androidx.media3:media3-session:$media3Version"
     implementation "androidx.media3:media3-cast:$media3Version"
+    // FFmpeg software audio decoder (AC3/EAC3/DTS/TrueHD). Phones usually lack
+    // hardware decoders for these — TVs/Firesticks have them — which is why
+    // audio played on TV but was silent on mobile. Prebuilt, ABI-split-safe
+    // artifact maintained by Jellyfin, versioned to match media3.
+    implementation "org.jellyfin.media3:media3-ffmpeg-decoder:${media3Version}+1"
 
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
