@@ -41,6 +41,25 @@ export function SettingsProvider({ children }) {
     setRdAdminCodeState(code);
   }, []);
 
+  // Bring-your-own-key debrid: each service only works once the user saves
+  // their own API key (persisted locally, sent per-request to the backend).
+  const [realDebridApiKey, setRealDebridApiKeyState] = useState(() => {
+    return storageService.get("realDebridApiKey") || "";
+  });
+  const [torboxApiKey, setTorboxApiKeyState] = useState(() => {
+    return storageService.get("torboxApiKey") || "";
+  });
+
+  const setRealDebridApiKey = useCallback((key) => {
+    storageService.set("realDebridApiKey", key);
+    setRealDebridApiKeyState(key);
+  }, []);
+
+  const setTorboxApiKey = useCallback((key) => {
+    storageService.set("torboxApiKey", key);
+    setTorboxApiKeyState(key);
+  }, []);
+
   const [syncMode, setSyncMode] = useState(() => {
     return storageService.get("syncMode") || "local";
   });
@@ -80,6 +99,10 @@ export function SettingsProvider({ children }) {
       setRdUnlocked,
       rdAdminCode,
       setRdAdminCode,
+      realDebridApiKey,
+      setRealDebridApiKey,
+      torboxApiKey,
+      setTorboxApiKey,
       syncMode,
       setSyncMode: updateSyncMode,
       traktAuthenticated,
@@ -98,6 +121,10 @@ export function SettingsProvider({ children }) {
       debridService,
       rdUnlocked,
       rdAdminCode,
+      realDebridApiKey,
+      setRealDebridApiKey,
+      torboxApiKey,
+      setTorboxApiKey,
       syncMode,
       updateSyncMode,
       traktAuthenticated,

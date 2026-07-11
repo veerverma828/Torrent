@@ -32,9 +32,11 @@ export default function ConvertLinkSection() {
   const { initAction } = useStreamActions();
   const {
     debridService,
-    rdAdminCode,
+    realDebridApiKey,
+    torboxApiKey,
     setIsSettingsOpen,
   } = useSettingsContext();
+  const debridKey = debridService === "real-debrid" ? realDebridApiKey : torboxApiKey;
 
   const [inputValue, setInputValue] = useState("");
   const [copyProcessing, setCopyProcessing] = useState(false);
@@ -58,7 +60,7 @@ export default function ConvertLinkSection() {
       const fileData = await getFiles(
         inputValue.trim(),
         debridService,
-        rdAdminCode,
+        debridKey,
       );
 
       if (!fileData?.files?.length) {
@@ -70,7 +72,7 @@ export default function ConvertLinkSection() {
         fileData.torrentId,
         fileData.files[0].id,
         debridService,
-        rdAdminCode,
+        debridKey,
       );
 
       if (!generated?.downloadUrl) {

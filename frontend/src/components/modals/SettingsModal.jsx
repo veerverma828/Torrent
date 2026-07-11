@@ -38,45 +38,52 @@ export default function SettingsModal() {
     setImdbMode,
     debridService,
     setDebridService,
-    rdUnlocked,
-    setRdUnlocked,
-    rdAdminCode,
-    setRdAdminCode,
+    realDebridApiKey,
+    setRealDebridApiKey,
+    torboxApiKey,
+    setTorboxApiKey,
   } = useSettingsContext();
 
   const { update } = useUpdate();
 
-  const [tempCode, setTempCode] = useState(rdAdminCode);
-  const [verifyingRD, setVerifyingRD] = useState(false);
+  const [tempTorboxKey, setTempTorboxKey] = useState(torboxApiKey || "");
+  const [tempRdKey, setTempRdKey] = useState(realDebridApiKey || "");
+  const [verifyingKey, setVerifyingKey] = useState(null); // "torbox" | "real-debrid" | null
   const [savingAddons, setSavingAddons] = useState(false);
   const storedManifests = getStoredManifests();
 
-  const handleVerifyRD = async () => {
-    if (!tempCode) return;
-    setVerifyingRD(true);
+  // Verify the pasted key against the provider, then persist it locally.
+  const handleSaveDebridKey = async (service) => {
+    const key = (service === "torbox" ? tempTorboxKey : tempRdKey).trim();
+    if (!key) {
+      showToast("Paste an API key first");
+      return;
+    }
+    setVerifyingKey(service);
     try {
-      const res = await fetch(`${API_URL}/verify-rd`, {
+      const res = await fetch(`${API_URL}/verify-debrid`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: tempCode }),
+        headers: { "Content-Type": "application/json", "x-debrid-key": key },
+        body: JSON.stringify({ service }),
       });
-
       const data = await res.json();
 
-      if (data.success) {
-        setRdUnlocked(true);
-        setRdAdminCode(tempCode);
-        setDebridService("real-debrid");
-        alert("✅ Real-Debrid Admin access verified and unlocked!");
+      if (res.ok && data.success) {
+        if (service === "torbox") setTorboxApiKey(key);
+        else setRealDebridApiKey(key);
+        setDebridService(service);
+        showToast(
+          `${service === "torbox" ? "Torbox" : "Real-Debrid"} key verified${data.username ? ` (${data.username})` : ""}`,
+          "success"
+        );
       } else {
-        alert("❌ Verification failed: Only admin can access Real-Debrid");
-        setDebridService("torbox");
+        showToast(data.message || "Invalid API key");
       }
     } catch (err) {
       console.error(err);
-      alert("Error verifying access code");
+      showToast("Could not verify — server unreachable (it may be waking up)");
     } finally {
-      setVerifyingRD(false);
+      setVerifyingKey(null);
     }
   };
 
@@ -290,9 +297,12 @@ export default function SettingsModal() {
                             name="modal-debrid"
                             value="torbox"
                             checked={debridService === "torbox"}
-                            onChange={() => setDebridService("torbox")}
+                            onChange={() => {
+                              if (torboxApiKey) setDebridService("torbox");
+                              else showToast("Save your Torbox API key below first");
+                            }}
                           />
-                          Torbox
+                          Torbox {torboxApiKey ? "✓" : "(needs key)"}
                         </label>
                         <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
                           <input
@@ -301,41 +311,84 @@ export default function SettingsModal() {
                             value="real-debrid"
                             checked={debridService === "real-debrid"}
                             onChange={() => {
-                              if (rdUnlocked) {
-                                setDebridService("real-debrid");
-                              } else {
-                                alert("Please enter and verify your Real-Debrid admin access code below first.");
-                              }
+                              if (realDebridApiKey) setDebridService("real-debrid");
+                              else showToast("Save your Real-Debrid API key below first");
                             }}
                           />
-                          Real-Debrid
+                          Real-Debrid {realDebridApiKey ? "✓" : "(needs key)"}
                         </label>
                       </div>
                     </div>
 
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "12px" }}>
                       <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
-                        Real-Debrid Admin Access Code:
+                        Torbox API Key:
                       </label>
                       <div style={{ display: "flex", gap: "10px" }}>
                         <input
                           type="password"
                           className="addon-input"
-                          value={tempCode}
-                          onChange={(e) => setTempCode(e.target.value)}
-                          placeholder="Enter admin code"
+                          value={tempTorboxKey}
+                          onChange={(e) => setTempTorboxKey(e.target.value)}
+                          placeholder="Paste your Torbox API key"
                         />
                         <button
                           className="addon-add-btn"
                           style={{ margin: 0, whiteSpace: "nowrap" }}
-                          onClick={handleVerifyRD}
-                          disabled={verifyingRD}
+                          onClick={() => handleSaveDebridKey("torbox")}
+                          disabled={verifyingKey === "torbox"}
                         >
-                          {verifyingRD ? "Verifying..." : "Verify & Save"}
+                          {verifyingKey === "torbox" ? "Verifying..." : "Verify & Save"}
                         </button>
                       </div>
-                      <div style={{ marginTop: "8px", fontSize: "12px", color: rdUnlocked ? "#1db954" : "#ff4d4d", fontWeight: "bold" }}>
-                        Status: {rdUnlocked ? "✅ Unlocked (Admin Authorized)" : "🔒 Locked (Torbox only)"}
+                      {torboxApiKey && (
+                        <div style={{ marginTop: "6px", fontSize: "12px", color: "#1db954", fontWeight: "bold" }}>
+                          ✓ Torbox key saved
+                          <button
+                            style={{ marginLeft: 10, color: "#ff4d4d", background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}
+                            onClick={() => { setTorboxApiKey(""); setTempTorboxKey(""); }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "12px" }}>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
+                        Real-Debrid API Key:
+                      </label>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <input
+                          type="password"
+                          className="addon-input"
+                          value={tempRdKey}
+                          onChange={(e) => setTempRdKey(e.target.value)}
+                          placeholder="Paste your Real-Debrid API key"
+                        />
+                        <button
+                          className="addon-add-btn"
+                          style={{ margin: 0, whiteSpace: "nowrap" }}
+                          onClick={() => handleSaveDebridKey("real-debrid")}
+                          disabled={verifyingKey === "real-debrid"}
+                        >
+                          {verifyingKey === "real-debrid" ? "Verifying..." : "Verify & Save"}
+                        </button>
+                      </div>
+                      {realDebridApiKey && (
+                        <div style={{ marginTop: "6px", fontSize: "12px", color: "#1db954", fontWeight: "bold" }}>
+                          ✓ Real-Debrid key saved
+                          <button
+                            style={{ marginLeft: 10, color: "#ff4d4d", background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}
+                            onClick={() => { setRealDebridApiKey(""); setTempRdKey(""); }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                      <div style={{ marginTop: "8px", fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>
+                        Keys are stored only on this device and sent directly with your requests.
+                        Get them from torbox.app/settings or real-debrid.com/apitoken.
                       </div>
                     </div>
                   </div>

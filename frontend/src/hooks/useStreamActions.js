@@ -12,7 +12,17 @@ export function useStreamActions() {
   const location = useLocation();
 
   const { setResults } = useAppContext();
-  const { debridService, rdAdminCode } = useSettingsContext();
+  const { debridService, realDebridApiKey, torboxApiKey, setIsSettingsOpen, setSettingsTab } =
+    useSettingsContext();
+  const debridKey = debridService === "real-debrid" ? realDebridApiKey : torboxApiKey;
+
+  function requireDebridKey() {
+    if (debridKey) return true;
+    showToast("Add your debrid API key in Settings to stream");
+    setSettingsTab("debrid");
+    setIsSettingsOpen(true);
+    return false;
+  }
   const {
     setStreamUrl,
     setFileModalData,
@@ -31,7 +41,7 @@ export function useStreamActions() {
       const torrentId = overrideTorrentId || (fileModalData ? fileModalData.torrentId : null);
       const action = overrideActionType || (fileModalData ? fileModalData.actionType : null);
 
-      const data = await generateLink(torrentId, fileId, debridService, rdAdminCode);
+      const data = await generateLink(torrentId, fileId, debridService, debridKey);
 
       if (data.downloadUrl) {
         if (fileModalData) setFileModalData(null);
@@ -77,9 +87,11 @@ export function useStreamActions() {
       return;
     }
 
+    if (!requireDebridKey()) return;
+
     setProcessingMagnet(magnetOrUrl);
     try {
-      const data = await getFiles(magnetOrUrl, debridService, rdAdminCode);
+      const data = await getFiles(magnetOrUrl, debridService, debridKey);
 
       if (data.files && data.files.length > 0) {
         if (autoPlayFirst) {

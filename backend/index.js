@@ -43,7 +43,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "DELETE"],
-  allowedHeaders: ["Content-Type", "x-admin-code", "Authorization"]
+  allowedHeaders: ["Content-Type", "x-admin-code", "x-debrid-key", "Authorization"]
 }));
 
 app.use(express.json());
@@ -297,16 +297,24 @@ app.get("/search", async (req, res) => {
   }
 });
 
+// Debrid access is bring-your-own-key: the app sends the user's Real-Debrid
+// or Torbox API key in the x-debrid-key header. No shared server-side keys —
+// each user runs on their own account.
+const getDebridKey = (req) => (req.headers["x-debrid-key"] || "").trim();
+
 app.post("/get-files", async (req, res) => {
   const { magnet, service } = req.body;
-  const adminCode = req.headers["x-admin-code"];
+  const userKey = getDebridKey(req);
+
+  if (!userKey) {
+    return res.status(403).json({
+      message: "API key required — add your debrid API key in Settings > Debrid.",
+    });
+  }
 
   if (service === "real-debrid") {
-    if (adminCode !== process.env.RD_ADMIN_CODE) {
-      return res.status(403).json({ message: "❌ Unauthorized" });
-    }
     try {
-      const API_KEY = process.env.REAL_DEBRID_API_KEY;
+      const API_KEY = userKey;
 
       const addRes = await axios.post(
         "https://api.real-debrid.com/rest/1.0/torrents/addMagnet",
@@ -360,7 +368,7 @@ app.post("/get-files", async (req, res) => {
 
   if (service === "torbox") {
     try {
-      const API_KEY = process.env.TORBOX_API_KEY;
+      const API_KEY = userKey;
       const addRes = await axios.post(
         "https://api.torbox.app/v1/api/torrents/createtorrent",
         new URLSearchParams({ magnet }),
@@ -418,14 +426,17 @@ app.post("/get-files", async (req, res) => {
 
 app.post("/generate-link", async (req, res) => {
   const { torrentId, fileId, service } = req.body;
-  const adminCode = req.headers["x-admin-code"];
+  const userKey = getDebridKey(req);
+
+  if (!userKey) {
+    return res.status(403).json({
+      message: "API key required — add your debrid API key in Settings > Debrid.",
+    });
+  }
 
   if (service === "real-debrid") {
-    if (adminCode !== process.env.RD_ADMIN_CODE) {
-      return res.status(403).json({ message: "❌ Unauthorized" });
-    }
     try {
-      const API_KEY = process.env.REAL_DEBRID_API_KEY;
+      const API_KEY = userKey;
 
       await axios.post(
         `https://api.real-debrid.com/rest/1.0/torrents/selectFiles/${torrentId}`,
@@ -483,7 +494,7 @@ app.post("/generate-link", async (req, res) => {
 
   if (service === "torbox") {
     try {
-      const API_KEY = process.env.TORBOX_API_KEY;
+      const API_KEY = userKey;
 
       for (let i = 0; i < 4; i++) {
         try {
@@ -514,14 +525,39 @@ app.post("/generate-link", async (req, res) => {
   return res.status(400).json({ message: "Unsupported service" });
 });
 
-app.post("/verify-rd", (req, res) => {
-  const { code } = req.body;
+// Validate a user-supplied debrid API key against the provider itself.
+app.post("/verify-debrid", async (req, res) => {
+  const { service } = req.body;
+  const apiKey = getDebridKey(req) || (req.body.apiKey || "").trim();
 
-  if (code === process.env.RD_ADMIN_CODE) {
-    return res.json({ success: true });
+  if (!apiKey) {
+    return res.status(400).json({ success: false, message: "Missing API key" });
   }
 
-  res.status(403).json({ success: false, message: "❌ Only admin can access Real-Debrid" });
+  try {
+    if (service === "real-debrid") {
+      const userRes = await axios.get("https://api.real-debrid.com/rest/1.0/user", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      return res.json({ success: true, username: userRes.data?.username || null, premium: !!userRes.data?.premium });
+    }
+    if (service === "torbox") {
+      const userRes = await axios.get("https://api.torbox.app/v1/api/user/me", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (userRes.data?.success === false) {
+        return res.status(403).json({ success: false, message: "Invalid Torbox API key" });
+      }
+      return res.json({ success: true, username: userRes.data?.data?.email || null });
+    }
+    return res.status(400).json({ success: false, message: "Unsupported service" });
+  } catch (error) {
+    const status = error.response?.status;
+    return res.status(403).json({
+      success: false,
+      message: status === 401 || status === 403 ? "Invalid API key" : "Could not verify key with provider",
+    });
+  }
 });
 
 const PORT = process.env.PORT || 5000;

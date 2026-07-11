@@ -49,7 +49,8 @@ export default function VideoPlayer() {
   });
 
   const { selectedItem, episodes = [], seasons = [] } = useMediaContext();
-  const { addonApis, debridService, rdAdminCode } = useSettingsContext();
+  const { addonApis, debridService, realDebridApiKey, torboxApiKey } = useSettingsContext();
+  const debridKey = debridService === "real-debrid" ? realDebridApiKey : torboxApiKey;
   const { streamUrl, setStreamUrl, videoRef, currentMagnet } = usePlayerContext();
 
   const movieMatch = useMemo(() => matchPath("/movie/:id", location.pathname), [location.pathname]);
@@ -226,10 +227,10 @@ export default function VideoPlayer() {
       if (magnet.startsWith("http")) {
         url = magnet;
       } else {
-        const filesData = await getFiles(magnet, debridService, rdAdminCode);
+        const filesData = await getFiles(magnet, debridService, debridKey);
         const fileId = filesData?.files?.[0]?.id;
         if (!fileId) return stopNative();
-        const link = await generateLink(filesData.torrentId, fileId, debridService, rdAdminCode);
+        const link = await generateLink(filesData.torrentId, fileId, debridService, debridKey);
         url = link?.downloadUrl;
       }
       if (!url) return stopNative();
