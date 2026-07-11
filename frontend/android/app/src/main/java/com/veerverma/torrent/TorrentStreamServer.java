@@ -44,8 +44,46 @@ public class TorrentStreamServer {
     private static final int READAHEAD_PIECES = 12;
     private static final int PIECE_WAIT_TIMEOUT_MS = 60000;
 
+    // The BitTorrent session (and its DHT routing table) is process-wide and
+    // long-lived, NOT per-stream. Recreating it on every tap forced DHT to
+    // cold-bootstrap from zero each time — discarding all previously-learned
+    // nodes — which is why peer discovery could time out on every attempt
+    // even on a fine network. Real torrent clients keep one session running
+    // for the app's lifetime for exactly this reason.
+    private static final SessionManager sharedSession = new SessionManager();
+    private static volatile TorrentStreamServer activeInstance;
+
+    static {
+        sharedSession.addListener(new AlertListener() {
+            @Override
+            public int[] types() {
+                return new int[]{AlertType.ADD_TORRENT.swig()};
+            }
+
+            @Override
+            public void alert(Alert<?> alert) {
+                TorrentStreamServer instance = activeInstance;
+                if (instance == null) return;
+                try {
+                    if (alert.type() == AlertType.ADD_TORRENT) {
+                        instance.handle = ((AddTorrentAlert) alert).handle();
+                        instance.handle.resume();
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "alert error", t);
+                }
+            }
+        });
+    }
+
+    /** Start the shared session eagerly (e.g. at app launch) so DHT has a
+     *  head start bootstrapping before the user ever taps Stream. Safe to
+     *  call repeatedly — libtorrent4j no-ops if already running. */
+    static void warmUp() {
+        if (!sharedSession.isRunning()) sharedSession.start();
+    }
+
     private final Context context;
-    private final SessionManager session = new SessionManager();
     private final StatusCallback callback;
 
     private volatile TorrentHandle handle;
@@ -72,35 +110,14 @@ public class TorrentStreamServer {
         if (saveDir.exists()) deleteRecursive(saveDir);
         saveDir.mkdirs();
 
-        session.addListener(new AlertListener() {
-            @Override
-            public int[] types() {
-                return new int[]{
-                        AlertType.ADD_TORRENT.swig(),
-                        AlertType.METADATA_RECEIVED.swig(),
-                        AlertType.PIECE_FINISHED.swig(),
-                        AlertType.TORRENT_ERROR.swig(),
-                };
-            }
-
-            @Override
-            public void alert(Alert<?> alert) {
-                try {
-                    if (alert.type() == AlertType.ADD_TORRENT) {
-                        handle = ((AddTorrentAlert) alert).handle();
-                        handle.resume();
-                    }
-                } catch (Throwable t) {
-                    Log.e(TAG, "alert error", t);
-                }
-            }
-        });
-
-        session.start();
+        activeInstance = this;
+        warmUp();
 
         // Fetch the torrent metadata from the magnet first (libtorrent4j's
-        // download() only takes a TorrentInfo, not a magnet URI).
-        byte[] data = session.fetchMagnet(magnet, 60, saveDir);
+        // download() only takes a TorrentInfo, not a magnet URI). On a warm
+        // session (DHT already bootstrapped from a previous stream, or from
+        // the app-launch warmUp) this resolves far faster than a cold start.
+        byte[] data = sharedSession.fetchMagnet(magnet, 60, saveDir);
         if (stopped) throw new IOException("stopped");
         if (data == null) {
             throw new IOException(
@@ -110,7 +127,7 @@ public class TorrentStreamServer {
         }
 
         torrentInfo = TorrentInfo.bdecode(data);
-        session.download(torrentInfo, saveDir);
+        sharedSession.download(torrentInfo, saveDir);
 
         // Wait for the torrent handle from the ADD_TORRENT alert.
         long deadline = System.currentTimeMillis() + PIECE_WAIT_TIMEOUT_MS;
@@ -199,16 +216,15 @@ public class TorrentStreamServer {
 
     public void stop() {
         stopped = true;
+        if (activeInstance == this) activeInstance = null;
         try {
             if (httpServer != null) httpServer.stop();
         } catch (Throwable ignored) {
         }
         try {
-            if (handle != null && handle.isValid()) session.remove(handle);
-        } catch (Throwable ignored) {
-        }
-        try {
-            session.stop();
+            // Remove only this torrent — the shared session (and its warmed-up
+            // DHT routing table) keeps running for the next stream.
+            if (handle != null && handle.isValid()) sharedSession.remove(handle);
         } catch (Throwable ignored) {
         }
         try {

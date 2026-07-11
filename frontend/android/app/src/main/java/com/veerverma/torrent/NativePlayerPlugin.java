@@ -31,6 +31,10 @@ public class NativePlayerPlugin extends Plugin {
     @Override
     public void load() {
         instance = this;
+        // Start the BitTorrent session (DHT bootstrap) as soon as the app
+        // opens, not on the first Stream tap — gives peer discovery a head
+        // start of however long the user spends browsing before playing.
+        new Thread(TorrentStreamServer::warmUp).start();
     }
 
     /** Called from PlayerActivity (any thread) to forward an event to JS. */
