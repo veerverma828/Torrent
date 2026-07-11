@@ -6,15 +6,19 @@ import { getFiles, generateLink } from "../services/torrentService.js";
 import { openExternalPlayer, openDirectDownload } from "../services/streamService.js";
 import { copyMagnet as copyMagnetUtil } from "../utils/streamHelpers.js";
 import { showToast } from "../components/common/Toast.jsx";
+import { isNativePlayerAvailable } from "../lib/nativePlayer.js";
 
 export function useStreamActions() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const { setResults } = useAppContext();
-  const { debridService, realDebridApiKey, torboxApiKey, setIsSettingsOpen, setSettingsTab } =
+  const { debridService, realDebridApiKey, torboxApiKey, playbackSource, setIsSettingsOpen, setSettingsTab } =
     useSettingsContext();
   const debridKey = debridService === "real-debrid" ? realDebridApiKey : torboxApiKey;
+
+  // P2P when explicitly forced, or in Auto mode with no debrid key saved.
+  const useP2P = playbackSource === "p2p" || (playbackSource === "auto" && !debridKey);
 
   function requireDebridKey() {
     if (debridKey) return true;
@@ -84,6 +88,20 @@ export function useStreamActions() {
       } else if (actionType === "external") {
         openExternalPlayer(magnetOrUrl);
       }
+      return;
+    }
+
+    // P2P streaming: hand the raw magnet to the player, which torrent-streams
+    // it natively (no debrid). VideoPlayer detects the "magnet:" scheme and
+    // routes to the native torrent path, reusing all its metadata/resume/
+    // next-episode wiring. Only applies to the in-app stream action.
+    if (actionType === "stream" && useP2P) {
+      if (!isNativePlayerAvailable) {
+        showToast("P2P streaming works only in the Android app — add a debrid key to stream here.");
+        return;
+      }
+      navigate(`${location.pathname}?modal=stream`, { state: location.state });
+      setStreamUrl(magnetOrUrl); // a magnet: URL — VideoPlayer torrent-streams it
       return;
     }
 

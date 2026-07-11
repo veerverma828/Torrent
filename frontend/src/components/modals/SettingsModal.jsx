@@ -42,6 +42,8 @@ export default function SettingsModal() {
     setRealDebridApiKey,
     torboxApiKey,
     setTorboxApiKey,
+    playbackSource,
+    setPlaybackSource,
   } = useSettingsContext();
 
   const { update } = useUpdate();
@@ -288,9 +290,37 @@ export default function SettingsModal() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div>
                       <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
-                        Active Service:
+                        Playback Source:
                       </label>
-                      <div style={{ display: "flex", gap: "16px" }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
+                        {[
+                          { value: "auto", label: "Auto" },
+                          { value: "p2p", label: "P2P (torrent)" },
+                          { value: "debrid", label: "Debrid" },
+                        ].map((opt) => (
+                          <label key={opt.value} style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                            <input
+                              type="radio"
+                              name="playback-source"
+                              value={opt.value}
+                              checked={playbackSource === opt.value}
+                              onChange={() => setPlaybackSource(opt.value)}
+                            />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: "6px", fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>
+                        Auto streams via debrid when a key is saved, otherwise peer-to-peer.
+                        P2P works only in the Android app.
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "12px" }}>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "14px" }}>
+                        Active Debrid Service:
+                      </label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
                         <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
                           <input
                             type="radio"

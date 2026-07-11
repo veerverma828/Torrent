@@ -35,6 +35,23 @@ export async function playNative({ url, title = '', subtitle = '', startPercent 
   return true
 }
 
+/**
+ * Play a magnet via native torrent streaming (libtorrent4j) — no debrid.
+ * Same options as playNative but takes a `magnet` instead of a `url`.
+ */
+export async function playTorrentNative({ magnet, title = '', subtitle = '', startPercent = 0, metadata = null, hasNext = false }) {
+  if (!NativePlayer) return false
+  await NativePlayer.playTorrent({
+    magnet,
+    title,
+    subtitle,
+    startPercent: Number(startPercent) || 0,
+    metadataJson: JSON.stringify(metadata || {}),
+    hasNext: !!hasNext,
+  })
+  return true
+}
+
 export async function stopNative() {
   if (!NativePlayer) return
   await NativePlayer.stop()

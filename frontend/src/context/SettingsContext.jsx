@@ -60,6 +60,16 @@ export function SettingsProvider({ children }) {
     setTorboxApiKeyState(key);
   }, []);
 
+  // Playback source: "auto" = debrid when a key is saved else P2P; "p2p" and
+  // "debrid" force one. P2P only works in the native Android app.
+  const [playbackSource, setPlaybackSourceState] = useState(() => {
+    return storageService.get("playbackSource") || "auto";
+  });
+  const setPlaybackSource = useCallback((src) => {
+    storageService.set("playbackSource", src);
+    setPlaybackSourceState(src);
+  }, []);
+
   const [syncMode, setSyncMode] = useState(() => {
     return storageService.get("syncMode") || "local";
   });
@@ -103,6 +113,8 @@ export function SettingsProvider({ children }) {
       setRealDebridApiKey,
       torboxApiKey,
       setTorboxApiKey,
+      playbackSource,
+      setPlaybackSource,
       syncMode,
       setSyncMode: updateSyncMode,
       traktAuthenticated,
@@ -125,6 +137,8 @@ export function SettingsProvider({ children }) {
       setRealDebridApiKey,
       torboxApiKey,
       setTorboxApiKey,
+      playbackSource,
+      setPlaybackSource,
       syncMode,
       updateSyncMode,
       traktAuthenticated,

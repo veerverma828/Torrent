@@ -51,12 +51,14 @@
 
 .addon-input-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 15px;
 }
 
 .addon-input {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0; /* allow shrink so long keys/urls don't force overflow */
   height: 40px;
   border-radius: 6px;
   border: 1px solid #444;
@@ -98,10 +100,22 @@
 
 .settings-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #333;
   padding-top: 20px;
+}
+
+/* Any inline section/card must never exceed the sheet width */
+.settings-section {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.settings-section input,
+.settings-section .addon-input {
+  max-width: 100%;
 }
 
 .settings-actions-right {

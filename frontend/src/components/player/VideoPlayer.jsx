@@ -13,6 +13,7 @@ import { getFiles, generateLink } from "../../services/torrentService.js";
 import {
   isNativePlayerAvailable,
   playNative,
+  playTorrentNative,
   stopNative,
   onNativePlayerEvent,
 } from "../../lib/nativePlayer.js";
@@ -208,6 +209,9 @@ export default function VideoPlayer() {
 
     let disposed = false;
     const unsubs = [];
+    // A "magnet:" stream URL means P2P torrent streaming (no debrid); anything
+    // else is an already-resolved direct/debrid HTTP URL.
+    const isP2P = typeof streamUrl === "string" && streamUrl.startsWith("magnet:");
     const pct = (posMs, durMs) => (durMs > 0 ? (posMs / durMs) * 100 : 0);
     const saveFromEvent = (m, posMs, durMs) => {
       if (m && durMs > 0) progressService.saveProgress(m, posMs / 1000, durMs / 1000);
@@ -222,18 +226,6 @@ export default function VideoPlayer() {
       const streams = await fetchEpisodeStreams(seriesId, next.season, next.episode, addonApis);
       const magnet = streams?.[0]?.magnet;
       if (!magnet) return stopNative();
-
-      let url;
-      if (magnet.startsWith("http")) {
-        url = magnet;
-      } else {
-        const filesData = await getFiles(magnet, debridService, debridKey);
-        const fileId = filesData?.files?.[0]?.id;
-        if (!fileId) return stopNative();
-        const link = await generateLink(filesData.torrentId, fileId, debridService, debridKey);
-        url = link?.downloadUrl;
-      }
-      if (!url) return stopNative();
 
       currentMagnet.current = magnet;
       const nextMeta = {
@@ -250,14 +242,33 @@ export default function VideoPlayer() {
         thumbnail: next.thumbnail,
         magnet,
       };
-      await playNative({
-        url,
+      const nextArgs = {
         title: nextMeta.title || "",
         subtitle: seriesSubtitle(nextMeta),
         startPercent: 0,
         metadata: nextMeta,
         hasNext: !!findNextEpisode(episodes, next.season, next.episode),
-      });
+      };
+
+      // Continue in the same mode the user started in.
+      if (isP2P && !magnet.startsWith("http")) {
+        await playTorrentNative({ magnet, ...nextArgs });
+        return;
+      }
+
+      let url;
+      if (magnet.startsWith("http")) {
+        url = magnet;
+      } else {
+        const filesData = await getFiles(magnet, debridService, debridKey);
+        const fileId = filesData?.files?.[0]?.id;
+        if (!fileId) return stopNative();
+        const link = await generateLink(filesData.torrentId, fileId, debridService, debridKey);
+        url = link?.downloadUrl;
+      }
+      if (!url) return stopNative();
+
+      await playNative({ url, ...nextArgs });
     };
 
     unsubs.push(onNativePlayerEvent("progress", ({ metadata, positionMs, durationMs }) => saveFromEvent(metadata, positionMs, durationMs)));
@@ -298,14 +309,15 @@ export default function VideoPlayer() {
 
       const hasNext = !!(episodeMatch && findNextEpisode(episodes, episodeMatch.params.season, episodeMatch.params.episode));
 
-      await playNative({
-        url: streamUrl,
+      const args = {
         title: metadata?.title || "",
         subtitle: seriesSubtitle(metadata),
         startPercent,
         metadata,
         hasNext,
-      });
+      };
+      if (isP2P) await playTorrentNative({ magnet: streamUrl, ...args });
+      else await playNative({ url: streamUrl, ...args });
     })();
 
     return () => unsubs.forEach((u) => u && u());
