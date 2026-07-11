@@ -5,6 +5,7 @@ import { useAppContext } from "../context/AppContext.jsx";
 import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation.js";
+import { useHardwareBack } from "../hooks/useHardwareBack.js";
 import { useDebrid } from "../hooks/useDebrid.js";
 import SettingsButton from "../components/layout/SettingsButton.jsx";
 import Header from "../components/layout/Header.jsx";
@@ -27,6 +28,7 @@ export default function Layout() {
   const { debridService, handleDebridChange } = useDebrid();
 
   useKeyboardNavigation();
+  useHardwareBack();
 
   // Keep the lazy modal/player mounted once first triggered so their internal
   // AnimatePresence can play an exit animation instead of being hard-unmounted.
@@ -146,7 +148,7 @@ export default function Layout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
         >
           <Outlet />
         </motion.div>

@@ -233,6 +233,39 @@ button:focus-visible, input:focus-visible {
   outline-offset: 2px;
 }
 
+/* Consistent focus ring across every interactive element so keyboard / D-pad
+   users always see where they are. */
+a:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+.file-item:focus-visible,
+.file-item:focus,
+.season-tab:focus-visible,
+.season-tab:focus,
+.result-btn:focus-visible {
+  outline: 3px solid #e50914 !important;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Selected items (file picker / season tab) get a filled highlight too, not
+   just an outline, so the current focus reads clearly on busy screens. */
+.file-item:focus-visible,
+.file-item:focus,
+.season-tab:focus-visible,
+.season-tab:focus {
+  background: rgba(229, 9, 20, 0.16) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Progress Bar */
 .progress-bar-container {
   position: absolute;

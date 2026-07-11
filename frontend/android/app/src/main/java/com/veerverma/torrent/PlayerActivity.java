@@ -78,6 +78,9 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView nextText;
     private TextView btnSpeed;
     private TextView btnAspect;
+    private TextView btnSubtitles;
+    private TextView btnAudio;
+    private TextView btnQuality;
 
     private String metadataJson = "{}";
     private boolean hasNext = false;
@@ -197,9 +200,9 @@ public class PlayerActivity extends AppCompatActivity {
     private void wireControls() {
         ImageButton btnClose = playerView.findViewById(R.id.btn_close);
         ImageButton btnPip = playerView.findViewById(R.id.btn_pip);
-        TextView btnSubtitles = playerView.findViewById(R.id.btn_subtitles);
-        TextView btnAudio = playerView.findViewById(R.id.btn_audio);
-        TextView btnQuality = playerView.findViewById(R.id.btn_quality);
+        btnSubtitles = playerView.findViewById(R.id.btn_subtitles);
+        btnAudio = playerView.findViewById(R.id.btn_audio);
+        btnQuality = playerView.findViewById(R.id.btn_quality);
 
         if (btnClose != null) btnClose.setOnClickListener(v -> finish());
         if (btnPip != null) btnPip.setOnClickListener(v -> enterPip());
@@ -275,13 +278,34 @@ public class PlayerActivity extends AppCompatActivity {
             return;
         }
 
+        // Highlight what's playing now: the selected embedded track, else
+        // "Off" (text) / "Auto".
+        int checked = allowDisable ? 0 : 0; // default: Off (text) or Auto
+        for (int i = 0; i < selections.size(); i++) {
+            int[] s = selections.get(i);
+            if (s[0] >= 0 && groups.get(s[0]).isTrackSelected(s[1])) {
+                checked = i;
+                break;
+            }
+        }
+
+        final int trackTypeFinal = trackType;
         new AlertDialog.Builder(this, R.style.PlayerDialog)
                 .setTitle(title)
-                .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, (dialog, which) -> {
                     int[] sel = selections.get(which);
-                    applyTrackSelection(trackType, sel, groups);
+                    applyTrackSelection(trackTypeFinal, sel, groups);
+                    updatePillLabel(trackTypeFinal, labels.get(which));
+                    dialog.dismiss();
                 })
                 .show();
+    }
+
+    private void updatePillLabel(int trackType, String value) {
+        String v = value.length() > 10 ? value.substring(0, 10) : value;
+        if (trackType == C.TRACK_TYPE_TEXT && btnSubtitles != null) btnSubtitles.setText(v);
+        else if (trackType == C.TRACK_TYPE_AUDIO && btnAudio != null) btnAudio.setText(v);
+        else if (trackType == C.TRACK_TYPE_VIDEO && btnQuality != null) btnQuality.setText(v);
     }
 
     private String formatTrack(int trackType, Tracks.Group g, int ti, int fallbackIdx) {
@@ -560,6 +584,20 @@ public class PlayerActivity extends AppCompatActivity {
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
             emit(isPlaying ? "resumed" : "paused", baseEvent());
+        }
+
+        @Override
+        public void onTracksChanged(@NonNull Tracks tracks) {
+            // Seed the pills with what's actually playing so the current
+            // audio/quality is visible without opening a menu.
+            for (Tracks.Group g : tracks.getGroups()) {
+                for (int i = 0; i < g.length; i++) {
+                    if (!g.isTrackSelected(i)) continue;
+                    if (g.getType() == C.TRACK_TYPE_AUDIO) updatePillLabel(C.TRACK_TYPE_AUDIO, formatTrack(C.TRACK_TYPE_AUDIO, g, i, 0));
+                    else if (g.getType() == C.TRACK_TYPE_VIDEO) updatePillLabel(C.TRACK_TYPE_VIDEO, formatTrack(C.TRACK_TYPE_VIDEO, g, i, 0));
+                    else if (g.getType() == C.TRACK_TYPE_TEXT) updatePillLabel(C.TRACK_TYPE_TEXT, formatTrack(C.TRACK_TYPE_TEXT, g, i, 0));
+                }
+            }
         }
 
         @Override
