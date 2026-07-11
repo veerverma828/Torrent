@@ -97,17 +97,24 @@ public class TorrentStreamServer {
         });
 
         session.start();
-        session.download(magnet, saveDir);
 
-        // Wait for metadata (piece map + file list).
+        // Fetch the torrent metadata from the magnet first (libtorrent4j's
+        // download() only takes a TorrentInfo, not a magnet URI).
+        byte[] data = session.fetchMagnet(magnet, 60, saveDir);
+        if (stopped) throw new IOException("stopped");
+        if (data == null) throw new IOException("Timed out fetching torrent metadata");
+
+        torrentInfo = TorrentInfo.bdecode(data);
+        session.download(torrentInfo, saveDir);
+
+        // Wait for the torrent handle from the ADD_TORRENT alert.
         long deadline = System.currentTimeMillis() + PIECE_WAIT_TIMEOUT_MS;
-        while (!stopped && (handle == null || !handle.isValid() || handle.torrentFile() == null)) {
-            if (System.currentTimeMillis() > deadline) throw new IOException("Timed out fetching torrent metadata");
-            sleep(200);
+        while (!stopped && (handle == null || !handle.isValid())) {
+            if (System.currentTimeMillis() > deadline) throw new IOException("Timed out adding torrent");
+            sleep(100);
         }
         if (stopped) throw new IOException("stopped");
 
-        torrentInfo = handle.torrentFile();
         pickLargestVideoFile();
 
         // Download only the selected file, sequentially, top priority.
