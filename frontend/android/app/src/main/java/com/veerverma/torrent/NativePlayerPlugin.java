@@ -8,6 +8,8 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Bridges the React app to a native media3/ExoPlayer screen (PlayerActivity).
  *
@@ -70,7 +72,11 @@ public class NativePlayerPlugin extends Plugin {
 
     // ---- P2P torrent streaming (no debrid) ----
 
-    private static TorrentStreamServer torrentServer;
+    private static volatile TorrentStreamServer torrentServer;
+    // Bumped on every playTorrent call so a superseded attempt's own failure
+    // (which is expected — we just cancelled it) never surfaces as an error
+    // for whatever the user tapped most recently.
+    private static final AtomicLong generation = new AtomicLong(0);
 
     @PluginMethod
     public void playTorrent(PluginCall call) {
@@ -95,27 +101,44 @@ public class NativePlayerPlugin extends Plugin {
         // Resolve the magnet to a local stream URL on a background thread, then
         // launch the same PlayerActivity as debrid playback.
         stopTorrent(); // tear down any previous torrent first
+        final long myGeneration = generation.incrementAndGet();
+
         new Thread(() -> {
+            // Local variable, not the static field: two overlapping calls must
+            // each drive their OWN TorrentStreamServer instance. Reading the
+            // shared static field here would risk thread A calling .start() on
+            // thread B's object (or a just-stopped one) once B reassigns it.
+            TorrentStreamServer server = new TorrentStreamServer(getContext(), new TorrentStreamServer.StatusCallback() {
+                @Override
+                public void onStatus(int peers, long rate, float progress, boolean ready) {
+                    if (generation.get() != myGeneration) return; // superseded — stay quiet
+                    JSObject data = new JSObject();
+                    data.put("peers", peers);
+                    data.put("downloadRate", rate);
+                    data.put("progress", progress);
+                    emit("torrentStatus", data);
+                }
+
+                @Override
+                public void onError(String message) {
+                    if (generation.get() != myGeneration) return;
+                    JSObject data = new JSObject();
+                    data.put("message", message);
+                    emit("error", data);
+                }
+            });
+            torrentServer = server;
+
             try {
-                torrentServer = new TorrentStreamServer(getContext(), new TorrentStreamServer.StatusCallback() {
-                    @Override
-                    public void onStatus(int peers, long rate, float progress, boolean ready) {
-                        JSObject data = new JSObject();
-                        data.put("peers", peers);
-                        data.put("downloadRate", rate);
-                        data.put("progress", progress);
-                        emit("torrentStatus", data);
-                    }
+                String url = server.start(magnet);
 
-                    @Override
-                    public void onError(String message) {
-                        JSObject data = new JSObject();
-                        data.put("message", message);
-                        emit("error", data);
-                    }
-                });
-
-                String url = torrentServer.start(magnet);
+                if (generation.get() != myGeneration) {
+                    // A newer request came in while this one was resolving —
+                    // this attempt lost the race; tear it down quietly instead
+                    // of launching a stale player or reporting a fake failure.
+                    server.stop();
+                    return;
+                }
 
                 Intent intent = new Intent(getContext(), PlayerActivity.class);
                 intent.putExtra(PlayerActivity.EXTRA_URL, url);
@@ -133,6 +156,16 @@ public class NativePlayerPlugin extends Plugin {
                 // would otherwise silently die in this background thread with
                 // no event ever reaching JS.
                 android.util.Log.e("NativePlayerPlugin", "playTorrent failed", e);
+
+                if (generation.get() != myGeneration) {
+                    // Expected: this attempt was cancelled by a newer tap
+                    // (start() throws "stopped" once cancelled). Not a real
+                    // failure — don't scare the user with an error toast for
+                    // an action they didn't take.
+                    android.util.Log.d("NativePlayerPlugin", "Superseded attempt ended (" + e.getMessage() + ") — ignoring");
+                    return;
+                }
+
                 JSObject data = new JSObject();
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 if (e instanceof UnsatisfiedLinkError) {
@@ -140,7 +173,8 @@ public class NativePlayerPlugin extends Plugin {
                 }
                 data.put("message", "Torrent failed to start: " + msg);
                 emit("error", data);
-                stopTorrent();
+                server.stop();
+                if (torrentServer == server) torrentServer = null;
             }
         }).start();
 
