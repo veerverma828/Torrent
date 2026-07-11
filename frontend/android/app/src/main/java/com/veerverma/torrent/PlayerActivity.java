@@ -73,6 +73,7 @@ public class PlayerActivity extends AppCompatActivity {
     public static final String EXTRA_START_PERCENT = "startPercent";
     public static final String EXTRA_METADATA = "metadata";
     public static final String EXTRA_HAS_NEXT = "hasNext";
+    public static final String EXTRA_IS_TORRENT = "isTorrent";
 
     private static PlayerActivity current;
 
@@ -92,6 +93,7 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView btnNext;
 
     private String currentUrl;
+    private boolean isTorrent = false;
     private String metadataJson = "{}";
     private boolean hasNext = false;
     private boolean endedEmitted = false;
@@ -217,6 +219,7 @@ public class PlayerActivity extends AppCompatActivity {
         metadataJson = intent.getStringExtra(EXTRA_METADATA);
         if (metadataJson == null) metadataJson = "{}";
         hasNext = intent.getBooleanExtra(EXTRA_HAS_NEXT, false);
+        isTorrent = intent.getBooleanExtra(EXTRA_IS_TORRENT, false);
         endedEmitted = false;
         if (btnNext != null) btnNext.setVisibility(hasNext ? View.VISIBLE : View.GONE);
 
@@ -849,6 +852,8 @@ public class PlayerActivity extends AppCompatActivity {
         countdownHandler.removeCallbacksAndMessages(null);
         emitProgressSafe();
         emit("closed", baseEvent());
+        // Tear down the torrent session + wipe its cache when P2P playback ends.
+        if (isTorrent) NativePlayerPlugin.stopTorrent();
         if (castController != null) castController.release();
         if (player != null) {
             player.removeListener(playerListener);
