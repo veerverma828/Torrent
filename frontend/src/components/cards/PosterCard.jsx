@@ -1,6 +1,5 @@
 import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Film, Star } from "lucide-react";
 import { getMovieProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -20,11 +19,9 @@ function PosterCard({ item, type }) {
   };
 
   return (
-    <motion.div
+    <div
       className="poster-card"
       tabIndex="0"
-      whileHover={{ scale: 1.05 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.click();
       }}
@@ -72,7 +69,7 @@ function PosterCard({ item, type }) {
       </div>
       <p>{item.name}</p>
       <small>{[item.type, year].filter(Boolean).join(" · ")}</small>
-    </motion.div>
+    </div>
   );
 }
 

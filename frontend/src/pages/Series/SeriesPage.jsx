@@ -13,15 +13,7 @@ import ResultCard from "../../components/cards/ResultCard.jsx";
 import EpisodeCard from "../../components/cards/EpisodeCard.jsx";
 import "./SeriesPage.css";
 
-const gridVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.03 } },
-};
-
-const gridItemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
+// Entry stagger removed for speed — long episode lists took ~1s+ to reveal.
 
 export default function SeriesPage() {
   const { id, season: seasonParam, episode: episodeParam } = useParams();
@@ -196,12 +188,7 @@ export default function SeriesPage() {
           }}
         >
           <div className="media-hero-content">
-            <motion.div
-              className="media-hero-poster"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <div className="media-hero-poster">
               {meta.poster && !imageError ? (
                 <img
                   src={meta.poster}
@@ -213,7 +200,7 @@ export default function SeriesPage() {
                   <Film size={48} />
                 </div>
               )}
-            </motion.div>
+            </div>
             <div className="media-hero-info">
               <h1>{meta.name}</h1>
               <div className="media-meta-badges">
@@ -327,31 +314,22 @@ export default function SeriesPage() {
 
           {/* EPISODES GRID */}
           {selectedSeason !== null && selectedSeason !== undefined && (
-            <AnimatePresence mode="wait">
-              <motion.div
-                className="episodes-grid"
-                key={selectedSeason}
-                style={{ marginTop: "20px", width: "100%" }}
-                variants={gridVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {visibleEpisodes.map((episode, i) => (
-                  <motion.div
-                    key={episode.id || `${episode.season}-${episode.episode}-${i}`}
-                    variants={gridItemVariants}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <EpisodeCard
-                      episode={episode}
-                      seriesId={id}
-                      selectedItem={meta || selectedItem}
-                      rating={episodeRatings[`${Number(episode.season)}:${Number(episode.episode)}`]}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            </AnimatePresence>
+            <div
+              className="episodes-grid"
+              key={selectedSeason}
+              style={{ marginTop: "20px", width: "100%" }}
+            >
+              {visibleEpisodes.map((episode, i) => (
+                <div key={episode.id || `${episode.season}-${episode.episode}-${i}`}>
+                  <EpisodeCard
+                    episode={episode}
+                    seriesId={id}
+                    selectedItem={meta || selectedItem}
+                    rating={episodeRatings[`${Number(episode.season)}:${Number(episode.episode)}`]}
+                  />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

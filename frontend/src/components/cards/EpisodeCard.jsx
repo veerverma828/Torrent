@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Play, Star } from "lucide-react";
 import { getEpisodeProgress } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -37,7 +36,7 @@ function EpisodeCard({ episode, seriesId, selectedItem, rating: ratingProp }) {
         );
       }}
     >
-      <motion.div className="episode-thumbnail" whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
+      <div className="episode-thumbnail">
         <img
           src={episode.thumbnail || selectedItem.poster}
           alt={episode.name || episode.title || `Episode ${episode.episode}`}
@@ -65,7 +64,7 @@ function EpisodeCard({ episode, seriesId, selectedItem, rating: ratingProp }) {
             ></div>
           </div>
         )}
-      </motion.div>
+      </div>
 
       <div className="episode-info">
         <h4>

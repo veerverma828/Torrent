@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Film } from "lucide-react";
 import { fetchMeta } from "../../services/cinemeta.js";
 import { updateTrackingMetadata } from "../../trackers/progressTracker.js";
@@ -72,11 +71,9 @@ export default function ContinueWatchingCard({ item, onRemove }) {
   };
 
   return (
-    <motion.div
+    <div
       className="poster-card"
       tabIndex="0"
-      whileHover={{ scale: 1.05 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.click();
       }}
@@ -139,6 +136,6 @@ export default function ContinueWatchingCard({ item, onRemove }) {
       <small>
         {item.type === "movie" ? "Movie" : `S${item.season} E${item.episode}`}
       </small>
-    </motion.div>
+    </div>
   );
 }

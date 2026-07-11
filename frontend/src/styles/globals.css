@@ -122,7 +122,9 @@ html {
   cursor: pointer;
   text-align: center;
   outline: none;
-  transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* Hover/focus scale is pure CSS (GPU transform) — framer-motion hover
+     animations were dropped for speed. */
+  transition: transform 0.15s ease-out;
   width: 150px;
   position: relative;
   z-index: 1;
@@ -218,10 +220,10 @@ html {
   border-radius: 10px;
 }
 
+.poster-card:hover,
 .poster-card:focus {
   transform: scale(1.05);
   z-index: 10;
-  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .poster-card:focus .poster-img-container {

@@ -71,7 +71,7 @@ export default function HeroBanner() {
         style={{ backgroundImage: `url(${hero.background})`, touchAction: "pan-y" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.15 }}
         drag={count > 1 ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.15}

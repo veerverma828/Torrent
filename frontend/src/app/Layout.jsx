@@ -143,17 +143,10 @@ export default function Layout() {
 
       <SearchBar />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.12, ease: "easeOut" }}
-        >
-          <Outlet />
-        </motion.div>
-      </AnimatePresence>
+      {/* No route transition animation: mode="wait" forced an exit fade +
+          enter fade in sequence, adding ~250ms of dead time to every
+          navigation. Instant swap feels dramatically faster on TV. */}
+      <Outlet />
 
       {playerEverOpened && (
         <Suspense fallback={null}>

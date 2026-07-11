@@ -1,17 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import PosterCard from "../cards/PosterCard.jsx";
 
-const railVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.04 } },
-};
-
-const railItemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
+// No entry animation: staggered reveals (0.04s x item count) made long rails
+// take over a second to finish appearing and cost main-thread time on TV.
 
 const MediaRail = memo(function MediaRail({ title, items, type, keyPrefix, renderItem }) {
   const scrollerRef = useRef(null);
@@ -53,28 +45,16 @@ const MediaRail = memo(function MediaRail({ title, items, type, keyPrefix, rende
           </button>
         )}
 
-        <motion.div
-          className="media-rail"
-          ref={scrollerRef}
-          onScroll={updateScrollState}
-          variants={railVariants}
-          initial="hidden"
-          animate="visible"
-        >
+        <div className="media-rail" ref={scrollerRef} onScroll={updateScrollState}>
           {items.map((item, index) => {
             const itemKey = `${keyPrefix || title}-${item.type || type}-${item.id || item.seriesId || index}`;
             return (
-              <motion.div
-                key={itemKey}
-                className="media-rail-item"
-                variants={railItemVariants}
-                transition={{ duration: 0.25 }}
-              >
+              <div key={itemKey} className="media-rail-item">
                 {renderItem ? renderItem(item) : <PosterCard item={item} type={type} />}
-              </motion.div>
+              </div>
             );
           })}
-        </motion.div>
+        </div>
 
         {canScrollRight && (
           <button
