@@ -25,7 +25,7 @@
             android:id="@+id/btn_close"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/player_icon_focus_bg"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:tint="@color/player_text"
             android:contentDescription="Close" />
@@ -69,7 +69,7 @@
             android:id="@+id/btn_pip"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/player_icon_focus_bg"
             android:src="@android:drawable/ic_menu_crop"
             android:tint="@color/player_text"
             android:contentDescription="Picture in picture" />
@@ -88,7 +88,7 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginEnd="28dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/player_icon_focus_bg"
             android:tint="@color/player_text"
             android:scaleType="fitCenter"
             android:padding="6dp" />
@@ -97,7 +97,7 @@
             android:id="@id/exo_play_pause"
             android:layout_width="72dp"
             android:layout_height="72dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/player_icon_focus_bg"
             android:tint="@color/player_text"
             android:scaleType="fitCenter" />
 
@@ -106,7 +106,7 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginStart="28dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/player_icon_focus_bg"
             android:tint="@color/player_text"
             android:scaleType="fitCenter"
             android:padding="6dp" />
@@ -173,11 +173,6 @@
                 android:text="Audio" />
 
             <TextView
-                android:id="@+id/btn_quality"
-                style="@style/PlayerPillButton"
-                android:text="Quality" />
-
-            <TextView
                 android:id="@+id/btn_speed"
                 style="@style/PlayerPillButton"
                 android:text="1x" />
@@ -186,6 +181,18 @@
                 android:id="@+id/btn_aspect"
                 style="@style/PlayerPillButton"
                 android:text="Fit" />
+
+            <TextView
+                android:id="@+id/btn_external"
+                style="@style/PlayerPillButton"
+                android:text="External" />
+
+            <TextView
+                android:id="@+id/btn_next"
+                style="@style/PlayerPillButton"
+                android:background="@drawable/player_pill_accent"
+                android:text="Next Episode"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

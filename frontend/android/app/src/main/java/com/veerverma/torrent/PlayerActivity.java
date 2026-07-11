@@ -8,8 +8,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.net.Uri;
 import android.util.Rational;
 import android.view.GestureDetector;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -23,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
@@ -34,6 +37,7 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.ui.AspectRatioFrameLayout;
@@ -80,8 +84,9 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView btnAspect;
     private TextView btnSubtitles;
     private TextView btnAudio;
-    private TextView btnQuality;
+    private TextView btnNext;
 
+    private String currentUrl;
     private String metadataJson = "{}";
     private boolean hasNext = false;
     private boolean endedEmitted = false;
@@ -121,8 +126,20 @@ public class PlayerActivity extends AppCompatActivity {
         btnAspect = findViewById(R.id.btn_aspect);
 
         trackSelector = new DefaultTrackSelector(this);
-        player = new ExoPlayer.Builder(this)
+        // Decoder fallback keeps audio/video playing on phones whose primary
+        // decoder rejects a track (e.g. EAC3/DTS on budget devices) by trying
+        // the next available codec instead of going silent.
+        DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this)
+                .setEnableDecoderFallback(true)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+        player = new ExoPlayer.Builder(this, renderersFactory)
                 .setTrackSelector(trackSelector)
+                .setAudioAttributes(
+                        new AudioAttributes.Builder()
+                                .setUsage(C.USAGE_MEDIA)
+                                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                                .build(),
+                        /* handleAudioFocus= */ true)
                 .setSeekBackIncrementMs(10000)
                 .setSeekForwardIncrementMs(10000)
                 .build();
@@ -152,6 +169,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void loadFromIntent(Intent intent) {
         String url = intent.getStringExtra(EXTRA_URL);
+        currentUrl = url;
         String title = intent.getStringExtra(EXTRA_TITLE);
         String subtitle = intent.getStringExtra(EXTRA_SUBTITLE);
         long startMs = intent.getLongExtra(EXTRA_START_MS, 0L);
@@ -161,6 +179,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (metadataJson == null) metadataJson = "{}";
         hasNext = intent.getBooleanExtra(EXTRA_HAS_NEXT, false);
         endedEmitted = false;
+        if (btnNext != null) btnNext.setVisibility(hasNext ? View.VISIBLE : View.GONE);
 
         TextView tvTitle = playerView.findViewById(R.id.tv_title);
         TextView tvSubtitle = playerView.findViewById(R.id.tv_subtitle);
@@ -187,12 +206,16 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private String guessMimeType(String url) {
-        if (url == null) return MimeTypes.VIDEO_MP4;
+        // Only pin the MIME type where it genuinely helps (HLS manifests need
+        // it to pick the right MediaSource). For files, returning null lets
+        // ExoPlayer sniff the container — previously .mkv was mislabeled as
+        // WebM and everything else forced to MP4, which can derail extractor
+        // selection and track handling.
+        if (url == null) return null;
         String u = url.toLowerCase();
         if (u.contains(".m3u8")) return MimeTypes.APPLICATION_M3U8;
-        if (u.contains(".mkv") || u.contains(".webm")) return MimeTypes.VIDEO_WEBM;
-        if (u.contains(".mp4") || u.contains(".m4v")) return MimeTypes.VIDEO_MP4;
-        return MimeTypes.VIDEO_MP4;
+        if (u.contains(".mkv")) return MimeTypes.VIDEO_MATROSKA;
+        return null;
     }
 
     // ===================== controls wiring =====================
@@ -202,20 +225,134 @@ public class PlayerActivity extends AppCompatActivity {
         ImageButton btnPip = playerView.findViewById(R.id.btn_pip);
         btnSubtitles = playerView.findViewById(R.id.btn_subtitles);
         btnAudio = playerView.findViewById(R.id.btn_audio);
-        btnQuality = playerView.findViewById(R.id.btn_quality);
+        btnNext = playerView.findViewById(R.id.btn_next);
+        TextView btnExternal = playerView.findViewById(R.id.btn_external);
 
         if (btnClose != null) btnClose.setOnClickListener(v -> finish());
-        if (btnPip != null) btnPip.setOnClickListener(v -> enterPip());
+        if (btnPip != null) {
+            // No PiP on TV / Fire TV — hide the button instead of a dead tap.
+            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+                btnPip.setOnClickListener(v -> enterPip());
+            } else {
+                btnPip.setVisibility(View.GONE);
+            }
+        }
         if (btnSubtitles != null) btnSubtitles.setOnClickListener(v -> showTrackDialog(C.TRACK_TYPE_TEXT, "Subtitles"));
         if (btnAudio != null) btnAudio.setOnClickListener(v -> showTrackDialog(C.TRACK_TYPE_AUDIO, "Audio"));
-        if (btnQuality != null) btnQuality.setOnClickListener(v -> showTrackDialog(C.TRACK_TYPE_VIDEO, "Quality"));
         if (btnSpeed != null) btnSpeed.setOnClickListener(v -> showSpeedDialog());
         if (btnAspect != null) btnAspect.setOnClickListener(v -> cycleAspect());
+        if (btnNext != null) {
+            btnNext.setVisibility(hasNext ? View.VISIBLE : View.GONE);
+            btnNext.setOnClickListener(v -> triggerPlayNext());
+        }
+        if (btnExternal != null) btnExternal.setOnClickListener(v -> openExternal());
 
         TextView nextCancel = findViewById(R.id.next_cancel);
         TextView nextPlay = findViewById(R.id.next_play);
         if (nextCancel != null) nextCancel.setOnClickListener(v -> hideNextOverlay());
         if (nextPlay != null) nextPlay.setOnClickListener(v -> triggerPlayNext());
+    }
+
+    /** Hand the current stream to an external player (VLC/MX/...) and close. */
+    private void openExternal() {
+        if (currentUrl == null) return;
+        try {
+            // Flush progress first so resume works when they come back.
+            emitProgressSafe();
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(Uri.parse(currentUrl), "video/*");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(intent, "Open with"));
+            finish();
+        } catch (Exception e) {
+            showGesture("No external player found");
+        }
+    }
+
+    // ===================== TV remote / D-pad =====================
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN && player != null) {
+            int code = event.getKeyCode();
+            boolean controllerVisible = playerView.isControllerFullyVisible();
+            boolean overlayVisible = nextOverlay.getVisibility() == View.VISIBLE;
+
+            switch (code) {
+                // Play/pause keys always act directly, without pulling up the
+                // controls — the Netflix/Stremio behavior remotes expect.
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    player.setPlayWhenReady(!player.getPlayWhenReady());
+                    showGesture(player.getPlayWhenReady() ? "Play" : "Pause");
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                    player.setPlayWhenReady(true);
+                    showGesture("Play");
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    player.setPlayWhenReady(false);
+                    showGesture("Pause");
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                    seekBy(30000);
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                    seekBy(-30000);
+                    return true;
+
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    // Hidden controls: left/right seek immediately.
+                    if (!controllerVisible && !overlayVisible) {
+                        seekBy(-10000);
+                        return true;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (!controllerVisible && !overlayVisible) {
+                        seekBy(10000);
+                        return true;
+                    }
+                    break;
+
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                    if (!controllerVisible && !overlayVisible) {
+                        showControllerAndFocus();
+                        return true;
+                    }
+                    break;
+
+                case KeyEvent.KEYCODE_BACK:
+                    // Back peels UI layers before exiting: countdown overlay,
+                    // then the controls, and only then the player itself.
+                    if (overlayVisible) {
+                        hideNextOverlay();
+                        return true;
+                    }
+                    if (controllerVisible) {
+                        playerView.hideController();
+                        return true;
+                    }
+                    break;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private void seekBy(long deltaMs) {
+        long duration = player.getDuration();
+        long target = Math.max(0, player.getCurrentPosition() + deltaMs);
+        if (duration > 0) target = Math.min(target, duration);
+        player.seekTo(target);
+        showGesture(deltaMs < 0 ? "« " + (-deltaMs / 1000) + "s" : (deltaMs / 1000) + "s »");
+    }
+
+    private void showControllerAndFocus() {
+        playerView.showController();
+        View playPause = playerView.findViewById(androidx.media3.ui.R.id.exo_play_pause);
+        if (playPause != null) playPause.post(playPause::requestFocus);
     }
 
     private void cycleAspect() {
@@ -263,8 +400,13 @@ public class PlayerActivity extends AppCompatActivity {
         for (int gi = 0; gi < groups.size(); gi++) {
             Tracks.Group g = groups.get(gi);
             for (int ti = 0; ti < g.length; ti++) {
-                if (!g.isTrackSupported(ti)) continue;
-                labels.add(formatTrack(trackType, g, ti, labels.size()));
+                // Show unsupported tracks too (marked) — hiding them made
+                // multi-audio files look single-track on phones whose decoder
+                // rejects e.g. DTS; with decoder fallback enabled selecting
+                // them can still work.
+                String label = formatTrack(trackType, g, ti, labels.size());
+                if (!g.isTrackSupported(ti)) label += " (unsupported)";
+                labels.add(label);
                 selections.add(new int[]{gi, ti});
             }
         }
@@ -305,7 +447,6 @@ public class PlayerActivity extends AppCompatActivity {
         String v = value.length() > 10 ? value.substring(0, 10) : value;
         if (trackType == C.TRACK_TYPE_TEXT && btnSubtitles != null) btnSubtitles.setText(v);
         else if (trackType == C.TRACK_TYPE_AUDIO && btnAudio != null) btnAudio.setText(v);
-        else if (trackType == C.TRACK_TYPE_VIDEO && btnQuality != null) btnQuality.setText(v);
     }
 
     private String formatTrack(int trackType, Tracks.Group g, int ti, int fallbackIdx) {
@@ -390,9 +531,12 @@ public class PlayerActivity extends AppCompatActivity {
             private float startY;
             private float startX;
             private boolean isVertical;
+            private boolean isHorizontal;
             private boolean leftSide;
             private float startBrightness;
             private int startVolume;
+            private long seekBasePosition;
+            private long seekDelta;
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -405,16 +549,21 @@ public class PlayerActivity extends AppCompatActivity {
                         startY = event.getY();
                         startX = event.getX();
                         isVertical = false;
+                        isHorizontal = false;
+                        seekDelta = 0;
                         leftSide = startX < v.getWidth() / 2f;
                         startBrightness = getWindow().getAttributes().screenBrightness;
                         if (startBrightness < 0) startBrightness = 0.5f;
                         startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                        seekBasePosition = player != null ? player.getCurrentPosition() : 0;
                         break;
                     case MotionEvent.ACTION_MOVE:
                         float dy = startY - event.getY();
                         float dx = event.getX() - startX;
-                        if (!isVertical && Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
+                        if (!isVertical && !isHorizontal && Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)) {
                             isVertical = true;
+                        } else if (!isVertical && !isHorizontal && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                            isHorizontal = true;
                         }
                         if (isVertical) {
                             float frac = dy / v.getHeight();
@@ -422,10 +571,24 @@ public class PlayerActivity extends AppCompatActivity {
                             else adjustVolume(startVolume + Math.round(frac * maxVolume * 1.5f));
                             return true;
                         }
+                        if (isHorizontal) {
+                            // Full-width swipe ≈ ±90s; preview only, seek on release
+                            seekDelta = (long) (dx / v.getWidth() * 90000);
+                            long preview = Math.max(0, seekBasePosition + seekDelta);
+                            showGesture((seekDelta >= 0 ? "+" : "−") + Math.abs(seekDelta / 1000) + "s  ·  " + formatMs(preview));
+                            return true;
+                        }
                         break;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
-                        if (isVertical) {
+                        if (isHorizontal && Math.abs(seekDelta) > 1000 && player != null
+                                && event.getAction() == MotionEvent.ACTION_UP) {
+                            long duration = player.getDuration();
+                            long target = Math.max(0, seekBasePosition + seekDelta);
+                            if (duration > 0) target = Math.min(target, duration);
+                            player.seekTo(target);
+                        }
+                        if (isVertical || isHorizontal) {
                             hideGestureSoon();
                             return true;
                         }
@@ -448,6 +611,16 @@ public class PlayerActivity extends AppCompatActivity {
         int v = Math.max(0, Math.min(maxVolume, value));
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0);
         showGesture("Volume " + Math.round(v * 100f / maxVolume) + "%");
+    }
+
+    private String formatMs(long ms) {
+        long totalSec = ms / 1000;
+        long h = totalSec / 3600;
+        long m = (totalSec % 3600) / 60;
+        long s = totalSec % 60;
+        return h > 0
+                ? String.format(java.util.Locale.US, "%d:%02d:%02d", h, m, s)
+                : String.format(java.util.Locale.US, "%d:%02d", m, s);
     }
 
     private void showGesture(String text) {
@@ -508,6 +681,9 @@ public class PlayerActivity extends AppCompatActivity {
         nextText.setText("Next episode in 10s");
         nextOverlay.setVisibility(View.VISIBLE);
         countdownHandler.postDelayed(countdownRunnable, 1000);
+        // Land remote focus on "Play now" so a single OK press continues.
+        View nextPlay = findViewById(R.id.next_play);
+        if (nextPlay != null) nextPlay.post(nextPlay::requestFocus);
     }
 
     private void hideNextOverlay() {
@@ -594,7 +770,6 @@ public class PlayerActivity extends AppCompatActivity {
                 for (int i = 0; i < g.length; i++) {
                     if (!g.isTrackSelected(i)) continue;
                     if (g.getType() == C.TRACK_TYPE_AUDIO) updatePillLabel(C.TRACK_TYPE_AUDIO, formatTrack(C.TRACK_TYPE_AUDIO, g, i, 0));
-                    else if (g.getType() == C.TRACK_TYPE_VIDEO) updatePillLabel(C.TRACK_TYPE_VIDEO, formatTrack(C.TRACK_TYPE_VIDEO, g, i, 0));
                     else if (g.getType() == C.TRACK_TYPE_TEXT) updatePillLabel(C.TRACK_TYPE_TEXT, formatTrack(C.TRACK_TYPE_TEXT, g, i, 0));
                 }
             }
