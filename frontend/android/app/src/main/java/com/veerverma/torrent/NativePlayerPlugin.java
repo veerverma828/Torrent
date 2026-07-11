@@ -127,9 +127,18 @@ public class NativePlayerPlugin extends Plugin {
                 intent.putExtra(PlayerActivity.EXTRA_IS_TORRENT, true);
                 intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(intent);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                // Throwable, not Exception: a native library load failure
+                // (UnsatisfiedLinkError) is an Error, not an Exception, and
+                // would otherwise silently die in this background thread with
+                // no event ever reaching JS.
+                android.util.Log.e("NativePlayerPlugin", "playTorrent failed", e);
                 JSObject data = new JSObject();
-                data.put("message", e.getMessage() != null ? e.getMessage() : "Torrent failed to start");
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                if (e instanceof UnsatisfiedLinkError) {
+                    msg = "Torrent engine failed to load on this device (" + msg + ")";
+                }
+                data.put("message", "Torrent failed to start: " + msg);
                 emit("error", data);
                 stopTorrent();
             }
