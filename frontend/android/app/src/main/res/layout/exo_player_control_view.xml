@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Custom themed controller bound by androidx.media3.ui.PlayerView.
+  Views with @id/exo_* ids are auto-wired by PlayerControlView (play/pause,
+  seek bar, position/duration, rewind/forward). The extra feature buttons
+  (@id/btn_*) are wired manually in PlayerActivity.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/player_scrim">
+
+    <!-- ===== TOP BAR: back, title, cast, pip ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
+
+        <ImageButton
+            android:id="@+id/btn_close"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="@color/player_text"
+            android:contentDescription="Close" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/player_text"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/player_text_dim"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <androidx.mediarouter.app.MediaRouteButton
+            android:id="@+id/media_route_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="4dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btn_pip"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_crop"
+            android:tint="@color/player_text"
+            android:contentDescription="Picture in picture" />
+    </LinearLayout>
+
+    <!-- ===== CENTER: rewind / play-pause / forward ===== -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@id/exo_rew"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/player_text"
+            android:scaleType="fitCenter"
+            android:padding="6dp" />
+
+        <ImageButton
+            android:id="@id/exo_play_pause"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/player_text"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@id/exo_ffwd"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/player_text"
+            android:scaleType="fitCenter"
+            android:padding="6dp" />
+    </LinearLayout>
+
+    <!-- ===== BOTTOM: seek bar + feature buttons ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@id/exo_position"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/player_text"
+                android:textSize="13sp"
+                android:includeFontPadding="false" />
+
+            <androidx.media3.ui.DefaultTimeBar
+                android:id="@id/exo_progress"
+                android:layout_width="0dp"
+                android:layout_height="26dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="8dp"
+                app:played_color="@color/player_accent"
+                app:scrubber_color="@color/player_accent"
+                app:buffered_color="#66FFFFFF"
+                app:unplayed_color="#33FFFFFF" />
+
+            <TextView
+                android:id="@id/exo_duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/player_text"
+                android:textSize="13sp"
+                android:includeFontPadding="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/btn_subtitles"
+                style="@style/PlayerPillButton"
+                android:text="Subtitles" />
+
+            <TextView
+                android:id="@+id/btn_audio"
+                style="@style/PlayerPillButton"
+                android:text="Audio" />
+
+            <TextView
+                android:id="@+id/btn_quality"
+                style="@style/PlayerPillButton"
+                android:text="Quality" />
+
+            <TextView
+                android:id="@+id/btn_speed"
+                style="@style/PlayerPillButton"
+                android:text="1x" />
+
+            <TextView
+                android:id="@+id/btn_aspect"
+                style="@style/PlayerPillButton"
+                android:text="Fit" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="player_scrim">#B3000000</color>
+    <color name="player_accent">#E50914</color>
+    <color name="player_text">#FFFFFFFF</color>
+    <color name="player_text_dim">#B3FFFFFF</color>
+    <color name="player_panel">#F21A1A1A</color>
+</resources>

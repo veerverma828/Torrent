@@ -1,0 +1,70 @@
+package com.veerverma.torrent;
+
+import android.content.Intent;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+
+/**
+ * Bridges the React app to a native media3/ExoPlayer screen (PlayerActivity).
+ *
+ * The plugin is a pure launcher + event relay: JS resolves the debrid direct
+ * URL (Real-Debrid/Torbox) and hands it here ready to play; all playback,
+ * track selection, gestures, PiP and Cast happen natively so the app can
+ * decode MKV/HEVC/AC3/DTS/10-bit that the WebView's HTML5 <video> cannot.
+ *
+ * PlayerActivity pushes lifecycle/position events back through the static
+ * {@link #emit} hook, which forwards them to JS listeners (see
+ * frontend/src/lib/nativePlayer.js). Progress is echoed with the opaque
+ * metadataJson the caller supplied so JS can attribute it to the right title.
+ */
+@CapacitorPlugin(name = "NativePlayer")
+public class NativePlayerPlugin extends Plugin {
+
+    private static NativePlayerPlugin instance;
+
+    @Override
+    public void load() {
+        instance = this;
+    }
+
+    /** Called from PlayerActivity (any thread) to forward an event to JS. */
+    static void emit(String event, JSObject data) {
+        NativePlayerPlugin p = instance;
+        if (p != null) {
+            p.notifyListeners(event, data, true);
+        }
+    }
+
+    @PluginMethod
+    public void play(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.isEmpty()) {
+            call.reject("Missing url");
+            return;
+        }
+
+        Intent intent = new Intent(getContext(), PlayerActivity.class);
+        intent.putExtra(PlayerActivity.EXTRA_URL, url);
+        intent.putExtra(PlayerActivity.EXTRA_TITLE, call.getString("title", ""));
+        intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, call.getString("subtitle", ""));
+        intent.putExtra(PlayerActivity.EXTRA_START_MS, call.getLong("startPositionMs", 0L));
+        intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, call.getDouble("startPercent", 0.0));
+        intent.putExtra(PlayerActivity.EXTRA_METADATA, call.getString("metadataJson", "{}"));
+        intent.putExtra(PlayerActivity.EXTRA_HAS_NEXT, call.getBoolean("hasNext", false));
+        // singleTop: if the player is already open (auto-next), reuse it.
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        getContext().startActivity(intent);
+
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stop(PluginCall call) {
+        PlayerActivity.requestStop();
+        call.resolve();
+    }
+}
