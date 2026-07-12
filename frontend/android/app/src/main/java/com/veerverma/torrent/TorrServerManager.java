@@ -161,16 +161,20 @@ public class TorrServerManager {
         int bestId = 1;
         long bestSize = -1;
         String bestPath = "stream";
-        for (int i = 0; i < fileStats.length(); i++) {
-            JSONObject f = fileStats.getJSONObject(i);
-            long len = f.optLong("length", 0);
-            if (len > bestSize) {
-                bestSize = len;
-                bestId = f.optInt("id", i + 1);
-                String path = f.optString("path", "stream");
-                int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-                bestPath = slash >= 0 ? path.substring(slash + 1) : path;
+        try {
+            for (int i = 0; i < fileStats.length(); i++) {
+                JSONObject f = fileStats.getJSONObject(i);
+                long len = f.optLong("length", 0);
+                if (len > bestSize) {
+                    bestSize = len;
+                    bestId = f.optInt("id", i + 1);
+                    String path = f.optString("path", "stream");
+                    int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+                    bestPath = slash >= 0 ? path.substring(slash + 1) : path;
+                }
             }
+        } catch (Exception e) {
+            throw new IOException("Malformed file_stats from TorrServer: " + e.getMessage());
         }
 
         return BASE_URL + "/stream/" + URLEncoder.encode(bestPath, "UTF-8")
