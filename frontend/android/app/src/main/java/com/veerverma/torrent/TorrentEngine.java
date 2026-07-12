@@ -206,6 +206,10 @@ public class TorrentEngine {
         return pieceLength;
     }
 
+    long fileOffset() {
+        return fileOffset;
+    }
+
     void requestPieces(int startPiece, int count) {
         int last = Math.min(torrentInfo.numPieces() - 1, startPiece + count);
         for (int p = startPiece; p <= last; p++) {
@@ -250,6 +254,13 @@ public class TorrentEngine {
 
     boolean isStopped() {
         return stopped;
+    }
+
+    /** Non-blocking piece check, for TorrentEngineService to expose over IPC
+     *  (the isolated-process client polls this instead of blocking in-process
+     *  now that the engine and its data source live in different processes). */
+    public boolean havePieceNow(int piece) {
+        return handle != null && handle.isValid() && handle.havePiece(piece);
     }
 
     private void startStatusThread() {

@@ -16,42 +16,47 @@ import java.io.RandomAccessFile;
  * Feeds ExoPlayer directly from a torrent's growing file — no local HTTP
  * server, no sockets, none of the timeout surface that comes with them.
  *
- * A read blocks in {@link TorrentEngine#waitForPiece} until the piece it
- * needs exists, then reads straight off disk. This is the same "serve the
- * growing file directly, gatekept by a blocking piece-wait" pattern
- * TorrentStream-Android uses, adapted to media3's DataSource extension
- * point instead of handing a file off to an external player.
+ * The actual libtorrent4j engine runs in an isolated process (see
+ * TorrentEngineService) so a native crash there can't take this process
+ * down; a read polls {@link TorrentEngineClient#havePiece} over IPC until
+ * the piece it needs exists, then reads straight off the shared-filesystem
+ * file. This is the same "serve the growing file directly, gatekept by a
+ * blocking piece-wait" pattern TorrentStream-Android uses, adapted to
+ * media3's DataSource extension point and split across the process
+ * boundary.
  */
 @UnstableApi
 public class TorrentDataSource extends BaseDataSource {
 
-    /** One factory/engine per active torrent stream. */
-    public static class Factory implements DataSource.Factory {
-        private final TorrentEngine engine;
-        private final TorrentEngine.FileHandle fileHandle;
+    private static final long POLL_INTERVAL_MS = 150;
 
-        public Factory(TorrentEngine engine, TorrentEngine.FileHandle fileHandle) {
-            this.engine = engine;
+    /** One factory/client per active torrent stream. */
+    public static class Factory implements DataSource.Factory {
+        private final TorrentEngineClient client;
+        private final TorrentEngineClient.FileHandle fileHandle;
+
+        public Factory(TorrentEngineClient client, TorrentEngineClient.FileHandle fileHandle) {
+            this.client = client;
             this.fileHandle = fileHandle;
         }
 
         @Override
         public DataSource createDataSource() {
-            return new TorrentDataSource(engine, fileHandle);
+            return new TorrentDataSource(client, fileHandle);
         }
     }
 
-    private final TorrentEngine engine;
-    private final TorrentEngine.FileHandle fileHandle;
+    private final TorrentEngineClient client;
+    private final TorrentEngineClient.FileHandle fileHandle;
 
     private RandomAccessFile raf;
     private long position;
     private long endPosition; // exclusive
     private boolean opened;
 
-    private TorrentDataSource(TorrentEngine engine, TorrentEngine.FileHandle fileHandle) {
+    private TorrentDataSource(TorrentEngineClient client, TorrentEngineClient.FileHandle fileHandle) {
         super(/* isNetwork= */ false);
-        this.engine = engine;
+        this.client = client;
         this.fileHandle = fileHandle;
     }
 
@@ -70,24 +75,42 @@ public class TorrentDataSource extends BaseDataSource {
         return length;
     }
 
+    private int pieceForFileOffset(long fileByte) {
+        return (int) ((fileHandle.fileOffset + fileByte) / fileHandle.pieceLength);
+    }
+
+    private long pieceEndByteForFile(int piece) {
+        return ((long) (piece + 1) * fileHandle.pieceLength) - fileHandle.fileOffset - 1;
+    }
+
+    /** Blocks (polling over IPC) until the piece exists or the stream is
+     *  stopped/crashed — no timeout, matching TorrentStream-Android: a slow
+     *  piece just makes the read wait longer, it never kills playback. */
+    private void waitForPiece(int piece) throws IOException {
+        while (!client.havePiece(piece)) {
+            if (client.isStopped()) throw new IOException("Torrent stream stopped");
+            client.requestPieces(piece, 12);
+            try {
+                Thread.sleep(POLL_INTERVAL_MS);
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
+
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
         if (length == 0) return 0;
         if (position >= endPosition) return C.RESULT_END_OF_INPUT;
-        if (engine.isStopped()) throw new IOException("Torrent stream stopped");
+        if (client.isStopped()) throw new IOException("Torrent stream stopped");
 
-        int piece = engine.pieceForFileOffset(position);
-        try {
-            engine.waitForPiece(piece);
-        } catch (IOException e) {
-            throw e; // stream was stopped — propagate as a real read failure
-        }
+        int piece = pieceForFileOffset(position);
+        waitForPiece(piece);
 
         // Never read past the current piece's boundary in one call, so we
         // never touch bytes libtorrent hasn't finished writing yet even
         // though the piece is marked "have" (avoids a false EOF from reading
         // ahead of what's actually flushed to disk).
-        long pieceEndByte = engine.pieceEndByteForFile(piece);
+        long pieceEndByte = pieceEndByteForFile(piece);
         long readLimit = Math.min(endPosition - 1, pieceEndByte);
         int toRead = (int) Math.min(length, readLimit - position + 1);
         if (toRead <= 0) toRead = 1;

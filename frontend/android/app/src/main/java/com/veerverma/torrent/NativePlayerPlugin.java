@@ -1,6 +1,9 @@
 package com.veerverma.torrent;
 
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -28,13 +31,37 @@ public class NativePlayerPlugin extends Plugin {
 
     private static NativePlayerPlugin instance;
 
+    // Held forever (until process death) so the isolated engine process
+    // stays alive and its DHT session stays warm for the app's lifetime —
+    // matches the original eager warm-up intent, just across the process
+    // boundary now.
+    private static ServiceConnection warmUpConnection;
+
     @Override
     public void load() {
         instance = this;
-        // Start the BitTorrent session (DHT bootstrap) as soon as the app
-        // opens, not on the first Stream tap — gives peer discovery a head
-        // start of however long the user spends browsing before playing.
-        new Thread(TorrentEngine::warmUp).start();
+        // Start the BitTorrent session (DHT bootstrap) in the isolated
+        // :torrent process as soon as the app opens, not on the first Stream
+        // tap — gives peer discovery a head start of however long the user
+        // spends browsing before playing.
+        warmUpConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder binder) {
+                try {
+                    ITorrentEngineService.Stub.asInterface(binder).warmUp();
+                } catch (Exception e) {
+                    AppLogger.error("NativePlayerPlugin", "warmUp failed", e);
+                }
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                AppLogger.error("NativePlayerPlugin", "Torrent engine process died while idle (native crash)");
+            }
+        };
+        getContext().bindService(
+                new Intent(getContext(), TorrentEngineService.class),
+                warmUpConnection, android.content.Context.BIND_AUTO_CREATE);
     }
 
     /** Called from PlayerActivity (any thread) to forward an event to JS. */
@@ -102,19 +129,19 @@ public class NativePlayerPlugin extends Plugin {
 
     // ---- P2P torrent streaming (no debrid) ----
 
-    /** Bundles the engine + resolved file so PlayerActivity can build a
+    /** Bundles the client + resolved file so PlayerActivity can build a
      *  TorrentDataSource for this launch (can't cross an Intent as extras). */
     static class PendingTorrent {
-        final TorrentEngine engine;
-        final TorrentEngine.FileHandle fileHandle;
+        final TorrentEngineClient client;
+        final TorrentEngineClient.FileHandle fileHandle;
 
-        PendingTorrent(TorrentEngine engine, TorrentEngine.FileHandle fileHandle) {
-            this.engine = engine;
+        PendingTorrent(TorrentEngineClient client, TorrentEngineClient.FileHandle fileHandle) {
+            this.client = client;
             this.fileHandle = fileHandle;
         }
     }
 
-    private static volatile TorrentEngine activeEngine;
+    private static volatile TorrentEngineClient activeClient;
     private static volatile PendingTorrent pendingTorrent;
     // Bumped on every playTorrent call so a superseded attempt's own failure
     // (which is expected — we just cancelled it) never surfaces as an error
@@ -153,10 +180,10 @@ public class NativePlayerPlugin extends Plugin {
 
         new Thread(() -> {
             // Local variable, not the static field: two overlapping calls must
-            // each drive their OWN TorrentEngine. Reading the shared static
-            // field here would risk thread A calling .start() on thread B's
+            // each drive their OWN client/connection. Reading the shared
+            // static field here would risk thread A operating on thread B's
             // object (or a just-stopped one) once B reassigns it.
-            TorrentEngine engine = new TorrentEngine(getContext(), new TorrentEngine.StatusCallback() {
+            TorrentEngineClient client = new TorrentEngineClient(getContext(), new TorrentEngineClient.StatusCallback() {
                 @Override
                 public void onStage(String stage) {
                     if (generation.get() != myGeneration) return;
@@ -184,20 +211,20 @@ public class NativePlayerPlugin extends Plugin {
                     emit("error", data);
                 }
             });
-            activeEngine = engine;
+            activeClient = client;
 
             try {
-                TorrentEngine.FileHandle fileHandle = engine.start(magnet);
+                TorrentEngineClient.FileHandle fileHandle = client.start(magnet);
 
                 if (generation.get() != myGeneration) {
                     // A newer request came in while this one was resolving —
                     // this attempt lost the race; tear it down quietly instead
                     // of launching a stale player or reporting a fake failure.
-                    engine.stop();
+                    client.stop();
                     return;
                 }
 
-                pendingTorrent = new PendingTorrent(engine, fileHandle);
+                pendingTorrent = new PendingTorrent(client, fileHandle);
 
                 Intent intent = new Intent(getContext(), PlayerActivity.class);
                 intent.putExtra(PlayerActivity.EXTRA_TITLE, title);
@@ -209,10 +236,6 @@ public class NativePlayerPlugin extends Plugin {
                 intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(intent);
             } catch (Throwable e) {
-                // Throwable, not Exception: a native library load failure
-                // (UnsatisfiedLinkError) is an Error, not an Exception, and
-                // would otherwise silently die in this background thread with
-                // no event ever reaching JS.
                 AppLogger.error("NativePlayerPlugin", "playTorrent failed", e);
 
                 if (generation.get() != myGeneration) {
@@ -226,13 +249,10 @@ public class NativePlayerPlugin extends Plugin {
 
                 JSObject data = new JSObject();
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                if (e instanceof UnsatisfiedLinkError) {
-                    msg = "Torrent engine failed to load on this device (" + msg + ")";
-                }
                 data.put("message", "Torrent failed to start: " + msg);
                 emit("error", data);
-                engine.stop();
-                if (activeEngine == engine) activeEngine = null;
+                client.stop();
+                if (activeClient == client) activeClient = null;
             }
         }).start();
 
@@ -241,10 +261,10 @@ public class NativePlayerPlugin extends Plugin {
 
     /** Called by PlayerActivity when a torrent-backed player closes. */
     static void stopTorrent() {
-        TorrentEngine e = activeEngine;
-        if (e != null) {
-            e.stop();
-            activeEngine = null;
+        TorrentEngineClient c = activeClient;
+        if (c != null) {
+            c.stop();
+            activeClient = null;
         }
         pendingTorrent = null;
     }

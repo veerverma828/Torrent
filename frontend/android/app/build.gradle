@@ -3,6 +3,9 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.veerverma.torrent"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        aidl true // needed for the isolated :torrent engine process (IPC)
+    }
     defaultConfig {
         applicationId "com.veerverma.torrent"
         minSdkVersion rootProject.ext.minSdkVersion

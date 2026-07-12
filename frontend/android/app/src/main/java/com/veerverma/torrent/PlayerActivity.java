@@ -258,7 +258,7 @@ public class PlayerActivity extends AppCompatActivity {
             AppLogger.info("PlayerActivity", "Starting torrent playback, file=" + pending.fileHandle.file
                     + " size=" + pending.fileHandle.size);
             MediaSource source = new ProgressiveMediaSource.Factory(
-                    new TorrentDataSource.Factory(pending.engine, pending.fileHandle))
+                    new TorrentDataSource.Factory(pending.client, pending.fileHandle))
                     .createMediaSource(item);
             player.setMediaSource(source);
         } else {
