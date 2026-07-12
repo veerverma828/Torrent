@@ -34,7 +34,7 @@ public class NativePlayerPlugin extends Plugin {
         // Start the BitTorrent session (DHT bootstrap) as soon as the app
         // opens, not on the first Stream tap — gives peer discovery a head
         // start of however long the user spends browsing before playing.
-        new Thread(TorrentStreamServer::warmUp).start();
+        new Thread(TorrentEngine::warmUp).start();
     }
 
     /** Called from PlayerActivity (any thread) to forward an event to JS. */
@@ -76,11 +76,31 @@ public class NativePlayerPlugin extends Plugin {
 
     // ---- P2P torrent streaming (no debrid) ----
 
-    private static volatile TorrentStreamServer torrentServer;
+    /** Bundles the engine + resolved file so PlayerActivity can build a
+     *  TorrentDataSource for this launch (can't cross an Intent as extras). */
+    static class PendingTorrent {
+        final TorrentEngine engine;
+        final TorrentEngine.FileHandle fileHandle;
+
+        PendingTorrent(TorrentEngine engine, TorrentEngine.FileHandle fileHandle) {
+            this.engine = engine;
+            this.fileHandle = fileHandle;
+        }
+    }
+
+    private static volatile TorrentEngine activeEngine;
+    private static volatile PendingTorrent pendingTorrent;
     // Bumped on every playTorrent call so a superseded attempt's own failure
     // (which is expected — we just cancelled it) never surfaces as an error
     // for whatever the user tapped most recently.
     private static final AtomicLong generation = new AtomicLong(0);
+
+    /** Consumed exactly once by PlayerActivity when launching for a torrent. */
+    static PendingTorrent consumePendingTorrent() {
+        PendingTorrent p = pendingTorrent;
+        pendingTorrent = null;
+        return p;
+    }
 
     @PluginMethod
     public void playTorrent(PluginCall call) {
@@ -102,19 +122,26 @@ public class NativePlayerPlugin extends Plugin {
         resolving.put("phase", "resolving");
         emit("torrentStatus", resolving);
 
-        // Resolve the magnet to a local stream URL on a background thread, then
-        // launch the same PlayerActivity as debrid playback.
         stopTorrent(); // tear down any previous torrent first
         final long myGeneration = generation.incrementAndGet();
 
         new Thread(() -> {
             // Local variable, not the static field: two overlapping calls must
-            // each drive their OWN TorrentStreamServer instance. Reading the
-            // shared static field here would risk thread A calling .start() on
-            // thread B's object (or a just-stopped one) once B reassigns it.
-            TorrentStreamServer server = new TorrentStreamServer(getContext(), new TorrentStreamServer.StatusCallback() {
+            // each drive their OWN TorrentEngine. Reading the shared static
+            // field here would risk thread A calling .start() on thread B's
+            // object (or a just-stopped one) once B reassigns it.
+            TorrentEngine engine = new TorrentEngine(getContext(), new TorrentEngine.StatusCallback() {
                 @Override
-                public void onStatus(int peers, long rate, float progress, boolean ready) {
+                public void onStage(String stage) {
+                    if (generation.get() != myGeneration) return;
+                    JSObject data = new JSObject();
+                    data.put("phase", "resolving");
+                    data.put("stage", stage);
+                    emit("torrentStatus", data);
+                }
+
+                @Override
+                public void onStatus(int peers, long rate, float progress) {
                     if (generation.get() != myGeneration) return; // superseded — stay quiet
                     JSObject data = new JSObject();
                     data.put("peers", peers);
@@ -131,21 +158,22 @@ public class NativePlayerPlugin extends Plugin {
                     emit("error", data);
                 }
             });
-            torrentServer = server;
+            activeEngine = engine;
 
             try {
-                String url = server.start(magnet);
+                TorrentEngine.FileHandle fileHandle = engine.start(magnet);
 
                 if (generation.get() != myGeneration) {
                     // A newer request came in while this one was resolving —
                     // this attempt lost the race; tear it down quietly instead
                     // of launching a stale player or reporting a fake failure.
-                    server.stop();
+                    engine.stop();
                     return;
                 }
 
+                pendingTorrent = new PendingTorrent(engine, fileHandle);
+
                 Intent intent = new Intent(getContext(), PlayerActivity.class);
-                intent.putExtra(PlayerActivity.EXTRA_URL, url);
                 intent.putExtra(PlayerActivity.EXTRA_TITLE, title);
                 intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, subtitle);
                 intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, startPercent);
@@ -177,8 +205,8 @@ public class NativePlayerPlugin extends Plugin {
                 }
                 data.put("message", "Torrent failed to start: " + msg);
                 emit("error", data);
-                server.stop();
-                if (torrentServer == server) torrentServer = null;
+                engine.stop();
+                if (activeEngine == engine) activeEngine = null;
             }
         }).start();
 
@@ -187,10 +215,11 @@ public class NativePlayerPlugin extends Plugin {
 
     /** Called by PlayerActivity when a torrent-backed player closes. */
     static void stopTorrent() {
-        TorrentStreamServer s = torrentServer;
-        if (s != null) {
-            s.stop();
-            torrentServer = null;
+        TorrentEngine e = activeEngine;
+        if (e != null) {
+            e.stop();
+            activeEngine = null;
         }
+        pendingTorrent = null;
     }
 }

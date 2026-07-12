@@ -40,6 +40,8 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.MediaSource;
+import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.CaptionStyleCompat;
@@ -236,12 +238,28 @@ public class PlayerActivity extends AppCompatActivity {
         }
 
         MediaItem item = new MediaItem.Builder()
-                .setUri(url)
-                .setMimeType(guessMimeType(url))
+                .setUri(isTorrent ? "torrent://stream" : url)
+                .setMimeType(isTorrent ? null : guessMimeType(url))
                 .setMediaMetadata(new MediaMetadata.Builder().setTitle(title).build())
                 .build();
 
-        player.setMediaItem(item);
+        if (isTorrent) {
+            // No URL for torrent playback — feed ExoPlayer directly from the
+            // growing file via a custom DataSource (see TorrentDataSource),
+            // handed off from NativePlayerPlugin for this launch.
+            NativePlayerPlugin.PendingTorrent pending = NativePlayerPlugin.consumePendingTorrent();
+            if (pending == null) {
+                showGesture("Torrent stream not found");
+                finish();
+                return;
+            }
+            MediaSource source = new ProgressiveMediaSource.Factory(
+                    new TorrentDataSource.Factory(pending.engine, pending.fileHandle))
+                    .createMediaSource(item);
+            player.setMediaSource(source);
+        } else {
+            player.setMediaItem(item);
+        }
         player.prepare();
         if (startMs > 0) player.seekTo(startMs);
         player.setPlayWhenReady(true);

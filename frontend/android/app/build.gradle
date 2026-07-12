@@ -50,13 +50,13 @@ dependencies {
     // artifact maintained by Jellyfin, versioned to match media3.
     implementation "org.jellyfin.media3:media3-ffmpeg-decoder:${media3Version}+1"
 
-    // P2P torrent streaming (no debrid): libtorrent4j engine + a tiny local
-    // HTTP server that feeds ExoPlayer piece-by-piece.
+    // P2P torrent streaming (no debrid): libtorrent4j engine feeding ExoPlayer
+    // directly via a custom DataSource (TorrentDataSource) — no local HTTP
+    // server / socket layer.
     implementation "org.libtorrent4j:libtorrent4j:2.1.0-39"
     implementation "org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39"
     implementation "org.libtorrent4j:libtorrent4j-android-arm:2.1.0-39"
     implementation "org.libtorrent4j:libtorrent4j-android-x86_64:2.1.0-39"
-    implementation "org.nanohttpd:nanohttpd:2.3.1"
 
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
