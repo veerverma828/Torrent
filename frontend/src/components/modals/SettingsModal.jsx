@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Puzzle, Cable, RefreshCw, Zap, Settings as SettingsIcon, Download, X } from "lucide-react";
+import { Puzzle, Cable, RefreshCw, Zap, Settings as SettingsIcon, Download, X, FileWarning } from "lucide-react";
+import LogsSection from "./LogsSection.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { useUpdate } from "../../context/UpdateContext.jsx";
 import TraktSyncToggle from "../trakt/TraktSyncToggle.jsx";
@@ -18,6 +19,7 @@ const TABS = [
   { key: "trakt", label: "Trakt", icon: RefreshCw },
   { key: "convert", label: "Direct Stream", icon: Zap },
   { key: "others", label: "Others", icon: SettingsIcon },
+  { key: "logs", label: "Logs", icon: FileWarning },
   { key: "update", label: "Update", icon: Download },
 ];
 
@@ -508,6 +510,24 @@ export default function SettingsModal() {
                       {" "}IMDb Mode
                     </label>
                   </div>
+                </div>
+
+                <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
+                  <button
+                    className="settings-cancel-btn"
+                    onClick={() => setIsSettingsOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+
+            {settingsTab === "logs" && (
+              <>
+                <div className="settings-section" style={sectionCardStyle}>
+                  <h3 style={{ marginBottom: "15px" }}>Diagnostic Logs</h3>
+                  <LogsSection />
                 </div>
 
                 <div className="settings-actions" style={{ justifyContent: "flex-end" }}>

@@ -7,6 +7,9 @@ import { traktSyncQueue } from "../services/trakt/traktSyncQueue.js";
 import { traktReconciliation } from "../services/trakt/traktReconciliation.js";
 import { isTraktSyncEnabled } from "../utils/syncMode.js";
 import { API_URL } from "../services/api.js";
+import { installErrorLogging } from "../services/logs.js";
+
+installErrorLogging();
 
 export default function Providers({ children }) {
   React.useEffect(() => {

@@ -74,6 +74,32 @@ public class NativePlayerPlugin extends Plugin {
         call.resolve();
     }
 
+    // ---- Diagnostics: persistent crash/error log, exposed to Settings ----
+
+    @PluginMethod
+    public void getLogs(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("logs", AppLogger.readAll());
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void clearLogs(PluginCall call) {
+        AppLogger.clear();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void logClientError(PluginCall call) {
+        // Lets JS funnel window.onerror / unhandledrejection / caught API
+        // errors into the same persistent file as native crashes, so a
+        // Settings > Logs export has the full picture in one place.
+        String tag = call.getString("tag", "JS");
+        String message = call.getString("message", "");
+        AppLogger.error(tag, message);
+        call.resolve();
+    }
+
     // ---- P2P torrent streaming (no debrid) ----
 
     /** Bundles the engine + resolved file so PlayerActivity can build a
@@ -187,14 +213,14 @@ public class NativePlayerPlugin extends Plugin {
                 // (UnsatisfiedLinkError) is an Error, not an Exception, and
                 // would otherwise silently die in this background thread with
                 // no event ever reaching JS.
-                android.util.Log.e("NativePlayerPlugin", "playTorrent failed", e);
+                AppLogger.error("NativePlayerPlugin", "playTorrent failed", e);
 
                 if (generation.get() != myGeneration) {
                     // Expected: this attempt was cancelled by a newer tap
                     // (start() throws "stopped" once cancelled). Not a real
                     // failure — don't scare the user with an error toast for
                     // an action they didn't take.
-                    android.util.Log.d("NativePlayerPlugin", "Superseded attempt ended (" + e.getMessage() + ") — ignoring");
+                    AppLogger.info("NativePlayerPlugin", "Superseded attempt ended (" + e.getMessage() + ") -- ignoring");
                     return;
                 }
 

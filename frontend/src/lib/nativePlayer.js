@@ -57,6 +57,28 @@ export async function stopNative() {
   await NativePlayer.stop()
 }
 
+/** Fetch the persistent native crash/error log (see AppLogger.java). */
+export async function getNativeLogs() {
+  if (!NativePlayer) return ''
+  const { logs } = await NativePlayer.getLogs()
+  return logs || ''
+}
+
+export async function clearNativeLogs() {
+  if (!NativePlayer) return
+  await NativePlayer.clearLogs()
+}
+
+/** Funnel a JS-side error into the same persistent log file as native crashes. */
+export async function logClientError(tag, message) {
+  if (!NativePlayer) return
+  try {
+    await NativePlayer.logClientError({ tag, message })
+  } catch {
+    // logging must never itself throw
+  }
+}
+
 /**
  * Subscribe to a native player event. Returns an unsubscribe function.
  * Events: progress, paused, resumed, ended, playNext, closed, error.

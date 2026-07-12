@@ -120,6 +120,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AppLogger.info("PlayerActivity", "onCreate");
         setContentView(R.layout.activity_player);
         current = this;
 
@@ -249,10 +250,13 @@ public class PlayerActivity extends AppCompatActivity {
             // handed off from NativePlayerPlugin for this launch.
             NativePlayerPlugin.PendingTorrent pending = NativePlayerPlugin.consumePendingTorrent();
             if (pending == null) {
+                AppLogger.error("PlayerActivity", "isTorrent=true but no PendingTorrent was handed off — finishing");
                 showGesture("Torrent stream not found");
                 finish();
                 return;
             }
+            AppLogger.info("PlayerActivity", "Starting torrent playback, file=" + pending.fileHandle.file
+                    + " size=" + pending.fileHandle.size);
             MediaSource source = new ProgressiveMediaSource.Factory(
                     new TorrentDataSource.Factory(pending.engine, pending.fileHandle))
                     .createMediaSource(item);
@@ -842,6 +846,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException error) {
+            AppLogger.error("PlayerActivity", "ExoPlayer error (isTorrent=" + isTorrent + ")", error);
             JSObject data = baseEvent();
             data.put("message", error.getMessage() != null ? error.getMessage() : "Playback error");
             emit("error", data);
@@ -851,6 +856,7 @@ public class PlayerActivity extends AppCompatActivity {
     // ===================== lifecycle =====================
 
     static void requestStop() {
+        AppLogger.info("PlayerActivity", "requestStop() called");
         PlayerActivity a = current;
         if (a != null) a.runOnUiThread(a::finish);
     }
@@ -866,6 +872,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        AppLogger.info("PlayerActivity", "onDestroy (isTorrent=" + isTorrent + ")");
         handler.removeCallbacksAndMessages(null);
         countdownHandler.removeCallbacksAndMessages(null);
         emitProgressSafe();

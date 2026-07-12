@@ -77,7 +77,7 @@ public class TorrentEngine {
                         }
                     }
                 } catch (Throwable t) {
-                    Log.e(TAG, "alert error", t);
+                    AppLogger.error(TAG, "alert error", t);
                 }
             }
         });
@@ -124,6 +124,7 @@ public class TorrentEngine {
      *  the main thread. Returns a handle once enough data exists to start
      *  playback. */
     public FileHandle start(String magnet) throws Exception {
+        AppLogger.info(TAG, "start() magnet=" + magnet.substring(0, Math.min(80, magnet.length())));
         saveDir = new File(context.getCacheDir(), "torrents");
         if (saveDir.exists()) deleteRecursive(saveDir);
         saveDir.mkdirs();
@@ -172,6 +173,7 @@ public class TorrentEngine {
         waitForPieceBounded(firstPiece, SETUP_TIMEOUT_MS);
 
         startStatusThread();
+        AppLogger.info(TAG, "start() ready, file=" + dataFile + " size=" + fileSize);
         return new FileHandle(dataFile, fileSize);
     }
 
