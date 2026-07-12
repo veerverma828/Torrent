@@ -68,16 +68,36 @@ public class TorrServerManager {
     }
 
     /** Starts the subprocess if not already running. Safe to call repeatedly
-     *  (e.g. at app launch to warm it up before the first stream). */
+     *  (e.g. at app launch to warm it up before the first stream). A fixed
+     *  port is an OS-level singleton resource — if something is already
+     *  answering /echo (e.g. an orphaned instance surviving an app-process
+     *  restart, since Android doesn't always cascade-kill children), reuse
+     *  it instead of spawning a second one that would lose TorrServer's own
+     *  "port already in use" pre-check and exit immediately. */
     public synchronized void start() {
         if (process != null && isAlive()) return;
 
+        if (quickEchoCheck()) {
+            AppLogger.info(TAG, "TorrServer already answering /echo — reusing existing instance");
+            ready = true;
+            return;
+        }
+
         try {
             String binPath = context.getApplicationInfo().nativeLibraryDir + "/libtorrserver.so";
+            File binFile = new File(binPath);
             File dataDir = new File(context.getFilesDir(), "torrserver");
             dataDir.mkdirs();
 
-            ProcessBuilder pb = new ProcessBuilder(binPath, "-p", String.valueOf(PORT), "-d", dataDir.getAbsolutePath());
+            AppLogger.info(TAG, "Binary check: path=" + binPath
+                    + " exists=" + binFile.exists()
+                    + " size=" + binFile.length()
+                    + " canExecute=" + binFile.canExecute());
+
+            String[] argv = {binPath, "-p", String.valueOf(PORT), "-d", dataDir.getAbsolutePath()};
+            AppLogger.info(TAG, "Spawning: " + String.join(" ", argv));
+
+            ProcessBuilder pb = new ProcessBuilder(argv);
             pb.redirectErrorStream(true);
             process = pb.start();
             ready = false;
@@ -88,6 +108,19 @@ public class TorrServerManager {
             AppLogger.info(TAG, "TorrServer subprocess started, pid-ish=" + process.hashCode());
         } catch (Throwable e) {
             AppLogger.error(TAG, "Failed to start TorrServer", e);
+        }
+    }
+
+    /** Fast, single-shot check (no retry loop) for an already-healthy
+     *  instance on our port — used before deciding to spawn a new process. */
+    private boolean quickEchoCheck() {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + "/echo").openConnection();
+            conn.setConnectTimeout(800);
+            conn.setReadTimeout(800);
+            return conn.getResponseCode() == 200;
+        } catch (IOException e) {
+            return false;
         }
     }
 
