@@ -127,7 +127,13 @@ public class NativePlayerPlugin extends Plugin {
 
         new Thread(() -> {
             try {
-                String url = TorrServerManager.get(getContext()).resolveStreamUrl(magnet);
+                String url = TorrServerManager.get(getContext()).resolveStreamUrl(magnet, (stage) -> {
+                    if (generation.get() != myGeneration) return;
+                    JSObject data = new JSObject();
+                    data.put("phase", "resolving");
+                    data.put("stage", stage);
+                    emit("torrentStatus", data);
+                });
 
                 if (generation.get() != myGeneration) {
                     AppLogger.info("NativePlayerPlugin", "Superseded playTorrent attempt resolved late — ignoring");

@@ -40,8 +40,17 @@ public class TorrServerManager {
     private static final String TAG = "TorrServerManager";
     private static final int PORT = 8090;
     private static final String BASE_URL = "http://127.0.0.1:" + PORT;
-    private static final int READY_TIMEOUT_MS = 10000;
+    // Cold start on a real device (first-run DB/settings creation + torrent
+    // client init + DHT bootstrap) legitimately takes 15-30s — the old 10s
+    // ceiling fired before the HTTP listener was up. 60s still fails loudly
+    // if the binary is genuinely broken.
+    private static final int READY_TIMEOUT_MS = 60000;
     private static final int STAT_TIMEOUT_MS = 60000;
+
+    /** Optional progress sink so a long first-run wait isn't invisible. */
+    public interface StageListener {
+        void onStage(String stage);
+    }
 
     private static TorrServerManager instance;
 
@@ -120,23 +129,28 @@ public class TorrServerManager {
     }
 
     /** Blocking: waits for the subprocess to accept connections. Call off the
-     *  main thread. Throws if it never comes up within the timeout. */
+     *  main thread. Throws if it never comes up within the timeout. Probes the
+     *  dedicated /echo health endpoint (returns 200 + version, no auth, no
+     *  web-UI assets) — the canonical TorrServer readiness check. */
     private void awaitReady() throws IOException {
         if (ready) return;
         long deadline = System.currentTimeMillis() + READY_TIMEOUT_MS;
         while (System.currentTimeMillis() < deadline) {
             try {
-                HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + "/").openConnection();
+                HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + "/echo").openConnection();
                 conn.setConnectTimeout(500);
                 conn.setReadTimeout(500);
-                conn.getResponseCode(); // any response at all means it's up
-                ready = true;
-                return;
-            } catch (IOException e) {
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException ignored) {
+                if (conn.getResponseCode() == 200) {
+                    ready = true;
+                    AppLogger.info(TAG, "TorrServer ready (/echo answered)");
+                    return;
                 }
+            } catch (IOException e) {
+                // not listening yet — expected during cold start
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException ignored) {
             }
         }
         throw new IOException("TorrServer did not become ready within " + READY_TIMEOUT_MS + "ms");
@@ -145,10 +159,12 @@ public class TorrServerManager {
     /** Blocking: resolves a magnet to a playable stream URL. Call off the main
      *  thread. Picks the largest file in the torrent (mirrors the old
      *  largest-file-in-torrent heuristic). */
-    public String resolveStreamUrl(String magnet) throws IOException {
+    public String resolveStreamUrl(String magnet, StageListener stages) throws IOException {
         start();
+        if (stages != null && !ready) stages.onStage("Starting torrent engine…");
         awaitReady();
 
+        if (stages != null) stages.onStage("Fetching torrent metadata…");
         String encoded = URLEncoder.encode(magnet, "UTF-8");
         String statUrl = BASE_URL + "/stream/x?link=" + encoded + "&stat";
 
