@@ -41,6 +41,69 @@
         android:indeterminateTint="@color/player_accent"
         android:visibility="gone" />
 
+    <!-- P2P resolve overlay: shown from the moment the player opens for a
+         magnet-backed stream until the URL resolves (or fails). Replaces the
+         old bottom-right web toast with an in-player, branded status. -->
+    <LinearLayout
+        android:id="@+id/resolve_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@android:color/black"
+        android:visibility="gone"
+        android:alpha="0">
+
+        <ProgressBar
+            android:id="@+id/resolve_spinner"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:indeterminateTint="@color/player_accent" />
+
+        <TextView
+            android:id="@+id/resolve_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:textColor="@color/player_text"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:gravity="center"
+            android:paddingHorizontal="32dp" />
+
+        <TextView
+            android:id="@+id/resolve_stage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="@color/player_text_dim"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingHorizontal="32dp"
+            android:text="Connecting…" />
+
+        <LinearLayout
+            android:id="@+id/resolve_error_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="22dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/resolve_retry"
+                style="@style/PlayerPillButton"
+                android:background="@drawable/player_pill_accent"
+                android:text="Retry" />
+
+            <TextView
+                android:id="@+id/resolve_close"
+                style="@style/PlayerPillButton"
+                android:text="Close" />
+        </LinearLayout>
+    </LinearLayout>
+
     <!-- Auto-play next episode countdown -->
     <LinearLayout
         android:id="@+id/next_overlay"

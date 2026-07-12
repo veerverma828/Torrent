@@ -73,6 +73,7 @@ public class PlayerActivity extends AppCompatActivity {
     public static final String EXTRA_START_PERCENT = "startPercent";
     public static final String EXTRA_METADATA = "metadata";
     public static final String EXTRA_HAS_NEXT = "hasNext";
+    public static final String EXTRA_MAGNET = "magnet";
 
     private static PlayerActivity current;
 
@@ -91,7 +92,14 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView btnAudio;
     private TextView btnNext;
 
+    private LinearLayout resolveOverlay;
+    private TextView resolveTitle;
+    private TextView resolveStage;
+    private LinearLayout resolveErrorActions;
+    private long resolveGeneration = 0; // guards against a stale resolve finishing after onNewIntent
+
     private String currentUrl;
+    private String pendingMagnet;
     private String metadataJson = "{}";
     private boolean hasNext = false;
     private boolean endedEmitted = false;
@@ -130,6 +138,10 @@ public class PlayerActivity extends AppCompatActivity {
         nextText = findViewById(R.id.next_text);
         btnSpeed = findViewById(R.id.btn_speed);
         btnAspect = findViewById(R.id.btn_aspect);
+        resolveOverlay = findViewById(R.id.resolve_overlay);
+        resolveTitle = findViewById(R.id.resolve_title);
+        resolveStage = findViewById(R.id.resolve_stage);
+        resolveErrorActions = findViewById(R.id.resolve_error_actions);
 
         trackSelector = new DefaultTrackSelector(this);
         // Decoder fallback keeps audio/video playing on phones whose primary
@@ -208,8 +220,9 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void loadFromIntent(Intent intent) {
+        resolveGeneration++; // invalidate any in-flight resolve from a previous intent
         String url = intent.getStringExtra(EXTRA_URL);
-        currentUrl = url;
+        String magnet = intent.getStringExtra(EXTRA_MAGNET);
         String title = intent.getStringExtra(EXTRA_TITLE);
         String subtitle = intent.getStringExtra(EXTRA_SUBTITLE);
         long startMs = intent.getLongExtra(EXTRA_START_MS, 0L);
@@ -233,6 +246,24 @@ public class PlayerActivity extends AppCompatActivity {
             }
         }
 
+        if (url != null && !url.isEmpty()) {
+            // Debrid: already resolved, play immediately — unchanged behavior.
+            hideResolveOverlay();
+            startPlayback(url, title, startMs);
+        } else if (magnet != null && !magnet.isEmpty()) {
+            // P2P: URL isn't known yet — show the in-player loading state and
+            // resolve it here (moved from NativePlayerPlugin so progress can
+            // be shown natively instead of a web toast).
+            pendingMagnet = magnet;
+            player.stop();
+            player.clearMediaItems();
+            showResolveOverlay(title);
+            startResolve(magnet, title, startMs);
+        }
+    }
+
+    private void startPlayback(String url, String title, long startMs) {
+        currentUrl = url;
         // P2P (TorrServer) and debrid streams both arrive as a plain HTTP URL
         // by the time they reach here — no special-casing needed.
         MediaItem item = new MediaItem.Builder()
@@ -245,6 +276,66 @@ public class PlayerActivity extends AppCompatActivity {
         player.prepare();
         if (startMs > 0) player.seekTo(startMs);
         player.setPlayWhenReady(true);
+    }
+
+    // ===================== P2P in-player resolve overlay =====================
+
+    private void showResolveOverlay(String title) {
+        if (resolveTitle != null) resolveTitle.setText(title != null && !title.isEmpty() ? title : "Loading stream…");
+        if (resolveStage != null) resolveStage.setText("Connecting…");
+        if (resolveErrorActions != null) resolveErrorActions.setVisibility(View.GONE);
+        if (resolveOverlay != null) {
+            resolveOverlay.setVisibility(View.VISIBLE);
+            resolveOverlay.animate().alpha(1f).setDuration(200).start();
+        }
+    }
+
+    private void hideResolveOverlay() {
+        if (resolveOverlay == null || resolveOverlay.getVisibility() != View.VISIBLE) return;
+        resolveOverlay.animate().alpha(0f).setDuration(200)
+                .withEndAction(() -> resolveOverlay.setVisibility(View.GONE)).start();
+    }
+
+    private void showResolveError(String message) {
+        if (resolveStage != null) resolveStage.setText(message);
+        if (resolveErrorActions != null) resolveErrorActions.setVisibility(View.VISIBLE);
+    }
+
+    private void retryResolve() {
+        if (pendingMagnet == null) return;
+        String title = resolveTitle != null ? resolveTitle.getText().toString() : "";
+        showResolveOverlay(title);
+        startResolve(pendingMagnet, title, 0);
+    }
+
+    /** Resolves a magnet to a stream URL via TorrServer, updating the overlay
+     *  with live stage text, then transitions straight into playback. Runs on
+     *  a background thread; all UI touches are posted back to the main
+     *  thread. Guarded by resolveGeneration so a resolve started for an
+     *  earlier intent (e.g. superseded by auto-next) can't clobber the UI. */
+    private void startResolve(String magnet, String title, long startMs) {
+        final long myGeneration = resolveGeneration;
+        new Thread(() -> {
+            try {
+                String url = TorrServerManager.get(getApplicationContext()).resolveStreamUrl(magnet, stage -> {
+                    if (myGeneration != resolveGeneration) return;
+                    runOnUiThread(() -> {
+                        if (resolveStage != null) resolveStage.setText(stage);
+                    });
+                });
+
+                if (myGeneration != resolveGeneration) return; // superseded — stay quiet
+                runOnUiThread(() -> {
+                    hideResolveOverlay();
+                    startPlayback(url, title, startMs);
+                });
+            } catch (Throwable e) {
+                AppLogger.error("PlayerActivity", "P2P resolve failed", e);
+                if (myGeneration != resolveGeneration) return;
+                String msg = e.getMessage() != null ? e.getMessage() : "Failed to start stream";
+                runOnUiThread(() -> showResolveError(msg));
+            }
+        }).start();
     }
 
     private String guessMimeType(String url) {
@@ -293,6 +384,11 @@ public class PlayerActivity extends AppCompatActivity {
         TextView nextPlay = findViewById(R.id.next_play);
         if (nextCancel != null) nextCancel.setOnClickListener(v -> hideNextOverlay());
         if (nextPlay != null) nextPlay.setOnClickListener(v -> triggerPlayNext());
+
+        TextView resolveRetry = findViewById(R.id.resolve_retry);
+        TextView resolveClose = findViewById(R.id.resolve_close);
+        if (resolveRetry != null) resolveRetry.setOnClickListener(v -> retryResolve());
+        if (resolveClose != null) resolveClose.setOnClickListener(v -> finish());
     }
 
     /** Hand the current stream to an external player (VLC/MX/...) and close. */

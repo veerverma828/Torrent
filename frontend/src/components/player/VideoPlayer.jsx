@@ -296,9 +296,9 @@ export default function VideoPlayer() {
       setStreamUrl(null);
       navigate(-1);
     }));
-    unsubs.push(onNativePlayerEvent("torrentStatus", ({ stage }) => {
-      if (stage) showToast(stage, "success"); // stage-by-stage feedback while resolving
-    }));
+    // P2P resolve progress is now shown inside PlayerActivity itself (native
+    // loading overlay), not as a web toast — torrentStatus is no longer
+    // consumed here.
     unsubs.push(onNativePlayerEvent("error", ({ message }) => {
       console.error("Native player error:", message);
       // If this fires before PlayerActivity ever opened (e.g. P2P metadata

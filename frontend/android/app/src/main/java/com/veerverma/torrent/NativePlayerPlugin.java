@@ -8,8 +8,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 /**
  * Bridges the React app to a native media3/ExoPlayer screen (PlayerActivity).
  *
@@ -97,11 +95,6 @@ public class NativePlayerPlugin extends Plugin {
 
     // ---- P2P torrent streaming (no debrid), via bundled TorrServer ----
 
-    // Bumped on every playTorrent call so a superseded attempt's own failure
-    // (which is expected — we just started a newer one) never surfaces as an
-    // error for whatever the user tapped most recently.
-    private static final AtomicLong generation = new AtomicLong(0);
-
     @PluginMethod
     public void playTorrent(PluginCall call) {
         String magnet = call.getString("magnet");
@@ -109,48 +102,20 @@ public class NativePlayerPlugin extends Plugin {
             call.reject("Missing magnet");
             return;
         }
-        final String title = call.getString("title", "");
-        final String subtitle = call.getString("subtitle", "");
-        final double startPercent = call.getDouble("startPercent", 0.0);
-        final String metadataJson = call.getString("metadataJson", "{}");
-        final boolean hasNext = call.getBoolean("hasNext", false);
-
-        // Immediate feedback: resolving a magnet (metadata fetch over the
-        // swarm) can take a while, and there's no PlayerActivity on screen
-        // yet to show a spinner — without this the tap looks like it did
-        // nothing.
-        JSObject resolving = new JSObject();
-        resolving.put("phase", "resolving");
-        emit("torrentStatus", resolving);
-
-        final long myGeneration = generation.incrementAndGet();
-
-        new Thread(() -> {
-            try {
-                String url = TorrServerManager.get(getContext()).resolveStreamUrl(magnet, (stage) -> {
-                    if (generation.get() != myGeneration) return;
-                    JSObject data = new JSObject();
-                    data.put("phase", "resolving");
-                    data.put("stage", stage);
-                    emit("torrentStatus", data);
-                });
-
-                if (generation.get() != myGeneration) {
-                    AppLogger.info("NativePlayerPlugin", "Superseded playTorrent attempt resolved late — ignoring");
-                    return;
-                }
-
-                launchPlayer(url, title, subtitle, 0L, startPercent, metadataJson, hasNext);
-            } catch (Throwable e) {
-                AppLogger.error("NativePlayerPlugin", "playTorrent failed", e);
-                if (generation.get() != myGeneration) return; // superseded — stay quiet
-
-                JSObject data = new JSObject();
-                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                data.put("message", "Torrent failed to start: " + msg);
-                emit("error", data);
-            }
-        }).start();
+        // Launch immediately — PlayerActivity itself now owns the resolve
+        // (TorrServerManager.resolveStreamUrl call + stage callbacks) and
+        // shows a branded in-player loading state the whole time, instead of
+        // resolving here first and only opening the player once done. Same
+        // instant-open feel as debrid.
+        Intent intent = new Intent(getContext(), PlayerActivity.class);
+        intent.putExtra(PlayerActivity.EXTRA_MAGNET, magnet);
+        intent.putExtra(PlayerActivity.EXTRA_TITLE, call.getString("title", ""));
+        intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, call.getString("subtitle", ""));
+        intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, call.getDouble("startPercent", 0.0));
+        intent.putExtra(PlayerActivity.EXTRA_METADATA, call.getString("metadataJson", "{}"));
+        intent.putExtra(PlayerActivity.EXTRA_HAS_NEXT, call.getBoolean("hasNext", false));
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
 
         call.resolve();
     }
