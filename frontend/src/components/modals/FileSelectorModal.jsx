@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
@@ -11,8 +12,37 @@ export default function FileSelectorModal({ files, actionType }) {
   const { processingFile } = usePlayerContext();
   const { selectFileAndExecute } = useStreamActions();
 
+  const modalRef = useRef(null);
+  const previouslyFocusedRef = useRef(null);
+
+  // Trap focus inside the file list while open and restore it to whatever
+  // triggered the modal (the result/episode card) once it closes.
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement;
+    const raf = requestAnimationFrame(() => {
+      const first = modalRef.current?.querySelector(".file-item");
+      first?.focus({ preventScroll: true });
+    });
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") navigate(-1);
+    };
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", handleEscape);
+      const prev = previouslyFocusedRef.current;
+      if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
+    };
+  }, [navigate]);
+
   return (
     <motion.div
+      ref={modalRef}
+      data-modal-trap="true"
+      role="dialog"
+      aria-modal="true"
       className="file-dropdown"
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}

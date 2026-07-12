@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Puzzle, Cable, RefreshCw, Zap, Settings as SettingsIcon, Download, X, FileWarning } from "lucide-react";
 import LogsSection from "./LogsSection.jsx";
@@ -55,6 +55,33 @@ export default function SettingsModal() {
   const [verifyingKey, setVerifyingKey] = useState(null); // "torbox" | "real-debrid" | null
   const [savingAddons, setSavingAddons] = useState(false);
   const storedManifests = getStoredManifests();
+
+  const modalRef = useRef(null);
+  const previouslyFocusedRef = useRef(null);
+
+  // Trap focus inside the modal while open, and hand it back to whatever
+  // triggered the modal (e.g. the settings gear button) once it closes.
+  useEffect(() => {
+    if (isSettingsOpen) {
+      previouslyFocusedRef.current = document.activeElement;
+      const raf = requestAnimationFrame(() => {
+        const first = modalRef.current?.querySelector("button, input, [tabindex='0']");
+        first?.focus({ preventScroll: true });
+      });
+
+      const handleEscape = (e) => {
+        if (e.key === "Escape") setIsSettingsOpen(false);
+      };
+      window.addEventListener("keydown", handleEscape);
+
+      return () => {
+        cancelAnimationFrame(raf);
+        window.removeEventListener("keydown", handleEscape);
+        const prev = previouslyFocusedRef.current;
+        if (prev && document.contains(prev)) prev.focus({ preventScroll: true });
+      };
+    }
+  }, [isSettingsOpen, setIsSettingsOpen]);
 
   // Verify the pasted key against the provider, then persist it locally.
   const handleSaveDebridKey = async (service) => {
@@ -155,6 +182,10 @@ export default function SettingsModal() {
           transition={{ duration: 0.2 }}
         >
           <motion.div
+            ref={modalRef}
+            data-modal-trap="true"
+            role="dialog"
+            aria-modal="true"
             className="settings-modal-content"
             style={{
               background:
