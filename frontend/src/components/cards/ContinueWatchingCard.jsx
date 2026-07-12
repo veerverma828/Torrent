@@ -116,8 +116,6 @@ function ContinueWatchingCard({ item, onRemove }) {
             onError={() => setImageError(true)}
             loading="lazy"
             decoding="async"
-            width={150}
-            height={225}
           />
         ) : (
           <div className="poster-placeholder">
