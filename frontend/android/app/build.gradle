@@ -22,6 +22,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    // AGP 8+ defaults to NOT extracting jniLibs/*.so to disk (extractNativeLibs=false) —
+    // real .so files get mapped straight from the (page-aligned) APK instead. Our
+    // "libtorrserver.so" is a disguised plain executable, not a linkable shared
+    // library, so with that default it never lands on disk at all and
+    // ProcessBuilder gets ENOENT. Force legacy packaging so it's actually
+    // extracted to nativeLibraryDir like it was pre-AGP-8.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 repositories {
