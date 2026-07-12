@@ -40,8 +40,6 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.source.MediaSource;
-import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.CaptionStyleCompat;
@@ -75,7 +73,6 @@ public class PlayerActivity extends AppCompatActivity {
     public static final String EXTRA_START_PERCENT = "startPercent";
     public static final String EXTRA_METADATA = "metadata";
     public static final String EXTRA_HAS_NEXT = "hasNext";
-    public static final String EXTRA_IS_TORRENT = "isTorrent";
 
     private static PlayerActivity current;
 
@@ -95,7 +92,6 @@ public class PlayerActivity extends AppCompatActivity {
     private TextView btnNext;
 
     private String currentUrl;
-    private boolean isTorrent = false;
     private String metadataJson = "{}";
     private boolean hasNext = false;
     private boolean endedEmitted = false;
@@ -222,7 +218,6 @@ public class PlayerActivity extends AppCompatActivity {
         metadataJson = intent.getStringExtra(EXTRA_METADATA);
         if (metadataJson == null) metadataJson = "{}";
         hasNext = intent.getBooleanExtra(EXTRA_HAS_NEXT, false);
-        isTorrent = intent.getBooleanExtra(EXTRA_IS_TORRENT, false);
         endedEmitted = false;
         if (btnNext != null) btnNext.setVisibility(hasNext ? View.VISIBLE : View.GONE);
 
@@ -238,32 +233,15 @@ public class PlayerActivity extends AppCompatActivity {
             }
         }
 
+        // P2P (TorrServer) and debrid streams both arrive as a plain HTTP URL
+        // by the time they reach here — no special-casing needed.
         MediaItem item = new MediaItem.Builder()
-                .setUri(isTorrent ? "torrent://stream" : url)
-                .setMimeType(isTorrent ? null : guessMimeType(url))
+                .setUri(url)
+                .setMimeType(guessMimeType(url))
                 .setMediaMetadata(new MediaMetadata.Builder().setTitle(title).build())
                 .build();
 
-        if (isTorrent) {
-            // No URL for torrent playback — feed ExoPlayer directly from the
-            // growing file via a custom DataSource (see TorrentDataSource),
-            // handed off from NativePlayerPlugin for this launch.
-            NativePlayerPlugin.PendingTorrent pending = NativePlayerPlugin.consumePendingTorrent();
-            if (pending == null) {
-                AppLogger.error("PlayerActivity", "isTorrent=true but no PendingTorrent was handed off — finishing");
-                showGesture("Torrent stream not found");
-                finish();
-                return;
-            }
-            AppLogger.info("PlayerActivity", "Starting torrent playback, file=" + pending.fileHandle.file
-                    + " size=" + pending.fileHandle.size);
-            MediaSource source = new ProgressiveMediaSource.Factory(
-                    new TorrentDataSource.Factory(pending.client, pending.fileHandle))
-                    .createMediaSource(item);
-            player.setMediaSource(source);
-        } else {
-            player.setMediaItem(item);
-        }
+        player.setMediaItem(item);
         player.prepare();
         if (startMs > 0) player.seekTo(startMs);
         player.setPlayWhenReady(true);
@@ -846,7 +824,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException error) {
-            AppLogger.error("PlayerActivity", "ExoPlayer error (isTorrent=" + isTorrent + ")", error);
+            AppLogger.error("PlayerActivity", "ExoPlayer error", error);
             JSObject data = baseEvent();
             data.put("message", error.getMessage() != null ? error.getMessage() : "Playback error");
             emit("error", data);
@@ -872,13 +850,13 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        AppLogger.info("PlayerActivity", "onDestroy (isTorrent=" + isTorrent + ")");
+        AppLogger.info("PlayerActivity", "onDestroy");
         handler.removeCallbacksAndMessages(null);
         countdownHandler.removeCallbacksAndMessages(null);
         emitProgressSafe();
         emit("closed", baseEvent());
-        // Tear down the torrent session + wipe its cache when P2P playback ends.
-        if (isTorrent) NativePlayerPlugin.stopTorrent();
+        // TorrServer is a persistent subprocess (like the debrid backend),
+        // not torn down per-stream — no per-player cleanup needed here.
         if (castController != null) castController.release();
         if (player != null) {
             player.removeListener(playerListener);

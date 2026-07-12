@@ -1,9 +1,6 @@
 package com.veerverma.torrent;
 
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -21,6 +18,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * track selection, gestures, PiP and Cast happen natively so the app can
  * decode MKV/HEVC/AC3/DTS/10-bit that the WebView's HTML5 <video> cannot.
  *
+ * P2P streaming (no debrid) is handled by TorrServerManager, which resolves a
+ * magnet to a plain HTTP URL (via the bundled TorrServer subprocess) and hands
+ * it to the exact same play() path as debrid — see TorrServerManager.java for
+ * why this replaced an earlier libtorrent4j-based engine.
+ *
  * PlayerActivity pushes lifecycle/position events back through the static
  * {@link #emit} hook, which forwards them to JS listeners (see
  * frontend/src/lib/nativePlayer.js). Progress is echoed with the opaque
@@ -31,37 +33,13 @@ public class NativePlayerPlugin extends Plugin {
 
     private static NativePlayerPlugin instance;
 
-    // Held forever (until process death) so the isolated engine process
-    // stays alive and its DHT session stays warm for the app's lifetime —
-    // matches the original eager warm-up intent, just across the process
-    // boundary now.
-    private static ServiceConnection warmUpConnection;
-
     @Override
     public void load() {
         instance = this;
-        // Start the BitTorrent session (DHT bootstrap) in the isolated
-        // :torrent process as soon as the app opens, not on the first Stream
-        // tap — gives peer discovery a head start of however long the user
-        // spends browsing before playing.
-        warmUpConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder binder) {
-                try {
-                    ITorrentEngineService.Stub.asInterface(binder).warmUp();
-                } catch (Exception e) {
-                    AppLogger.error("NativePlayerPlugin", "warmUp failed", e);
-                }
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                AppLogger.error("NativePlayerPlugin", "Torrent engine process died while idle (native crash)");
-            }
-        };
-        getContext().bindService(
-                new Intent(getContext(), TorrentEngineService.class),
-                warmUpConnection, android.content.Context.BIND_AUTO_CREATE);
+        // Start the TorrServer subprocess as soon as the app opens, not on
+        // the first Stream tap — gives it a head start (binary launch +
+        // internal init) before the user ever needs it.
+        new Thread(() -> TorrServerManager.get(getContext()).start()).start();
     }
 
     /** Called from PlayerActivity (any thread) to forward an event to JS. */
@@ -79,19 +57,9 @@ public class NativePlayerPlugin extends Plugin {
             call.reject("Missing url");
             return;
         }
-
-        Intent intent = new Intent(getContext(), PlayerActivity.class);
-        intent.putExtra(PlayerActivity.EXTRA_URL, url);
-        intent.putExtra(PlayerActivity.EXTRA_TITLE, call.getString("title", ""));
-        intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, call.getString("subtitle", ""));
-        intent.putExtra(PlayerActivity.EXTRA_START_MS, call.getLong("startPositionMs", 0L));
-        intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, call.getDouble("startPercent", 0.0));
-        intent.putExtra(PlayerActivity.EXTRA_METADATA, call.getString("metadataJson", "{}"));
-        intent.putExtra(PlayerActivity.EXTRA_HAS_NEXT, call.getBoolean("hasNext", false));
-        // singleTop: if the player is already open (auto-next), reuse it.
-        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        getContext().startActivity(intent);
-
+        launchPlayer(url, call.getString("title", ""), call.getString("subtitle", ""),
+                call.getLong("startPositionMs", 0L), call.getDouble("startPercent", 0.0),
+                call.getString("metadataJson", "{}"), call.getBoolean("hasNext", false));
         call.resolve();
     }
 
@@ -127,33 +95,12 @@ public class NativePlayerPlugin extends Plugin {
         call.resolve();
     }
 
-    // ---- P2P torrent streaming (no debrid) ----
+    // ---- P2P torrent streaming (no debrid), via bundled TorrServer ----
 
-    /** Bundles the client + resolved file so PlayerActivity can build a
-     *  TorrentDataSource for this launch (can't cross an Intent as extras). */
-    static class PendingTorrent {
-        final TorrentEngineClient client;
-        final TorrentEngineClient.FileHandle fileHandle;
-
-        PendingTorrent(TorrentEngineClient client, TorrentEngineClient.FileHandle fileHandle) {
-            this.client = client;
-            this.fileHandle = fileHandle;
-        }
-    }
-
-    private static volatile TorrentEngineClient activeClient;
-    private static volatile PendingTorrent pendingTorrent;
     // Bumped on every playTorrent call so a superseded attempt's own failure
-    // (which is expected — we just cancelled it) never surfaces as an error
-    // for whatever the user tapped most recently.
+    // (which is expected — we just started a newer one) never surfaces as an
+    // error for whatever the user tapped most recently.
     private static final AtomicLong generation = new AtomicLong(0);
-
-    /** Consumed exactly once by PlayerActivity when launching for a torrent. */
-    static PendingTorrent consumePendingTorrent() {
-        PendingTorrent p = pendingTorrent;
-        pendingTorrent = null;
-        return p;
-    }
 
     @PluginMethod
     public void playTorrent(PluginCall call) {
@@ -168,104 +115,52 @@ public class NativePlayerPlugin extends Plugin {
         final String metadataJson = call.getString("metadataJson", "{}");
         final boolean hasNext = call.getBoolean("hasNext", false);
 
-        // Immediate feedback: resolving a magnet (DHT/tracker lookup) can take
-        // up to a minute, and there's no PlayerActivity on screen yet to show
-        // a spinner — without this the UI looks like the tap did nothing.
+        // Immediate feedback: resolving a magnet (metadata fetch over the
+        // swarm) can take a while, and there's no PlayerActivity on screen
+        // yet to show a spinner — without this the tap looks like it did
+        // nothing.
         JSObject resolving = new JSObject();
         resolving.put("phase", "resolving");
         emit("torrentStatus", resolving);
 
-        stopTorrent(); // tear down any previous torrent first
         final long myGeneration = generation.incrementAndGet();
 
         new Thread(() -> {
-            // Local variable, not the static field: two overlapping calls must
-            // each drive their OWN client/connection. Reading the shared
-            // static field here would risk thread A operating on thread B's
-            // object (or a just-stopped one) once B reassigns it.
-            TorrentEngineClient client = new TorrentEngineClient(getContext(), new TorrentEngineClient.StatusCallback() {
-                @Override
-                public void onStage(String stage) {
-                    if (generation.get() != myGeneration) return;
-                    JSObject data = new JSObject();
-                    data.put("phase", "resolving");
-                    data.put("stage", stage);
-                    emit("torrentStatus", data);
-                }
-
-                @Override
-                public void onStatus(int peers, long rate, float progress) {
-                    if (generation.get() != myGeneration) return; // superseded — stay quiet
-                    JSObject data = new JSObject();
-                    data.put("peers", peers);
-                    data.put("downloadRate", rate);
-                    data.put("progress", progress);
-                    emit("torrentStatus", data);
-                }
-
-                @Override
-                public void onError(String message) {
-                    if (generation.get() != myGeneration) return;
-                    JSObject data = new JSObject();
-                    data.put("message", message);
-                    emit("error", data);
-                }
-            });
-            activeClient = client;
-
             try {
-                TorrentEngineClient.FileHandle fileHandle = client.start(magnet);
+                String url = TorrServerManager.get(getContext()).resolveStreamUrl(magnet);
 
                 if (generation.get() != myGeneration) {
-                    // A newer request came in while this one was resolving —
-                    // this attempt lost the race; tear it down quietly instead
-                    // of launching a stale player or reporting a fake failure.
-                    client.stop();
+                    AppLogger.info("NativePlayerPlugin", "Superseded playTorrent attempt resolved late — ignoring");
                     return;
                 }
 
-                pendingTorrent = new PendingTorrent(client, fileHandle);
-
-                Intent intent = new Intent(getContext(), PlayerActivity.class);
-                intent.putExtra(PlayerActivity.EXTRA_TITLE, title);
-                intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, subtitle);
-                intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, startPercent);
-                intent.putExtra(PlayerActivity.EXTRA_METADATA, metadataJson);
-                intent.putExtra(PlayerActivity.EXTRA_HAS_NEXT, hasNext);
-                intent.putExtra(PlayerActivity.EXTRA_IS_TORRENT, true);
-                intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(intent);
+                launchPlayer(url, title, subtitle, 0L, startPercent, metadataJson, hasNext);
             } catch (Throwable e) {
                 AppLogger.error("NativePlayerPlugin", "playTorrent failed", e);
-
-                if (generation.get() != myGeneration) {
-                    // Expected: this attempt was cancelled by a newer tap
-                    // (start() throws "stopped" once cancelled). Not a real
-                    // failure — don't scare the user with an error toast for
-                    // an action they didn't take.
-                    AppLogger.info("NativePlayerPlugin", "Superseded attempt ended (" + e.getMessage() + ") -- ignoring");
-                    return;
-                }
+                if (generation.get() != myGeneration) return; // superseded — stay quiet
 
                 JSObject data = new JSObject();
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 data.put("message", "Torrent failed to start: " + msg);
                 emit("error", data);
-                client.stop();
-                if (activeClient == client) activeClient = null;
             }
         }).start();
 
         call.resolve();
     }
 
-    /** Called by PlayerActivity when a torrent-backed player closes. */
-    static void stopTorrent() {
-        TorrentEngineClient c = activeClient;
-        if (c != null) {
-            c.stop();
-            activeClient = null;
-        }
-        pendingTorrent = null;
+    private void launchPlayer(String url, String title, String subtitle, long startPositionMs,
+                               double startPercent, String metadataJson, boolean hasNext) {
+        Intent intent = new Intent(getContext(), PlayerActivity.class);
+        intent.putExtra(PlayerActivity.EXTRA_URL, url);
+        intent.putExtra(PlayerActivity.EXTRA_TITLE, title);
+        intent.putExtra(PlayerActivity.EXTRA_SUBTITLE, subtitle);
+        intent.putExtra(PlayerActivity.EXTRA_START_MS, startPositionMs);
+        intent.putExtra(PlayerActivity.EXTRA_START_PERCENT, startPercent);
+        intent.putExtra(PlayerActivity.EXTRA_METADATA, metadataJson);
+        intent.putExtra(PlayerActivity.EXTRA_HAS_NEXT, hasNext);
+        // singleTop: if the player is already open (auto-next), reuse it.
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
     }
 }

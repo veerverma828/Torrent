@@ -45,15 +45,6 @@
             android:screenOrientation="sensorLandscape"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboard|keyboardHidden|uiMode|density" />
 
-        <!-- Isolated process for the P2P torrent engine (libtorrent4j). If its
-             native code hard-crashes (a signal, not a Java exception — nothing
-             in Java can catch that), only this process dies; the main app and
-             player survive and show a recoverable error instead. -->
-        <service
-            android:name=".TorrentEngineService"
-            android:process=":torrent"
-            android:exported="false" />
-
         <!-- Chromecast: the Cast SDK discovers this provider by name. -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"

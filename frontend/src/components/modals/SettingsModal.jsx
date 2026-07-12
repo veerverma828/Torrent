@@ -512,6 +512,23 @@ export default function SettingsModal() {
                   </div>
                 </div>
 
+                <div className="settings-section" style={sectionCardStyle}>
+                  <h3 style={{ marginBottom: "10px" }}>Open Source Licenses</h3>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+                    P2P streaming is powered by{" "}
+                    <a
+                      href="https://github.com/YouROK/TorrServer"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#e50914" }}
+                    >
+                      TorrServer
+                    </a>
+                    , licensed under GPLv3. Source code, license text, and modifications (none
+                    made) are available at the link above.
+                  </p>
+                </div>
+
                 <div className="settings-actions" style={{ justifyContent: "flex-end" }}>
                   <button
                     className="settings-cancel-btn"

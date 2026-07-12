@@ -13,3 +13,6 @@ frontend/android/release.jks
 frontend/android/app/release.jks
 frontend/android/app/src/main/assets/public/
 frontend/android/app/src/main/assets/capacitor.config.json
+
+# graphify knowledge graph output (regenerable)
+graphify-out/
