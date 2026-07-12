@@ -10,6 +10,8 @@ import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Persistent, file-backed logger for diagnosing issues we can't reproduce —
@@ -34,6 +36,12 @@ public class AppLogger {
     private static File logFile;
     private static final SimpleDateFormat TIME_FORMAT =
             new SimpleDateFormat("MM-dd HH:mm:ss", Locale.US);
+    // Routine log writes go through a single background thread so disk I/O
+    // (including the occasional full-file rewrite on rotation) never blocks
+    // whatever main-thread call site logged it (e.g. PlayerActivity.onCreate).
+    // The crash path below deliberately bypasses this and writes inline —
+    // queued work can be lost if the process dies before the executor drains.
+    private static final ExecutorService writeExecutor = Executors.newSingleThreadExecutor();
 
     public static synchronized void init(Context context) {
         if (logFile != null) return;
@@ -48,7 +56,10 @@ public class AppLogger {
         Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             try {
-                error("CRASH", "Uncaught exception on thread " + thread.getName(), throwable);
+                // Synchronous, not queued: the process may be gone before a
+                // background executor gets to drain, and the whole point of
+                // this logger is surviving the crash that follows it.
+                writeSync("E", "CRASH", "Uncaught exception on thread " + thread.getName(), throwable);
             } catch (Throwable ignored) {
                 // Never let logging itself block the crash from surfacing.
             }
@@ -69,11 +80,15 @@ public class AppLogger {
         write("E", tag, message, t);
     }
 
-    private static synchronized void write(String level, String tag, String message, Throwable t) {
+    private static void write(String level, String tag, String message, Throwable t) {
         // Always mirror to logcat too, for when a debugger IS attached.
         if ("E".equals(level)) Log.e(tag, message, t);
         else Log.i(tag, message);
 
+        writeExecutor.execute(() -> writeSync(level, tag, message, t));
+    }
+
+    private static synchronized void writeSync(String level, String tag, String message, Throwable t) {
         if (logFile == null) return; // init() never called — degrade to logcat-only
 
         StringBuilder line = new StringBuilder();

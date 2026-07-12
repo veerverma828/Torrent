@@ -14,6 +14,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manages the bundled TorrServer (github.com/YouROK/TorrServer, GPLv3) binary
@@ -62,6 +64,11 @@ public class TorrServerManager {
     private final Context context;
     private Process process;
     private volatile boolean ready = false;
+    // Signaled as soon as TorrServer's own stdout confirms it's listening
+    // ("Start http server at :8090"), instead of only relying on the 200ms
+    // /echo poll loop below — cuts real-world readiness latency since the
+    // stdout line usually appears well before the next poll tick would fire.
+    private volatile CountDownLatch listeningLatch = new CountDownLatch(1);
 
     private TorrServerManager(Context context) {
         this.context = context;
@@ -97,6 +104,7 @@ public class TorrServerManager {
             String[] argv = {binPath, "-p", String.valueOf(PORT), "-d", dataDir.getAbsolutePath()};
             AppLogger.info(TAG, "Spawning: " + String.join(" ", argv));
 
+            listeningLatch = new CountDownLatch(1);
             ProcessBuilder pb = new ProcessBuilder(argv);
             pb.redirectErrorStream(true);
             process = pb.start();
@@ -139,6 +147,9 @@ public class TorrServerManager {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     AppLogger.info("TorrServer", line);
+                    if (line.contains("Start http server")) {
+                        listeningLatch.countDown();
+                    }
                 }
             } catch (IOException ignored) {
                 // stream closed when the process dies — expected
@@ -168,6 +179,18 @@ public class TorrServerManager {
     private void awaitReady() throws IOException {
         if (ready) return;
         long deadline = System.currentTimeMillis() + READY_TIMEOUT_MS;
+
+        // Wait for stdout's own "listening" confirmation first — usually
+        // arrives faster than the next 200ms poll tick would. Capped well
+        // under the overall deadline; falls through to the poll loop below
+        // regardless (belt-and-suspenders: an older TorrServer build might
+        // log a different line, or the process might already be up before
+        // we started watching).
+        try {
+            listeningLatch.await(Math.min(READY_TIMEOUT_MS, 5000), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ignored) {
+        }
+
         while (System.currentTimeMillis() < deadline) {
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + "/echo").openConnection();

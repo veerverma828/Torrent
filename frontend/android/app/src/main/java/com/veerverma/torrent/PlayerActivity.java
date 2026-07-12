@@ -174,6 +174,11 @@ public class PlayerActivity extends AppCompatActivity {
                 .setSeekBackIncrementMs(10000)
                 .setSeekForwardIncrementMs(10000)
                 .build();
+        // Kept alive across onStop/PiP transitions (see onStop below, which
+        // deliberately doesn't release the player) — foreground mode lets it
+        // retain surfaces/codecs more efficiently across those transitions
+        // instead of tearing them down and rebuilding on return.
+        player.setForegroundMode(true);
         playerView.setPlayer(player);
         playerView.setControllerShowTimeoutMs(3500);
         // Our gesture layer owns all touch handling (tap toggle, swipes,
