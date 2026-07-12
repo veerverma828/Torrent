@@ -11,6 +11,15 @@ export default defineConfig({
     }
   },
   build: {
-    sourcemap: false
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/react-dom|\/react\/|react-router-dom/.test(id)) return "react-vendor";
+          if (id.includes("framer-motion")) return "motion-vendor";
+        },
+      },
+    },
   }
 })

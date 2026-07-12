@@ -1,10 +1,11 @@
-import { memo } from "react";
+import { lazy, memo, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { HardDrive, Users, Server, Play, ChevronDown } from "lucide-react";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 import { usePlayerContext } from "../../context/PlayerContext.jsx";
 import { useStreamActions } from "../../hooks/useStreamActions.js";
-import FileSelectorModal from "../modals/FileSelectorModal.jsx";
+
+const FileSelectorModal = lazy(() => import("../modals/FileSelectorModal.jsx"));
 
 function ResultCard({ item, index }) {
   const navigate = useNavigate();
@@ -152,10 +153,12 @@ function ResultCard({ item, index }) {
       </div>
 
       {isFileModalOpen && (
-        <FileSelectorModal
-          files={fileModalData.files}
-          actionType={fileModalData.actionType}
-        />
+        <Suspense fallback={null}>
+          <FileSelectorModal
+            files={fileModalData.files}
+            actionType={fileModalData.actionType}
+          />
+        </Suspense>
       )}
     </div>
   );

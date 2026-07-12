@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchAddonCatalogRails } from "../../services/addonCatalogs.js";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
@@ -65,6 +65,13 @@ export default function HomePage() {
     return groupByGenre([...movies, ...series]);
   }, [isBrowsing, movies, series]);
 
+  // Stable identity so MediaRail's memo isn't defeated by a fresh closure
+  // every HomePage render (e.g. when addonRails/genreRails recompute).
+  const renderContinueWatchingCard = useCallback(
+    (item) => <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />,
+    [removeFromContinueWatching]
+  );
+
   return (
     <>
       {loading && <Loader />}
@@ -78,9 +85,7 @@ export default function HomePage() {
               title="Continue Watching"
               items={continueWatchingList}
               keyPrefix="cw"
-              renderItem={(item) => (
-                <ContinueWatchingCard item={item} onRemove={removeFromContinueWatching} />
-              )}
+              renderItem={renderContinueWatchingCard}
             />
           )}
 

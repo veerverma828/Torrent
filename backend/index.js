@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import axios from "axios";
 import fs from "fs";
 
@@ -46,6 +47,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "x-admin-code", "x-debrid-key", "Authorization"]
 }));
 
+app.use(compression());
 app.use(express.json());
 
 const logToFile = (message) => {

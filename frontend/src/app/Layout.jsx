@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "../context/AppContext.jsx";
 import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
@@ -110,9 +109,15 @@ export default function Layout() {
 
       <Header />
 
-      {/* Debrid Service Selector */}
+      {/* Debrid Service Selector — plain CSS sliding pill (no framer-motion,
+          which was otherwise the only reason this whole component tree
+          pulled the animation library into the eager main bundle). */}
       <div className="options-container">
-        <div className="inline-flex rounded-full bg-bg-surface p-1 gap-0 text-xs">
+        <div className="relative inline-flex rounded-full bg-bg-surface p-1 gap-0 text-xs">
+          <div
+            className="absolute inset-y-1 w-1/2 rounded-full bg-accent-primary transition-transform duration-300 ease-out -z-10"
+            style={{ transform: debridService === "torbox" ? "translateX(100%)" : "translateX(0)" }}
+          />
           {[
             { value: "real-debrid", label: "Real-Debrid" },
             { value: "torbox", label: "Torbox" },
@@ -127,13 +132,6 @@ export default function Layout() {
                   isActive ? "text-white" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
-                {isActive && (
-                  <motion.div
-                    className="absolute inset-0 rounded-full bg-accent-primary -z-10"
-                    layoutId="debrid-pill"
-                    transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
-                  />
-                )}
                 {opt.label}
               </button>
             );

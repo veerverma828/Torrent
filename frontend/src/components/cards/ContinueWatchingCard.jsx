@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Film } from "lucide-react";
 import { fetchMeta } from "../../services/cinemeta.js";
 import { updateTrackingMetadata } from "../../trackers/progressTracker.js";
 import { useSettingsContext } from "../../context/SettingsContext.jsx";
 
-export default function ContinueWatchingCard({ item, onRemove }) {
+function ContinueWatchingCard({ item, onRemove }) {
   const navigate = useNavigate();
   const { syncMode } = useSettingsContext();
   const [meta, setMeta] = useState({
@@ -110,7 +110,15 @@ export default function ContinueWatchingCard({ item, onRemove }) {
           </svg>
         </button>
         {(meta.poster && !imageError) ? (
-          <img src={meta.poster} alt={meta.title} onError={() => setImageError(true)} />
+          <img
+            src={meta.poster}
+            alt={meta.title}
+            onError={() => setImageError(true)}
+            loading="lazy"
+            decoding="async"
+            width={150}
+            height={225}
+          />
         ) : (
           <div className="poster-placeholder">
             <Film size={32} className="text-text-muted" />
@@ -139,3 +147,5 @@ export default function ContinueWatchingCard({ item, onRemove }) {
     </div>
   );
 }
+
+export default memo(ContinueWatchingCard);

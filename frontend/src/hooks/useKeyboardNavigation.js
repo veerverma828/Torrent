@@ -18,6 +18,27 @@ export function useKeyboardNavigation() {
       el.getAttribute("aria-hidden") !== "true" &&
       getComputedStyle(el).visibility !== "hidden";
 
+    // Cache the focusable-node scan across keydowns — recomputing it via a
+    // full document query + getComputedStyle per node on every arrow press
+    // caused visible jank on pages with many rails/cards. Invalidated by a
+    // MutationObserver whenever the DOM actually changes (rail data loads,
+    // route changes, modals open/close), not on a timer.
+    let focusableCache = null;
+    const invalidateFocusableCache = () => {
+      focusableCache = null;
+    };
+    const domObserver = new MutationObserver(invalidateFocusableCache);
+    domObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "disabled", "aria-hidden", "tabindex"] });
+
+    const getFocusable = () => {
+      if (!focusableCache) {
+        focusableCache = Array.from(
+          document.querySelectorAll('button, input, [tabindex="0"]')
+        ).filter(isVisible);
+      }
+      return focusableCache;
+    };
+
     const handleKeyDown = (e) => {
       if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) {
         let activeEl = document.activeElement;
@@ -41,10 +62,8 @@ export function useKeyboardNavigation() {
 
         e.preventDefault(); // Prevent page scrolling with arrows
 
-        // Find all visible, focusable elements on the screen
-        const focusable = Array.from(
-          document.querySelectorAll('button, input, [tabindex="0"]')
-        ).filter(isVisible);
+        // Find all visible, focusable elements on the screen (cached)
+        const focusable = getFocusable();
 
         const currentIndex = focusable.indexOf(activeEl);
 
@@ -121,6 +140,7 @@ export function useKeyboardNavigation() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("focusin", rememberFocus);
+      domObserver.disconnect();
     };
   }, []);
 }

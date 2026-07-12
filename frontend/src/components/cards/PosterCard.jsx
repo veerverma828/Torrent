@@ -47,6 +47,8 @@ function PosterCard({ item, type }) {
             loading="lazy"
             decoding="async"
             draggable="false"
+            width={150}
+            height={225}
           />
         )}
         {item.imdbRating && (
