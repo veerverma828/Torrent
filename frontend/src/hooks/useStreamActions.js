@@ -6,7 +6,7 @@ import { getFiles, generateLink } from "../services/torrentService.js";
 import { openExternalPlayer, openDirectDownload } from "../services/streamService.js";
 import { copyMagnet as copyMagnetUtil } from "../utils/streamHelpers.js";
 import { showToast } from "../components/common/Toast.jsx";
-import { isNativePlayerAvailable } from "../lib/nativePlayer.js";
+const isNativePlayerAvailable = false;
 
 export function useStreamActions() {
   const navigate = useNavigate();

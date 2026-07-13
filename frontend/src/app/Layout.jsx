@@ -4,12 +4,10 @@ import { useAppContext } from "../context/AppContext.jsx";
 import { usePlayerContext } from "../context/PlayerContext.jsx";
 import { useSettingsContext } from "../context/SettingsContext.jsx";
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation.js";
-import { useHardwareBack } from "../hooks/useHardwareBack.js";
 import { useDebrid } from "../hooks/useDebrid.js";
 import SettingsButton from "../components/layout/SettingsButton.jsx";
 import Header from "../components/layout/Header.jsx";
 import SearchBar from "../components/layout/SearchBar.jsx";
-import UpdateChecker from "../components/UpdateChecker.jsx";
 import Toast from "../components/common/Toast.jsx";
 import "../styles/globals.css";
 import "../styles/animations.css";
@@ -28,7 +26,6 @@ export default function Layout() {
   const { debridService, handleDebridChange } = useDebrid();
 
   useKeyboardNavigation();
-  useHardwareBack();
 
   // Keep the lazy modal/player mounted once first triggered so their internal
   // AnimatePresence can play an exit animation instead of being hard-unmounted.
@@ -158,7 +155,6 @@ export default function Layout() {
         </Suspense>
       )}
 
-      <UpdateChecker />
       <Toast />
     </div>
   );

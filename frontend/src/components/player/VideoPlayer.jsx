@@ -11,13 +11,7 @@ import { RESUME_SKIP_THRESHOLD } from "../../utils/constants.js";
 import { API_URL } from "../../services/api.js";
 import { fetchEpisodeStreams } from "../../services/cinemeta.js";
 import { getFiles, generateLink } from "../../services/torrentService.js";
-import {
-  isNativePlayerAvailable,
-  playNative,
-  playTorrentNative,
-  stopNative,
-  onNativePlayerEvent,
-} from "../../lib/nativePlayer.js";
+const isNativePlayerAvailable = false;
 import PlaybackEventHandler from "./PlaybackEventHandler.js";
 import "../../pages/Player/PlayerPage.css";
 

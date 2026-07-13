@@ -10,10 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.1",
-    "@capacitor/app": "^8.1.0",
-    "@capacitor/cli": "^8.4.1",
-    "@capacitor/core": "^8.4.1",
     "@fontsource-variable/inter": "^5.2.8",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",

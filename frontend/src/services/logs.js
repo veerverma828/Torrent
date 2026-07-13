@@ -1,4 +1,4 @@
-import { isNativePlayerAvailable, getNativeLogs, clearNativeLogs, logClientError } from "../lib/nativePlayer.js";
+const isNativePlayerAvailable = false;
 
 /**
  * App-wide diagnostics log. In the Android app, errors are appended to the
